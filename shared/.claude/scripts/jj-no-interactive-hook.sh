@@ -20,8 +20,11 @@ command=$(echo "$input" | jq -r '.tool_input.command // ""')
 #   jj restore -i  - Interactive restore
 #   jj split -i    - Explicitly interactive split
 
+# Pattern prefix to match jj at start or after command chain operators (&&, ||, ;, |)
+JJ_PREFIX='(^|[[:space:]]&&[[:space:]]|[[:space:]]\|\|[[:space:]]|;[[:space:]]*|\|[[:space:]]*)'
+
 # Commands that always open a diff editor
-if [[ "$command" =~ ^[[:space:]]*(jj)[[:space:]]+(diffedit)([[:space:]]|$) ]]; then
+if [[ "$command" =~ ${JJ_PREFIX}jj[[:space:]]+(diffedit)([[:space:]]|$) ]]; then
     jq -n '{
         hookSpecificOutput: {
             hookEventName: "PreToolUse",
@@ -35,7 +38,7 @@ fi
 # jj split with -i/--interactive or without filesets or without -m opens editor
 # Allow: jj split -m "msg" <files> (has both message and filesets)
 # Block: jj split, jj split <files>, jj split -m "msg", jj split -i <files>
-if [[ "$command" =~ ^[[:space:]]*(jj)[[:space:]]+(split)([[:space:]]|$) ]]; then
+if [[ "$command" =~ ${JJ_PREFIX}jj[[:space:]]+(split)([[:space:]]|$) ]]; then
     # Block if -i or --interactive is present
     if [[ "$command" =~ [[:space:]](-i|--interactive)([[:space:]]|$) ]]; then
         jq -n '{
@@ -74,7 +77,7 @@ if [[ "$command" =~ ^[[:space:]]*(jj)[[:space:]]+(split)([[:space:]]|$) ]]; then
 fi
 
 # jj resolve opens merge tool (unless --list/-l is used)
-if [[ "$command" =~ ^[[:space:]]*(jj)[[:space:]]+(resolve)([[:space:]]|$) ]] && [[ ! "$command" =~ (-l|--list)([[:space:]]|$) ]]; then
+if [[ "$command" =~ ${JJ_PREFIX}jj[[:space:]]+(resolve)([[:space:]]|$) ]] && [[ ! "$command" =~ (-l|--list)([[:space:]]|$) ]]; then
     jq -n '{
         hookSpecificOutput: {
             hookEventName: "PreToolUse",
@@ -86,7 +89,7 @@ if [[ "$command" =~ ^[[:space:]]*(jj)[[:space:]]+(resolve)([[:space:]]|$) ]] && 
 fi
 
 # jj describe without -m/--message/--stdin opens editor
-if [[ "$command" =~ ^[[:space:]]*(jj)[[:space:]]+(describe|desc)([[:space:]]|$) ]] && [[ ! "$command" =~ (-m[[:space:]]|--message[[:space:]]|-m\"|-m\'|--message=|--stdin) ]]; then
+if [[ "$command" =~ ${JJ_PREFIX}jj[[:space:]]+(describe|desc)([[:space:]]|$) ]] && [[ ! "$command" =~ (-m[[:space:]]|--message[[:space:]]|-m\"|-m\'|--message=|--stdin) ]]; then
     jq -n '{
         hookSpecificOutput: {
             hookEventName: "PreToolUse",
@@ -98,7 +101,7 @@ if [[ "$command" =~ ^[[:space:]]*(jj)[[:space:]]+(describe|desc)([[:space:]]|$) 
 fi
 
 # jj commit without -m/--message/--stdin opens editor
-if [[ "$command" =~ ^[[:space:]]*(jj)[[:space:]]+(commit|ci)([[:space:]]|$) ]] && [[ ! "$command" =~ (-m[[:space:]]|--message[[:space:]]|-m\"|-m\'|--message=|--stdin) ]]; then
+if [[ "$command" =~ ${JJ_PREFIX}jj[[:space:]]+(commit|ci)([[:space:]]|$) ]] && [[ ! "$command" =~ (-m[[:space:]]|--message[[:space:]]|-m\"|-m\'|--message=|--stdin) ]]; then
     jq -n '{
         hookSpecificOutput: {
             hookEventName: "PreToolUse",
@@ -110,7 +113,7 @@ if [[ "$command" =~ ^[[:space:]]*(jj)[[:space:]]+(commit|ci)([[:space:]]|$) ]] &
 fi
 
 # Commands with -i/--interactive or --tool flag
-if [[ "$command" =~ ^[[:space:]]*(jj)[[:space:]]+(squash|commit|ci|restore)[[:space:]] ]] && [[ "$command" =~ ([[:space:]](-i|--interactive|--tool)[[:space:]]|[[:space:]](-i|--interactive|--tool)$) ]]; then
+if [[ "$command" =~ ${JJ_PREFIX}jj[[:space:]]+(squash|commit|ci|restore)[[:space:]] ]] && [[ "$command" =~ ([[:space:]](-i|--interactive|--tool)[[:space:]]|[[:space:]](-i|--interactive|--tool)$) ]]; then
     jq -n '{
         hookSpecificOutput: {
             hookEventName: "PreToolUse",
