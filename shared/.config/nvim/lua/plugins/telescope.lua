@@ -85,6 +85,7 @@ return {
 				n = {
 					["<S-C-p>"] = { function() require("telescope.builtin").commands() end, desc = "Open command finder" },
 					["<C-p>"] = { function() require("telescope.builtin").find_files() end, desc = "Open fuzzy finder" },
+					["<leader><leader>"] = { function() require("telescope.builtin").commands() end, desc = "Command palette" },
 					["<leader>b"] = { function() require("telescope.builtin").buffers() end, desc = "Open buffers" },
 					["<leader>ff"] = { function() require("telescope.builtin").find_files() end, desc = "Open fuzzy finder" },
 					["<leader>fF"] = { function() require("telescope.builtin").find_files({ hidden = true }) end, desc = "Open fuzzy finder ALL" },

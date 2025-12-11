@@ -153,3 +153,6 @@ email = "laurynas@fiberplane.com"
 
 [lazyjj]
 diff-tool = "difft"
+
+[gg.ui]
+recent-workspaces = ["/Users/laurynas-fp/Code/work/nocturne", "/Users/laurynas-fp/Code/laulauland/jj-agent"]

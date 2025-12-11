@@ -7,6 +7,13 @@ if test (uname) = "Linux"
 	set -x XDG_CURRENT_DESKTOP "sway"
 end
 
+# mise setup
+if status is-interactive
+  mise activate fish | source
+else
+  mise activate fish --shims | source
+end
+
 if status is-interactive
 	abbr -a v "nvim"
 	abbr -a e "nvim"
@@ -122,3 +129,11 @@ function gmode --description 'Switch between Ghostty normal and tmux modes'
     
     echo "Switched to $choice mode"
 end
+
+# Amp CLI
+export PATH="/Users/laurynas-fp/.amp/bin:$PATH"
+
+# Added by LM Studio CLI (lms)
+set -gx PATH $PATH /Users/laurynas-fp/.cache/lm-studio/bin
+# End of LM Studio CLI section
+

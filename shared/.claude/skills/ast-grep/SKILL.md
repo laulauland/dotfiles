@@ -74,4 +74,3 @@ ast-grep -p '$CALLEE($$$ARGS)' --lang ts --json compact .
 - Finding duplicate logic patterns
 - Searching for React hooks usage
 - Finding async/await patterns
-
