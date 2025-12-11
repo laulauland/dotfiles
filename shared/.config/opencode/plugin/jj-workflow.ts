@@ -1,13 +1,14 @@
 import type { Plugin } from "@opencode-ai/plugin"
 
-const GIT_COMMANDS_PATTERN = /^\s*git\s+(commit|push|pull|checkout|branch|merge|rebase|status|diff|log|add|reset|stash|clone|init|fetch|tag|show|rm|mv|restore|switch|remote|config|clean|cherry-pick|revert|bisect|blame|grep|shortlog|describe|archive|bundle|submodule|worktree|reflog)/
+const GIT_COMMANDS_PATTERN = /(^|&&|\|\||;|\|)\s*git\s+(commit|push|pull|checkout|branch|merge|rebase|status|diff|log|add|reset|stash|clone|init|fetch|tag|show|rm|mv|restore|switch|remote|config|clean|cherry-pick|revert|bisect|blame|grep|shortlog|describe|archive|bundle|submodule|worktree|reflog)/
 
-const JJ_DIFFEDIT_PATTERN = /^\s*jj\s+diffedit(\s|$)/
-const JJ_SPLIT_PATTERN = /^\s*jj\s+split(\s|$)/
-const JJ_RESOLVE_PATTERN = /^\s*jj\s+resolve(\s|$)/
-const JJ_DESCRIBE_PATTERN = /^\s*jj\s+(describe|desc)(\s|$)/
-const JJ_COMMIT_PATTERN = /^\s*jj\s+(commit|ci)(\s|$)/
-const JJ_INTERACTIVE_PATTERN = /^\s*jj\s+(squash|commit|ci|restore)\s/
+const JJ_PREFIX = /(^|&&|\|\||;|\|)\s*/
+const JJ_DIFFEDIT_PATTERN = new RegExp(JJ_PREFIX.source + /jj\s+diffedit(\s|$)/.source)
+const JJ_SPLIT_PATTERN = new RegExp(JJ_PREFIX.source + /jj\s+split(\s|$)/.source)
+const JJ_RESOLVE_PATTERN = new RegExp(JJ_PREFIX.source + /jj\s+resolve(\s|$)/.source)
+const JJ_DESCRIBE_PATTERN = new RegExp(JJ_PREFIX.source + /jj\s+(describe|desc)(\s|$)/.source)
+const JJ_COMMIT_PATTERN = new RegExp(JJ_PREFIX.source + /jj\s+(commit|ci)(\s|$)/.source)
+const JJ_INTERACTIVE_PATTERN = new RegExp(JJ_PREFIX.source + /jj\s+(squash|commit|ci|restore)\s/.source)
 
 const HAS_MESSAGE_FLAG = /(-m\s|--message\s|-m"|--message=|-m'|--stdin)/
 const HAS_INTERACTIVE_FLAG = /(\s(-i|--interactive|--tool)\s|\s(-i|--interactive|--tool)$)/
