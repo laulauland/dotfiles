@@ -1,2 +1,5 @@
 # Normal mode - Ghostty default behavior
-# No keybind overrides - uses Ghostty's built-in defaults
+# Minimal keybinds - uses Ghostty's built-in defaults for most things
+
+# Sessionizer - run in current shell, opens project in new window
+keybind = cmd+o=text:~/.config/tmux/scripts/sessionizer.sh\n

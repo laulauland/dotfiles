@@ -8,6 +8,7 @@ shell-integration = fish
 macos-icon="retro"
 macos-icon-frame="beige"
 shell-integration-features=ssh-env,ssh-terminfo,title,sudo
+window-inherit-working-directory = false
 
 # Keep shift+enter for Claude Code multiline input
 keybind = shift+enter=text:\x1b[200~\x0a\x1b[201~
