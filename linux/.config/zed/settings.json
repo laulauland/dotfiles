@@ -1,0 +1,135 @@
+{
+	"language_models": {
+		"anthropic": {
+			"version": "1"
+		}
+	},
+	"project_panel": {
+		"dock": "right",
+		"auto_reveal_entries": true
+	},
+	"outline_panel": {
+		"dock": "right"
+	},
+	"restore_on_startup": "none",
+	"hard_tabs": true,
+	"ui_font_family": "Berkeley Mono Variable",
+	"default_dock_anchor": "right",
+	"base_keymap": "Atom",
+	"buffer_font_size": 15,
+	"buffer_font_family": "Berkeley Mono Variable",
+	"buffer_font_features": {
+		"calt": false,
+		"liga": false
+	},
+	"terminal": {
+		"font_size": 14,
+		"font_family": "Berkeley Mono Variable",
+		"option_as_meta": true,
+		"line_height": "standard",
+		"dock": "bottom",
+		"copy_on_select": true
+	},
+	"buffer_line_height": {
+		"custom": 1.4
+	},
+	"scrollbar": {
+		"show": "never"
+	},
+	"relative_line_numbers": true,
+	"enable_language_server": true,
+	"autosave": "off",
+	"tab_bar": {
+		"show": true
+	},
+	"format_on_save": "off",
+	"preferred_line_length": 80,
+	"show_whitespaces": "selection",
+	"vim_mode": true,
+	"git": {
+		"git_gutter": "tracked_files",
+		"inline_blame": {
+			"delay_ms": 2000
+		}
+	},
+	"indent_guides": {
+		"enabled": false
+	},
+	"hover_popover_enabled": true,
+	"assistant": {
+		"default_model": {
+			"provider": "zed.dev",
+			"model": "claude-3-5-sonnet-20240620"
+		},
+		"version": "2",
+		"provider": null
+	},
+	"features": {
+		"copilot": true,
+		"inline_completion_provider": "supermaven"
+	},
+	"theme": {
+		"dark": "Sandcastle",
+		"light": "Rosé Pine Dawn",
+		"mode": "dark"
+	},
+	"inlay_hints": {
+		"enabled": false
+	},
+	"lsp": {
+		"biome": {
+			"settings": {
+				"require_config_file": true
+			}
+		}
+	},
+	"use_on_type_format": true,
+	"language_servers": ["!vtsls", "..."],
+	"languages": {
+		"YAML": {
+			"hard_tabs": false,
+			"show_whitespaces": "all"
+		},
+		"Python": {
+			"hard_tabs": false,
+			"show_whitespaces": "all"
+		},
+		"Lua": {
+			"formatter": {
+				"language_server": {
+					"name": "stylua"
+				}
+			}
+		},
+		"Astro": {
+			"language_servers": ["!vtsls", "..."],
+			"format_on_save": "prettier"
+		},
+		"TypeScript": {
+			"language_servers": ["!vtsls", "..."],
+			"format_on_save": "on",
+			"formatter": {
+				"language_server": {
+					"name": "biome"
+				}
+			},
+			"code_actions_on_format": {
+				"source.fixAll.biome": true,
+				"source.organizeImports.biome": true
+			}
+		},
+		"TSX": {
+			"language_servers": ["!vtsls", "..."],
+			"format_on_save": "on",
+			"formatter": {
+				"language_server": {
+					"name": "biome"
+				}
+			},
+			"code_actions_on_format": {
+				"source.fixAll.biome": true,
+				"source.organizeImports.biome": true
+			}
+		}
+	}
+}

@@ -1,0 +1,17 @@
+# theme = xcodedarkhc
+font-family = "Berkeley Mono"
+adjust-cell-height = 20%
+copy-on-select = clipboard
+macos-non-native-fullscreen = true
+macos-titlebar-style = transparent
+shell-integration = fish
+macos-icon="retro"
+macos-icon-frame="beige"
+shell-integration-features=ssh-env,ssh-terminfo,title,sudo
+
+# Keep shift+enter for Claude Code multiline input
+keybind = shift+enter=text:\x1b[200~\x0a\x1b[201~
+
+
+config-file = mode/tmux
+

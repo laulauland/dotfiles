@@ -1,0 +1,81 @@
+"$schema" = "https://jj-vcs.github.io/jj/latest/config-schema.json"
+
+[user]
+name = "Laurynas Keturakis"
+email = "laurynas.keturakis@gmail.com"
+
+[ui]
+default-command = "overview"
+editor = "nvim"
+#pager = "delta"
+diff-formatter = "difft"
+
+[merge-tools.difft]
+program = "difft"
+diff-args = [
+	"--display",
+	"side-by-side",
+	"--color",
+	"always",
+	"$left",
+	"$right",
+]
+
+[aliases]
+overview = ["util", "exec", "--", "sh", "-c", "jj diff --stat && jj log --limit 3"]
+l = ["log", "-r", "all()", "--color=always", "-n", "15"]
+tug = ["bookmark", "move", "--from", "closest_bookmark(@-)", "--to", "@-"]
+pull = ["git", "fetch"]
+push = ["git", "push"]
+pushall = [
+	"util",
+	"exec",
+	"--",
+	"sh",
+	"-c",
+	"jj git remote list | awk '{print $1}' | xargs -I {} sh -c 'echo Pushing to {}... && jj git push --remote {}'",
+]
+sync = ["git", "fetch", "--all-remotes"]
+c = ["commit"]
+ci = ["commit", "--interactive"]
+e = ["edit"]
+s = ["status"]
+parents = ["log", "-r", "parents(@)"]
+merge = [
+	"util",
+	"exec",
+	"--",
+	"sh",
+	"-c",
+	"jj new @ \"$1\" -m \"Merge $1\"",
+	"",
+]
+gi = ["git", "init", "--colocate"]
+
+
+[git]
+auto-local-bookmark = true
+write-change-id-header = true
+sign-on-push = true
+push-new-bookmarks = true
+abandon-unreachable-commits = true
+track-default-bookmark-on-clone = true
+
+[revset-aliases]
+"closest_bookmark(to)" = "heads(::to & bookmarks())"
+"fork_history(to, from)" = "fork_point(to | from)..@"
+'immutable_heads()' = "builtin_immutable_heads() | remote_bookmarks()"
+
+[template-aliases]
+"format_timestamp(timestamp)" = "timestamp.ago()"
+'format_short_change_id(id)' = 'id.shortest()'
+
+# Work configuration - conditional on repository location
+[[--scope]]
+--when.repositories = ["~/Code/work"]
+[--scope.user]
+email = "laurynas@fiberplane.com"
+
+
+[lazyjj]
+diff-tool = "difft"

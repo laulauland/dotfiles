@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+set -o pipefail
+
+# Detect clipboard command
+if command -v pbcopy &> /dev/null; then
+    CLIP_CMD="pbcopy"
+elif command -v xclip &> /dev/null; then
+    CLIP_CMD="xclip -selection clipboard"
+elif command -v wl-copy &> /dev/null; then
+    CLIP_CMD="wl-copy"
+else
+    CLIP_CMD="cat > /tmp/tmux-monitor-copy.txt && echo 'Copied to /tmp/tmux-monitor-copy.txt'"
+fi
+
+# Select pane interactively if not provided
+select_pane() {
+    tmux list-panes -a -F '#{session_name}:#{window_index}.#{pane_index} #{pane_current_command} #{pane_current_path}' | \
+        fzf --prompt="Select pane to monitor: " \
+            --preview="tmux capture-pane -t {1} -p -S -50 -J" \
+            --preview-window=down:70% \
+            --height=100% \
+            --ansi | \
+        awk '{print $1}'
+}
+
+# Determine target pane
+if [ -z "$1" ] || [ "$1" = "." ]; then
+    PANE=$(select_pane)
+    if [ -z "$PANE" ]; then
+        echo "No pane selected"
+        exit 1
+    fi
+else
+    PANE="$1"
+fi
+
+LOG="/tmp/tmux-monitor-$$.log"
+
+cleanup() {
+    tmux pipe-pane -t "$PANE" 2>/dev/null
+    rm -f "$LOG"
+    # Kill all child processes
+    pkill -P $$ 2>/dev/null
+    exit 0
+}
+
+trap cleanup EXIT INT
+
+# Capture existing pane content first (last 2000 lines, preserve colors)
+tmux capture-pane -t "$PANE" -p -S -2000 -e -J > "$LOG"
+
+# Ensure log file exists
+if [ ! -f "$LOG" ]; then
+    touch "$LOG"
+fi
+
+# Start piping pane output to log file
+tmux pipe-pane -t "$PANE" -o "cat >> $LOG"
+
+# Continuous tail with interactive filtering (remove empty lines, preserve colors)
+tail -f "$LOG" 2>/dev/null | rg --line-buffered --color=never '\S' | fzf --ansi \
+    --no-sort \
+    --tail=10000 \
+    --cycle \
+    --preview='printf "%s\n" {}' \
+    --preview-window='down:15:wrap:hidden:+{1}' \
+    --bind 'ctrl-a:select-all' \
+    --bind 'ctrl-d:deselect-all' \
+    --bind '?:toggle-preview' \
+    --bind "enter:execute(echo {} | $CLIP_CMD)+abort" \
+    --header="Monitoring: $PANE | ?: toggle preview | Enter: copy line | Ctrl-C: exit" \
+    --prompt="Filter: "

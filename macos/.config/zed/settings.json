@@ -1,0 +1,215 @@
+{
+	"ui_font_family": ".SystemUIFont",
+	"redact_private_values": true,
+	"ssh_connections": [
+		{
+			"host": "rohan",
+			"username": "lau",
+			"args": [],
+			"projects": []
+		}
+	],
+	"agent_servers": {
+		"claude": {
+			"default_mode": "plan"
+		}
+	},
+	"calls": {
+		"mute_on_join": true
+	},
+	"collaboration_panel": { "button": false },
+	"use_smartcase_search": true,
+	"search_wrap": false,
+	"wrap_guides": [80],
+	"git_panel": { "button": true, "dock": "left" },
+	"project_panel": {
+		"dock": "right",
+		"auto_reveal_entries": true
+	},
+	"outline_panel": {
+		"dock": "right"
+	},
+	"restore_on_startup": "none",
+	"hard_tabs": true,
+	"base_keymap": "Atom",
+	"buffer_font_size": 14.0,
+	"buffer_font_family": "Berkeley Mono",
+	"buffer_font_features": {
+		"calt": false,
+		"liga": false
+	},
+	"terminal": {
+		"font_fallbacks": ["Symbols Nerd Font Mono"],
+		"font_family": "Berkeley Mono",
+		"option_as_meta": true,
+		"line_height": "standard",
+		"dock": "bottom",
+		"copy_on_select": true,
+		"env": {
+			"EDITOR": "zed --wait",
+			"GIT_EDITOR": "zed --wait"
+		}
+	},
+	"use_auto_surround": true,
+	"indent_guides": {
+		"enabled": false
+	},
+	"buffer_line_height": "comfortable",
+	"scrollbar": {
+		"show": "never"
+	},
+	"relative_line_numbers": true,
+	"enable_language_server": true,
+	"autosave": "off",
+	"tab_bar": {
+		"show": true
+	},
+	"toolbar": {
+		"quick_actions": false,
+		"selections_menu": true
+	},
+	"format_on_save": "off",
+	"tabs": {
+		"activate_on_close": "left_neighbour",
+		"file_icons": true,
+		"git_status": true,
+		"show_diagnostics": "all"
+	},
+	"preferred_line_length": 80,
+	"show_whitespaces": "selection",
+	"vim_mode": true,
+	"preview_tabs": {
+		"enable_preview_from_code_navigation": true
+	},
+	"git": {
+		"git_gutter": "tracked_files",
+		"inline_blame": {
+			"delay_ms": 2000
+		}
+	},
+	"hover_popover_enabled": true,
+	"agent": {
+		"message_editor_min_lines": 3,
+		"play_sound_when_agent_done": true,
+		"inline_assistant_model": {
+			"provider": "zed.dev",
+			"model": "claude-3-7-sonnet-latest"
+		},
+		"profiles": {
+			"write": {
+				"name": "Write",
+				"tools": {
+					"open": true,
+					"terminal": true,
+					"batch_tool": true,
+					"code_symbols": true,
+					"copy_path": true,
+					"create_file": true,
+					"delete_path": true,
+					"diagnostics": true,
+					"edit_file": true,
+					"edit_files": true,
+					"fetch": true,
+					"list_directory": true,
+					"move_path": true,
+					"now": true,
+					"find_path": true,
+					"read_file": true,
+					"grep": true,
+					"symbol_info": true,
+					"thinking": true,
+					"create_directory": true
+				},
+				"enable_all_context_servers": true,
+				"context_servers": {}
+			}
+		},
+		"default_profile": "write",
+		"always_allow_tool_actions": true,
+		"dock": "left"
+	},
+	"features": {
+		"edit_prediction_provider": "zed"
+	},
+	"theme": "Zedokai (Filter Octagon)",
+	"inlay_hints": {
+		"enabled": false
+	},
+	"lsp": {
+		"deno": {},
+		"biome": {
+			"settings": {
+				"require_config_file": true
+			}
+		},
+		"astro-language-server": {
+			"initializationOptions": {
+				"contentIntellisense": true
+			}
+		}
+	},
+	"code_actions_on_format": {
+		"source.fixAll.biome": true,
+		"source.organizeImports.biome": true
+	},
+	"use_on_type_format": true,
+	"language_servers": ["!typescript-language-server", "..."],
+	"languages": {
+		"Markdown": {
+			"preferred_line_length": 80,
+			"soft_wrap": "preferred_line_length"
+		},
+		"YAML": {
+			"hard_tabs": false,
+			"show_whitespaces": "all",
+			"indent_guides": {
+				"enabled": true
+			}
+		},
+		"Python": {
+			"hard_tabs": false,
+			"show_whitespaces": "all",
+			"indent_guides": {
+				"enabled": true
+			}
+		},
+		"Astro": {
+			"formatter": "prettier",
+			"language_servers": [
+				"!typescript-language-server",
+				"vtsls",
+				"biome",
+				"..."
+			],
+			"format_on_save": "on"
+		},
+		"TypeScript": {
+			"language_servers": [
+				"!typescript-language-server",
+				"vtsls",
+				"biome",
+				"..."
+			],
+			"format_on_save": "on",
+			"formatter": {
+				"language_server": {
+					"name": "biome"
+				}
+			}
+		},
+		"TSX": {
+			"language_servers": [
+				"!typescript-language-server",
+				"vtsls",
+				"biome",
+				"..."
+			],
+			"format_on_save": "on",
+			"formatter": {
+				"language_server": {
+					"name": "biome"
+				}
+			}
+		}
+	}
+}

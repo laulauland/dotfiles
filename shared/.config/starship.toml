@@ -1,0 +1,72 @@
+add_newline = false
+format = """\
+$time\
+$nix_shell\
+$os\
+$directory\
+$container\
+${custom.jj}\
+$line_break\
+$cmd_duration\
+$status\
+$character\
+"""
+
+[character]
+success_symbol = "[;](bold green)"
+
+[cmd_duration]
+disabled = false
+min_time = 5000
+
+[directory]
+format = "[$path]($style)[$read_only]($read_only_style) "
+read_only = " □ "
+truncate_to_repo = false
+truncation_length = 100
+
+[git_branch]
+symbol = ""
+
+[hostname]
+format = "<[$hostname]($style)>"
+ssh_only = true
+style = "bold dimmed white"
+trim_at = "-"
+
+[line_break]
+disabled = false
+
+[memory_usage]
+disabled = false
+format = "[$symbol$ram]($style) "
+style = "bold dimmed white"
+symbol = "🐏"
+threshold = 75
+
+[nix_shell]
+disabled = false
+format = "[$symbol$name]($style) "
+symbol = "※ "
+
+[status]
+disabled = false
+format = "[$symbol](fg:red)"
+map_symbol = true
+not_executable_symbol = "Can't Execute"
+not_found_symbol = "Not Found"
+recognize_signal_code = true
+success_symbol = ""
+symbol = "×"
+
+[time]
+disabled = false
+format = "[\\[$time\\]](dimmed) "
+
+[custom.jj]
+command = "prompt"
+format = "$output"
+ignore_timeout = true
+shell = ["starship-jj", "--ignore-working-copy", "starship"]
+use_stdin = false
+when = true

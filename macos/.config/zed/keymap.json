@@ -1,0 +1,137 @@
+[
+	{
+		"bindings": {
+			"cmd-b": "workspace::ToggleRightDock",
+			"alt-cmd-b": "workspace::ToggleLeftDock",
+			"shift-cmd-b": "git::Branch",
+			"alt-t": "task::Spawn",
+			"shift-alt-t": "task::Rerun",
+			"shift-cmd-c": "git::Branch",
+			"cmd-i": "agent::ToggleFocus",
+			"shift-escape": "workspace::ToggleBottomDock",
+			"ctrl-tab": "tab_switcher::Toggle",
+			"ctrl-x enter": "workspace::ToggleZoom",
+			"ctrl-enter": "editor::OpenExcerpts",
+			"ctrl-.": "editor::ToggleCodeActions",
+			"ctrl-1": ["workspace::ActivatePane", 0],
+			"ctrl-2": ["workspace::ActivatePane", 1],
+			"ctrl-3": ["workspace::ActivatePane", 2],
+			"ctrl-4": ["workspace::ActivatePane", 3],
+			"ctrl-5": ["workspace::ActivatePane", 4],
+			"ctrl-6": ["workspace::ActivatePane", 5],
+			"ctrl-7": ["workspace::ActivatePane", 6],
+			"ctrl-8": ["workspace::ActivatePane", 7],
+			"ctrl-9": ["workspace::ActivatePane", 8]
+		}
+	},
+	{
+		"context": "!menu && !VimWaiting && !edit_prediction",
+		"bindings": {
+			"ctrl-h": "workspace::ActivatePaneLeft",
+			"ctrl-l": "workspace::ActivatePaneRight",
+			"ctrl-k": "workspace::ActivatePaneUp",
+			"ctrl-j": "workspace::ActivatePaneDown"
+		}
+	},
+	{
+		"context": "Editor && mode == full",
+		"bindings": {
+			"cmd-l": "assistant::QuoteSelection"
+		}
+	},
+	{
+		"context": "TabSwitcher",
+		"bindings": {
+			"j": "vim::SelectNext",
+			"k": "vim::SelectPrevious",
+			"d": "tab_switcher::CloseSelectedItem"
+		}
+	},
+	{
+		"context": "Editor && VimControl && !VimWaiting && !menu",
+		"bindings": {
+			"shift-k": "editor::Hover",
+			"space d": "editor::Hover",
+			"space b": "tab_switcher::Toggle",
+			"space a": "pane::TogglePinTab",
+			"enter": "editor::SelectLargerSyntaxNode",
+			"backspace": "editor::SelectSmallerSyntaxNode",
+			"space /": "editor::ToggleComments",
+			"space f f": "file_finder::Toggle",
+			"space f w": "pane::DeploySearch",
+			"space g d": "editor::GoToDefinitionSplit",
+			"space g t": "editor::GoToTypeDefinitionSplit",
+			"space c a": "editor::ToggleCodeActions",
+			"space e": "project_panel::ToggleFocus",
+			"space t": "workspace::NewCenterTerminal",
+			"space D": "diagnostics::Deploy",
+			"cmd-k": "assistant::InlineAssist",
+			"ctrl-shift-enter": [
+				"assistant::InlineAssist",
+				{ "prompt": "Apply changes from context" }
+			],
+			"g t": "editor::GoToTypeDefinition",
+			"g i": "editor::GoToImplementation",
+			"g o": "editor::OpenUrl",
+			"space g b": "git::Blame",
+			"ctrl-d": ["editor::MovePageDown", { "center_cursor": true }],
+			"ctrl-u": ["editor::MovePageUp", { "center_cursor": true }]
+		}
+	},
+	{
+		"context": "VimControl && !menu && Editor && vim_mode == normal && !VimWaiting && !menu",
+		"bindings": {
+			"space F": "editor::Format",
+			"space q": "pane::CloseActiveItem",
+			"space w": "workspace::Save",
+			"space v": "pane::SplitRight",
+			"space h": "pane::SplitDown",
+			"space r": "editor::Rename",
+			"g r": "editor::FindAllReferences"
+		}
+	},
+	{
+		"context": "Editor && vim_mode == visual",
+		"bindings": {
+			"shift-j": "editor::MoveLineDown",
+			"shift-k": "editor::MoveLineUp"
+		}
+	},
+	{
+		"context": "ProjectPanel && not_editing",
+		"bindings": {
+			"o": "project_panel::RevealInFileManager",
+			"r": "project_panel::Rename"
+		}
+	},
+	{
+		"context": "Terminal",
+		"bindings": {
+			"cmd-k": "assistant::InlineAssist",
+			"cmd-d": "pane::SplitRight",
+			"shift-cmd-d": "pane::SplitDown"
+		}
+	},
+	{
+		"context": "Picker > Editor",
+		"bindings": {
+			"ctrl-enter": ["picker::ConfirmInput", { "secondary": false }],
+			"cmd-ctrl-enter": ["picker::ConfirmInput", { "secondary": true }]
+		}
+	},
+	{
+		"context": "AgentDiff",
+		"use_key_equivalents": true,
+		"bindings": {
+			"shift-cmd-backspace": "agent::Reject"
+		}
+	},
+	{
+		"context": "MessageEditor > Editor",
+		"use_key_equivalents": true,
+		"bindings": {
+			"cmd-.": "agent::ToggleProfileSelector",
+			"cmd-/": "agent::ToggleModelSelector"
+		}
+	}
+]

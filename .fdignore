@@ -1,0 +1,2 @@
+# Don't ignore .config directories in this dotfiles repo
+!.config/

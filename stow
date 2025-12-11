@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+
+# check if stow is installed, error with message if not
+
+#!/usr/bin/env bash
+
+if ! command -v stow &> /dev/null
+then
+    echo "stow is not installed. Please install it first."
+    exit 1
+fi
+
+OPERATING_SYSTEM=$(uname)
+
+if [ "$OPERATING_SYSTEM" == "Darwin" ]; then 
+	stow --verbose --restow --target ~ --dotfiles shared macos
+elif [ "$OPERATING_SYSTEM" == "Linux" ]; then
+	stow --verbose --restow --target ~ --dotfiles shared linux
+else
+	echo "Your operating system is not supported."
+fi

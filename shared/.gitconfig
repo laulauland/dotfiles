@@ -1,0 +1,75 @@
+[user]
+  name = Laurynas Keturakis
+  email = laurynas.keturakis@gmail.com
+
+[includeIf "gitdir:~/Code/work/"]
+  path = ~/.gitconfig-work
+
+[includeIf "gitdir:~/code/work/"]
+  path = ~/.gitconfig-work
+
+[alias]
+	l = log --pretty=format:'%C(yellow)%h%Creset %Cgreen%ad%Creset | %s%Creset %C(bold blue)[%an]%Creset' --date=short --graph
+	ls = ls-files
+	s = status
+	c = commit
+	cm = !git diff --staged --compact-summary && gum input --header '\nCommit message:' --header.foreground white | xargs -I {} git commit -m "{}"
+	co = checkout
+	sup = submodule update --init --recursive
+	dft = difftool
+	w = worktree
+	wclone = "!f() { \
+    repo=$(basename \"$1\") && \
+    mkdir \"$repo.git\" && cd \"$repo.git\" && \
+    git clone --bare \"$1\" .bare && \
+    ln -s .bare .git; \
+  }; f"
+
+[push]
+	default = current
+	followTags = true
+
+[pull]
+	rebase = true
+
+[init]
+	defaultBranch = main
+
+[remote]
+	pushDefault = origin
+
+[diff]
+    tool = difftastic
+
+[difftool]
+    prompt = false
+
+[difftool "difftastic"]
+    cmd = difft "$LOCAL" "$REMOTE"
+
+[pager]
+	difftool = true
+
+[merge]
+	tool = nvimdiff3
+
+[branch]
+	autosetuprebase = always
+
+[commit]
+	verbose = true
+
+
+[credential "https://github.com"]
+	helper = 
+	helper = !/opt/homebrew/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper = 
+	helper = !/opt/homebrew/bin/gh auth git-credential
+[filter "lfs"]
+	clean = git-lfs clean -- %f
+	smudge = git-lfs smudge -- %f
+	process = git-lfs filter-process
+	required = true
+[core]
+	editor = nvim

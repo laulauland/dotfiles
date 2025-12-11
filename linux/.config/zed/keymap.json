@@ -1,0 +1,117 @@
+[
+	{
+		"bindings": {
+			"cmd-b": "workspace::ToggleRightDock",
+			"shift-escape": "workspace::ToggleBottomDock",
+			"ctrl-tab": "tab_switcher::Toggle",
+			"ctrl-x enter": "workspace::ToggleZoom",
+			"ctrl-enter": "editor::OpenExcerpts",
+			"cmd-p": "file_finder::Toggle",
+			"shift-cmd-p": "command_palette::Toggle",
+			"cmd-t": "file_finder::Toggle",
+			"cmd-w": "pane::CloseActiveItem",
+			"ctrl-w": "pane::CloseActiveItem",
+			"ctrl-a": "editor::SelectAll",
+			"cmd-a": "editor::SelectAll",
+			"cmd-k": "assistant::InlineAssist",
+			"cmd-shift-e": "project_panel::ToggleFocus"
+		}
+	},
+	{
+		"context": "!menu && !VimWaiting && !inline_completion",
+		"bindings": {
+			"ctrl-h": ["workspace::ActivatePaneInDirection", "Left"],
+			"ctrl-l": ["workspace::ActivatePaneInDirection", "Right"],
+			"ctrl-k": ["workspace::ActivatePaneInDirection", "Up"],
+			"ctrl-j": ["workspace::ActivatePaneInDirection", "Down"]
+		}
+	},
+	{ "context": "Terminal", "bindings": { "ctrl-p": null } },
+	{
+		"context": "Picker || menu || showing_completions",
+		"bindings": {
+			"up": "menu::SelectPrev",
+			"down": "menu::SelectNext",
+			"ctrl-p": "menu::SelectPrev",
+			"ctrl-n": "menu::SelectNext"
+		}
+	},
+	{
+		"context": "TabSwitcher",
+		"bindings": {
+			"k": "menu::SelectPrev",
+			"j": "menu::SelectNext",
+			"d": "tab_switcher::CloseSelectedItem"
+		}
+	},
+	{
+		"context": "Editor && mode == full",
+		"bindings": {
+			"cmd-l": "assistant::QuoteSelection",
+			"cmd-d": "editor::SelectNext"
+		}
+	},
+	{
+		"context": "Editor && VimControl && !VimWaiting && !menu",
+		"bindings": {
+			"shift-k": "editor::Hover",
+			"space b": "tab_switcher::Toggle",
+			"space d": "editor::Hover",
+			"enter": "editor::SelectLargerSyntaxNode",
+			"backspace": "editor::SelectSmallerSyntaxNode",
+			"space /": "editor::ToggleComments",
+			"space f f": "file_finder::Toggle",
+			"space f w": "pane::DeploySearch",
+			"space g d": "editor::GoToDefinitionSplit",
+			"space g t": "editor::GoToTypeDefinitionSplit",
+			"space t": "workspace::NewCenterTerminal",
+			"space D": "diagnostics::Deploy",
+			"space c a": "editor::ToggleCodeActions",
+			"space e": "project_panel::ToggleFocus",
+			"cmd-k": "assistant::InlineAssist",
+			"g t": "editor::GoToTypeDefinition",
+			"g i": "editor::GoToImplementation",
+			"space G b": "editor::ToggleGitBlame",
+			"ctrl-d": ["editor::MovePageDown", { "center_cursor": true }],
+			"ctrl-u": ["editor::MovePageUp", { "center_cursor": true }]
+		}
+	},
+	{
+		"context": "VimControl && !menu && Editor && vim_mode == normal && !VimWaiting && !menu",
+		"bindings": {
+			"space F": "editor::Format",
+			"space q": "pane::CloseActiveItem",
+			"space w": "workspace::Save",
+			"space v": "pane::SplitRight",
+			"space h": "pane::SplitDown",
+			"space r": "editor::Rename",
+			"g r": "editor::FindAllReferences"
+		}
+	},
+	{
+		"context": "Editor && vim_mode == visual",
+		"bindings": {
+			"shift-j": "editor::MoveLineDown",
+			"shift-k": "editor::MoveLineUp"
+		}
+	},
+	{
+		"context": "Editor && vim_mode == insert",
+		"bindings": {
+			"ctrl-y": "editor::ConfirmCompletion",
+			"tab": "editor::Tab"
+		}
+	},
+	{
+		"context": "Editor && vim_mode == insert && inline_completion",
+		"bindings": {
+			"ctrl-y": "editor::AcceptInlineCompletion"
+		}
+	},
+	{
+		"context": "ProjectPanel && not_editing",
+		"bindings": {
+			"o": "project_panel::RevealInFileManager"
+		}
+	}
+]

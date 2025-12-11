@@ -1,0 +1,3 @@
+-- This file is now handled by the lsp.lua plugin configuration
+-- The native vim.lsp.enable() approach has been replaced with mason + lspconfig
+-- for better server management and configuration
