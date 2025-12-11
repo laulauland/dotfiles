@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Download a GitHub repository without git history
+# Usage: ungit <github_url> [target_dir]
+
+usage() {
+    echo "Usage: ungit <github_url> [target_dir]"
+    echo ""
+    echo "Downloads a GitHub repository without .git history."
+    echo ""
+    echo "Examples:"
+    echo "  ungit https://github.com/TanStack/db"
+    echo "  ungit https://github.com/TanStack/db my-db"
+    echo "  ungit TanStack/db"
+    exit 1
+}
+
+if [ -z "${1:-}" ]; then
+    usage
+fi
+
+url="$1"
+
+# Handle short form (owner/repo)
+if [[ ! "$url" =~ ^https?:// ]]; then
+    url="https://github.com/$url"
+fi
+
+# Extract owner/repo from URL
+if [[ "$url" =~ github\.com[/:]([^/]+)/([^/]+)(\.git)?$ ]]; then
+    owner="${BASH_REMATCH[1]}"
+    repo="${BASH_REMATCH[2]}"
+    repo="${repo%.git}"
+else
+    echo "Error: Could not parse GitHub URL: $url"
+    exit 1
+fi
+
+# Determine target directory
+target="${2:-$repo}"
+
+if [ -e "$target" ]; then
+    echo "Error: $target already exists"
+    exit 1
+fi
+
+tarball_url="https://github.com/$owner/$repo/archive/refs/heads/main.tar.gz"
+
+echo "Downloading $owner/$repo..."
+
+# Try main branch first, fall back to master
+if ! curl -sfL "$tarball_url" | tar -xz 2>/dev/null; then
+    tarball_url="https://github.com/$owner/$repo/archive/refs/heads/master.tar.gz"
+    if ! curl -sfL "$tarball_url" | tar -xz 2>/dev/null; then
+        echo "Error: Could not download repository (tried main and master branches)"
+        exit 1
+    fi
+    mv "$repo-master" "$target"
+else
+    mv "$repo-main" "$target"
+fi
+
+echo "Downloaded to $target/"
