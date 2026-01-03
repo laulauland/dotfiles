@@ -102,7 +102,6 @@ auto-track-bookmarks = "glob:*"
 [git]
 write-change-id-header = true
 sign-on-push = true
-push-new-bookmarks = true
 abandon-unreachable-commits = true
 track-default-bookmark-on-clone = true
 private-commits = "description(glob:'wip:*') | description(glob:'private:*')"
