@@ -1,5 +1,5 @@
 ---
-name: uv-python-manager
+name: uv-python
 description: Standardize Python development using UV - a fast, unified package and project manager. Use when creating Python projects, managing dependencies, setting up virtual environments, installing Python versions, or optimizing Python workflows. Replaces pip, virtualenv, pyenv, poetry, and pipx with a single 10-100x faster tool.
 ---
 
