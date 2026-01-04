@@ -1,0 +1,10 @@
+{
+  "name": "file-based-compaction-hook",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "@mariozechner/pi-ai": "*",
+    "@mariozechner/pi-coding-agent": "*",
+    "just-bash": "^1.4.1"
+  }
+}
