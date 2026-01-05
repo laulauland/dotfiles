@@ -14,11 +14,112 @@ import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { convertToLlm } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { Bash } from "just-bash";
+import * as fs from "fs";
+import * as path from "path";
+import { homedir } from "os";
+
+// Debug logging configuration
+const DEBUG_COMPACTIONS = true;
+const COMPACTIONS_DIR = path.join(homedir(), ".pi", "agent", "compactions");
+const DEBUG_LOG_FILE = path.join(COMPACTIONS_DIR, "debug.log");
+
+function debugLog(message: string): void {
+    if (!DEBUG_COMPACTIONS) return;
+    try {
+        fs.mkdirSync(COMPACTIONS_DIR, { recursive: true });
+        const timestamp = new Date().toISOString();
+        fs.appendFileSync(DEBUG_LOG_FILE, `[${timestamp}] ${message}\n`);
+    } catch {}
+}
+
+interface CompactionDebugData {
+    timestamp: string;
+    sessionId: string;
+    input: {
+        messagesToSummarize: any[];
+        turnPrefixMessages: any[];
+        branchEntries: any[]; // Raw session entries for comparison
+        tokensBefore: number;
+        previousSummary: string | null;
+        llmMessages: any[]; // The converted messages sent to the virtual FS
+    };
+    trajectory: Message[]; // All messages in the compaction conversation
+    output: {
+        summary: string;
+        firstKeptEntryId: string;
+        tokensBefore: number;
+    } | null;
+    error?: string;
+    iterationsUsed: number;
+    model: string;
+}
+
+// Deep clone helper that handles potential Proxy objects and circular refs
+function safeClone(obj: any): any {
+    try {
+        // For arrays, map each element
+        if (Array.isArray(obj)) {
+            return obj.map((item) => safeClone(item));
+        }
+        // For objects, spread to break Proxy and then recurse
+        if (obj && typeof obj === "object") {
+            const result: any = {};
+            for (const key of Object.keys(obj)) {
+                try {
+                    result[key] = safeClone(obj[key]);
+                } catch {
+                    result[key] = "[unserializable]";
+                }
+            }
+            return result;
+        }
+        return obj;
+    } catch {
+        return "[unserializable]";
+    }
+}
+
+function saveCompactionDebug(data: CompactionDebugData): void {
+    if (!DEBUG_COMPACTIONS) return;
+
+    try {
+        fs.mkdirSync(COMPACTIONS_DIR, { recursive: true });
+
+        // Create filename with timestamp and session ID
+        const sanitizedTimestamp = data.timestamp.replace(/[:.]/g, "-");
+        const shortSessionId = data.sessionId.slice(0, 8);
+        const filename = `${sanitizedTimestamp}_${shortSessionId}.json`;
+        const filepath = path.join(COMPACTIONS_DIR, filename);
+
+        // Use safeClone to handle potential Proxy objects
+        const safeData = safeClone(data);
+        fs.writeFileSync(filepath, JSON.stringify(safeData, null, 2));
+    } catch (err) {
+        // Silently fail - don't break compaction for debugging issues
+        debugLog(`Failed to save compaction debug data: ${err}`);
+    }
+}
 
 export default function (pi: ExtensionAPI) {
     pi.on("session_before_compact", async (event, ctx) => {
+        // Log everything we receive
+        debugLog(`event keys: ${Object.keys(event)}`);
+        debugLog(`event.preparation keys: ${Object.keys(event.preparation || {})}`);
+        debugLog(`branchEntries length: ${event.branchEntries?.length}`);
+        
         const { preparation, signal } = event;
+        debugLog(`preparation.messagesToSummarize: ${preparation.messagesToSummarize?.length}, type: ${typeof preparation.messagesToSummarize}, isArray: ${Array.isArray(preparation.messagesToSummarize)}`);
+        debugLog(`preparation.turnPrefixMessages: ${preparation.turnPrefixMessages?.length}, type: ${typeof preparation.turnPrefixMessages}`);
+        debugLog(`preparation.tokensBefore: ${preparation.tokensBefore}`);
+        debugLog(`preparation.firstKeptEntryId: ${preparation.firstKeptEntryId}`);
+        
         const { messagesToSummarize, turnPrefixMessages, tokensBefore, firstKeptEntryId, previousSummary } = preparation;
+        
+        debugLog(`after destructure - messagesToSummarize: ${messagesToSummarize?.length}, turnPrefixMessages: ${turnPrefixMessages?.length}`);
+
+        // Get session ID for debugging
+        const sessionId = ctx.sessionManager.getSessionId() || `unknown-${Date.now()}`;
+        debugLog(`sessionId: ${sessionId}`);
 
         const model = getModel("anthropic", "claude-haiku-4-5");
         if (!model) {
@@ -43,6 +144,27 @@ export default function (pi: ExtensionAPI) {
         });
 
         ctx.ui.notify(`Compacting ${allMessages.length} messages with ${model.id}`, "info");
+
+        debugLog(`allMessages length: ${allMessages.length}`);
+        debugLog(`llmMessages length: ${llmMessages.length}`);
+        
+        // Initialize debug data - clone immediately to capture current state
+        const debugData: CompactionDebugData = {
+            timestamp: new Date().toISOString(),
+            sessionId,
+            input: {
+                messagesToSummarize: safeClone(messagesToSummarize),
+                turnPrefixMessages: safeClone(turnPrefixMessages),
+                branchEntries: safeClone(event.branchEntries),
+                tokensBefore,
+                previousSummary: previousSummary || null,
+                llmMessages: safeClone(llmMessages),
+            },
+            trajectory: [],
+            output: null,
+            iterationsUsed: 0,
+            model: model.id,
+        };
 
         const previousContext = previousSummary ? `\n\nPrevious session summary for context:\n${previousSummary}` : "";
 
@@ -77,13 +199,16 @@ Summarize:
 
 Format as markdown. Output only the summary without preamble.`;
 
-        const messages: Message[] = [
-            {
-                role: "user",
-                content: [{ type: "text", text: "Summarize the conversation in /conversation.json. Explore the entire file - beginning, middle, and end." }],
-                timestamp: Date.now(),
-            } satisfies UserMessage,
-        ];
+        const initialUserMessage: UserMessage = {
+            role: "user",
+            content: [{ type: "text", text: "Summarize the conversation in /conversation.json. Explore the entire file - beginning, middle, and end." }],
+            timestamp: Date.now(),
+        };
+
+        const messages: Message[] = [initialUserMessage];
+
+        // Track trajectory starting with the initial user message
+        debugData.trajectory.push(initialUserMessage);
 
         try {
             let iterations = 0;
@@ -101,7 +226,7 @@ Format as markdown. Output only the summary without preamble.`;
                 // If model wants to use tools, process them
                 if (toolCalls.length > 0 || response.stopReason === "toolUse") {
                     // Add assistant message with tool use
-                    messages.push({
+                    const assistantMessage: AssistantMessage = {
                         role: "assistant",
                         content: response.content,
                         api: response.api,
@@ -110,7 +235,9 @@ Format as markdown. Output only the summary without preamble.`;
                         usage: response.usage,
                         stopReason: response.stopReason,
                         timestamp: Date.now(),
-                    } satisfies AssistantMessage);
+                    };
+                    messages.push(assistantMessage);
+                    debugData.trajectory.push(assistantMessage);
 
                     // Execute tools in virtual bash and add results
                     for (const toolCall of toolCalls) {
@@ -132,14 +259,16 @@ Format as markdown. Output only the summary without preamble.`;
                                 isError = true;
                             }
                             // Use pi-ai's ToolResultMessage format
-                            messages.push({
+                            const toolResultMessage: ToolResultMessage = {
                                 role: "toolResult",
                                 toolCallId: toolCall.id,
                                 toolName: toolCall.name,
                                 content: [{ type: "text", text: result }],
                                 isError,
                                 timestamp: Date.now(),
-                            } satisfies ToolResultMessage);
+                            };
+                            messages.push(toolResultMessage);
+                            debugData.trajectory.push(toolResultMessage);
                         }
                     }
                     iterations++;
@@ -152,10 +281,34 @@ Format as markdown. Output only the summary without preamble.`;
                     .map((c) => c.text)
                     .join("\n");
 
+                // Add final assistant message to trajectory
+                const finalAssistantMessage: AssistantMessage = {
+                    role: "assistant",
+                    content: response.content,
+                    api: response.api,
+                    provider: response.provider,
+                    model: response.model,
+                    usage: response.usage,
+                    stopReason: response.stopReason,
+                    timestamp: Date.now(),
+                };
+                debugData.trajectory.push(finalAssistantMessage);
+                debugData.iterationsUsed = iterations;
+
                 if (!summary.trim()) {
                     ctx.ui.notify("Compaction summary was empty, using default", "warning");
+                    debugData.error = "Empty summary";
+                    saveCompactionDebug(debugData);
                     return;
                 }
+
+                // Save successful compaction debug data
+                debugData.output = {
+                    summary,
+                    firstKeptEntryId,
+                    tokensBefore,
+                };
+                saveCompactionDebug(debugData);
 
                 return {
                     compaction: {
@@ -166,11 +319,20 @@ Format as markdown. Output only the summary without preamble.`;
                 };
             }
 
+            debugData.iterationsUsed = maxIterations;
+            debugData.error = "Max iterations reached";
+            saveCompactionDebug(debugData);
+
             ctx.ui.notify("Compaction reached max iterations, using default", "warning");
             return;
         } catch (error) {
             const message = error instanceof Error ? error.message : String(error);
-            if (!signal.aborted) ctx.ui.notify(`Compaction failed: ${message}`, "error");
+            debugData.error = message;
+            debugData.iterationsUsed = messages.filter((m) => m.role === "assistant").length;
+            if (!signal.aborted) {
+                saveCompactionDebug(debugData);
+                ctx.ui.notify(`Compaction failed: ${message}`, "error");
+            }
             return;
         }
     });
