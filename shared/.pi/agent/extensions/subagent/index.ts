@@ -22,7 +22,7 @@ import { StringEnum } from "@mariozechner/pi-ai";
 import { type ExtensionAPI, getMarkdownTheme } from "@mariozechner/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
-import { type AgentConfig, type AgentScope, discoverAgents } from "./agents.js";
+import { type AgentConfig, type AgentScope, discoverAgents, loadAgentsFromDir } from "./agents.js";
 
 const MAX_PARALLEL_TASKS = 8;
 const MAX_CONCURRENCY = 4;
@@ -404,16 +404,35 @@ const SubagentParams = Type.Object({
 	cwd: Type.Optional(Type.String({ description: "Working directory for the agent process (single mode)" })),
 });
 
+function discoverUserAgents(): AgentConfig[] {
+	const userAgentsDir = path.join(os.homedir(), ".pi", "agent", "agents");
+	return loadAgentsFromDir(userAgentsDir, "user");
+}
+
+function buildToolDescription(): string {
+	const baseDescription = [
+		"Delegate tasks to specialized subagents with isolated context.",
+		"Modes: single (agent + task), parallel (tasks array), chain (sequential with {previous} placeholder).",
+		'Default agent scope is "user" (from ~/.pi/agent/agents).',
+		'To enable project-local agents in .pi/agents, set agentScope: "both" (or "project").',
+	].join(" ");
+
+	const userAgents = discoverUserAgents();
+	if (userAgents.length === 0) {
+		return baseDescription;
+	}
+
+	// Sort alphabetically for consistent ordering
+	userAgents.sort((a, b) => a.name.localeCompare(b.name));
+	const agentList = userAgents.map((a) => `  - ${a.name}: ${a.description}`).join("\n");
+	return `${baseDescription}\n\nAvailable agents:\n${agentList}`;
+}
+
 export default function (pi: ExtensionAPI) {
 	pi.registerTool({
 		name: "subagent",
 		label: "Subagent",
-		description: [
-			"Delegate tasks to specialized subagents with isolated context.",
-			"Modes: single (agent + task), parallel (tasks array), chain (sequential with {previous} placeholder).",
-			'Default agent scope is "user" (from ~/.pi/agent/agents).',
-			'To enable project-local agents in .pi/agents, set agentScope: "both" (or "project").',
-		].join(" "),
+		description: buildToolDescription(),
 		parameters: SubagentParams,
 
 		async execute(_toolCallId, params, onUpdate, ctx, signal) {

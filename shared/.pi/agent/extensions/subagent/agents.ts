@@ -39,21 +39,41 @@ function parseFrontmatter(content: string): { frontmatter: Record<string, string
 	const frontmatterBlock = normalized.slice(4, endIndex);
 	const body = normalized.slice(endIndex + 4).trim();
 
-	for (const line of frontmatterBlock.split("\n")) {
+	const lines = frontmatterBlock.split("\n");
+	let i = 0;
+	while (i < lines.length) {
+		const line = lines[i];
 		const match = line.match(/^([\w-]+):\s*(.*)$/);
 		if (match) {
+			const key = match[1];
 			let value = match[2].trim();
+
+			// Handle YAML multiline string (| or |-)
+			if (value === "|" || value === "|-") {
+				const multilineLines: string[] = [];
+				i++;
+				// Collect indented lines
+				while (i < lines.length && (lines[i].startsWith("  ") || lines[i] === "")) {
+					multilineLines.push(lines[i].replace(/^  /, ""));
+					i++;
+				}
+				frontmatter[key] = multilineLines.join("\n").trim();
+				continue; // Skip the i++ at the end since we already advanced
+			}
+
+			// Handle quoted strings
 			if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
 				value = value.slice(1, -1);
 			}
-			frontmatter[match[1]] = value;
+			frontmatter[key] = value;
 		}
+		i++;
 	}
 
 	return { frontmatter, body };
 }
 
-function loadAgentsFromDir(dir: string, source: "user" | "project"): AgentConfig[] {
+export function loadAgentsFromDir(dir: string, source: "user" | "project"): AgentConfig[] {
 	const agents: AgentConfig[] = [];
 
 	if (!fs.existsSync(dir)) {
