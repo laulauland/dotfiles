@@ -13,10 +13,15 @@
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import * as readline from "node:readline";
 import { Type } from "@sinclair/typebox";
 import { StringEnum } from "@mariozechner/pi-ai";
 import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import {
+	parseSessionEntries,
+	type FileEntry,
+	type SessionEntry,
+	type SessionHeader,
+} from "@mariozechner/pi-coding-agent";
 import { Text, Container, Spacer } from "@mariozechner/pi-tui";
 
 // ============================================================================
@@ -30,27 +35,6 @@ interface SessionMeta {
 	filePath: string;
 	fileSize: number;
 	modifiedAt: Date;
-}
-
-interface SessionEntry {
-	type: string;
-	id: string;
-	parentId: string | null;
-	timestamp: string;
-	message?: {
-		role: string;
-		content: Array<{ type: string; text?: string; name?: string; arguments?: unknown }>;
-		model?: string;
-		usage?: { input: number; output: number; cost?: { total: number } };
-		stopReason?: string;
-		toolCallId?: string;
-		toolName?: string;
-	};
-	summary?: string;
-	provider?: string;
-	modelId?: string;
-	thinkingLevel?: string;
-	cwd?: string;
 }
 
 interface ThreadSearchResult {
@@ -96,7 +80,7 @@ interface ReadThreadDetails {
 const indexCache = new Map<string, SessionMeta>();
 
 // ============================================================================
-// Session Parsing
+// Session Parsing Utilities
 // ============================================================================
 
 function getSessionsDir(): string {
@@ -108,7 +92,21 @@ function cwdFromDirName(dirName: string): string {
 	return dirName.replace(/^--/, "/").replace(/--$/, "").replace(/-/g, "/");
 }
 
-async function parseSessionHeader(filePath: string): Promise<SessionMeta | null> {
+function loadSessionFile(filePath: string): FileEntry[] {
+	const content = fs.readFileSync(filePath, "utf-8");
+	return parseSessionEntries(content);
+}
+
+function getSessionHeader(entries: FileEntry[]): SessionHeader | null {
+	const header = entries.find((e): e is SessionHeader => e.type === "session");
+	return header ?? null;
+}
+
+function getSessionEntries(entries: FileEntry[]): SessionEntry[] {
+	return entries.filter((e): e is SessionEntry => e.type !== "session");
+}
+
+function parseSessionHeader(filePath: string): SessionMeta | null {
 	const stats = fs.statSync(filePath);
 	const cacheKey = `${filePath}:${stats.mtimeMs}`;
 
@@ -117,52 +115,50 @@ async function parseSessionHeader(filePath: string): Promise<SessionMeta | null>
 	}
 
 	try {
-		const fileStream = fs.createReadStream(filePath, { encoding: "utf-8" });
-		const rl = readline.createInterface({ input: fileStream, crlfDelay: Infinity });
+		const entries = loadSessionFile(filePath);
+		const header = getSessionHeader(entries);
 
-		for await (const line of rl) {
-			if (!line.trim()) continue;
-			const entry = JSON.parse(line) as SessionEntry;
-			if (entry.type === "session") {
-				const meta: SessionMeta = {
-					id: entry.id,
-					timestamp: entry.timestamp,
-					cwd: entry.cwd || cwdFromDirName(path.basename(path.dirname(filePath))),
-					filePath,
-					fileSize: stats.size,
-					modifiedAt: stats.mtime,
-				};
-				indexCache.set(cacheKey, meta);
-				rl.close();
-				return meta;
-			}
-		}
+		if (!header) return null;
+
+		const meta: SessionMeta = {
+			id: header.id,
+			timestamp: header.timestamp,
+			cwd: header.cwd || cwdFromDirName(path.basename(path.dirname(filePath))),
+			filePath,
+			fileSize: stats.size,
+			modifiedAt: stats.mtime,
+		};
+		indexCache.set(cacheKey, meta);
+		return meta;
 	} catch {
-		// Ignore parse errors
+		return null;
 	}
-	return null;
 }
 
-async function parseSessionFull(filePath: string): Promise<SessionEntry[]> {
-	const entries: SessionEntry[] = [];
-	try {
-		const content = fs.readFileSync(filePath, "utf-8");
-		for (const line of content.split("\n")) {
-			if (!line.trim()) continue;
-			entries.push(JSON.parse(line));
-		}
-	} catch {
-		// Ignore parse errors
+function extractTextContent(content: unknown): string {
+	if (typeof content === "string") {
+		return content;
 	}
-	return entries;
+	if (Array.isArray(content)) {
+		const parts: string[] = [];
+		for (const part of content) {
+			if (part.type === "text" && part.text) {
+				parts.push(part.text);
+			} else if (part.type === "toolCall" && part.name) {
+				parts.push(`[Tool: ${part.name}]`);
+			}
+		}
+		return parts.join("\n");
+	}
+	return "";
 }
 
 function getFirstUserMessage(entries: SessionEntry[]): string {
 	for (const entry of entries) {
-		if (entry.type === "message" && entry.message?.role === "user") {
-			const textContent = entry.message.content.find((c) => c.type === "text");
-			if (textContent?.text) {
-				return textContent.text.slice(0, 200);
+		if (entry.type === "message" && entry.message.role === "user") {
+			const text = extractTextContent(entry.message.content);
+			if (text) {
+				return text.slice(0, 200);
 			}
 		}
 	}
@@ -283,16 +279,18 @@ export default function (pi: ExtensionAPI) {
 			// Parse headers and build results
 			const results: ThreadSearchResult[] = [];
 			for (const filePath of sessionFiles) {
-				const meta = await parseSessionHeader(filePath);
+				const meta = parseSessionHeader(filePath);
 				if (!meta) continue;
 
-				const entries = await parseSessionFull(filePath);
+				const fileEntries = loadSessionFile(filePath);
+				const sessionEntries = getSessionEntries(fileEntries);
+
 				results.push({
 					id: meta.id,
 					cwd: meta.cwd,
 					timestamp: meta.timestamp,
-					preview: getFirstUserMessage(entries),
-					messageCount: countMessages(entries),
+					preview: getFirstUserMessage(sessionEntries),
+					messageCount: countMessages(sessionEntries),
 					filePath: meta.filePath,
 					matchCount: matchCounts?.get(filePath),
 				});
@@ -442,10 +440,10 @@ export default function (pi: ExtensionAPI) {
 				};
 			}
 
-			const entries = await parseSessionFull(filePath);
-			const sessionEntry = entries.find((e) => e.type === "session");
+			const fileEntries = loadSessionFile(filePath);
+			const header = getSessionHeader(fileEntries);
 
-			if (!sessionEntry) {
+			if (!header) {
 				return {
 					content: [{ type: "text", text: `Invalid session file: ${filePath}` }],
 					details: { thread: null, error: "Invalid session file" },
@@ -453,13 +451,15 @@ export default function (pi: ExtensionAPI) {
 				};
 			}
 
+			const sessionEntries = getSessionEntries(fileEntries);
+
 			// Build message list
 			const messages: ThreadContent["messages"] = [];
 			let totalTokens = 0;
 			let totalCost = 0;
 
-			for (const entry of entries) {
-				if (entry.type !== "message" || !entry.message) continue;
+			for (const entry of sessionEntries) {
+				if (entry.type !== "message") continue;
 
 				const msg = entry.message;
 				const role = msg.role;
@@ -468,29 +468,22 @@ export default function (pi: ExtensionAPI) {
 				if (role === "toolResult" && !include_tool_results) continue;
 
 				// Extract text content
-				let content = "";
-				for (const part of msg.content) {
-					if (part.type === "text" && part.text) {
-						content += part.text + "\n";
-					} else if (part.type === "toolCall" && part.name) {
-						content += `[Tool: ${part.name}]\n`;
-					}
-				}
-
+				const content = extractTextContent(msg.content);
 				if (!content.trim()) continue;
 
 				messages.push({
 					role,
 					content: content.trim(),
 					timestamp: entry.timestamp,
-					model: msg.model,
-					toolName: msg.toolName,
+					model: "model" in msg ? (msg as any).model : undefined,
+					toolName: "toolName" in msg ? (msg as any).toolName : undefined,
 				});
 
 				// Accumulate usage
-				if (msg.usage) {
-					totalTokens += (msg.usage.input || 0) + (msg.usage.output || 0);
-					totalCost += msg.usage.cost?.total || 0;
+				if ("usage" in msg && msg.usage) {
+					const usage = msg.usage as { input?: number; output?: number; cost?: { total?: number } };
+					totalTokens += (usage.input || 0) + (usage.output || 0);
+					totalCost += usage.cost?.total || 0;
 				}
 			}
 
@@ -498,9 +491,9 @@ export default function (pi: ExtensionAPI) {
 			const limitedMessages = max_messages ? messages.slice(-max_messages) : messages;
 
 			const thread: ThreadContent = {
-				id: sessionEntry.id,
-				cwd: sessionEntry.cwd || cwdFromDirName(path.basename(path.dirname(filePath))),
-				timestamp: sessionEntry.timestamp,
+				id: header.id,
+				cwd: header.cwd || cwdFromDirName(path.basename(path.dirname(filePath))),
+				timestamp: header.timestamp,
 				messages: limitedMessages,
 				totalTokens,
 				totalCost,
