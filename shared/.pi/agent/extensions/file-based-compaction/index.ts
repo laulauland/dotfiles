@@ -1,5 +1,5 @@
 /**
- * In-Memory File-based Compaction Hook
+ * In-Memory File-based Compaction Extension
  *
  * Uses just-bash to provide an in-memory virtual filesystem where the
  * conversation is available as a JSON file. The summarizer agent can
@@ -10,12 +10,12 @@
  */
 
 import { complete, getModel, type Message, type UserMessage, type AssistantMessage, type ToolResultMessage, type Tool } from "@mariozechner/pi-ai";
-import type { HookAPI } from "@mariozechner/pi-coding-agent";
+import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
 import { convertToLlm } from "@mariozechner/pi-coding-agent";
 import { Type } from "@sinclair/typebox";
 import { Bash } from "just-bash";
 
-export default function (pi: HookAPI) {
+export default function (pi: ExtensionAPI) {
     pi.on("session_before_compact", async (event, ctx) => {
         const { preparation, signal } = event;
         const { messagesToSummarize, turnPrefixMessages, tokensBefore, firstKeptEntryId, previousSummary } = preparation;
@@ -77,7 +77,7 @@ Then explore more as needed. When you have enough information, provide a final s
 5. Any blockers, issues, or open questions
 6. Next steps that were planned or suggested
 
-Format as structured markdown.`;
+Format as structured markdown. Output only the summary itself without any preamble or introductory phrases.`;
 
         const messages: Message[] = [
             {
@@ -177,4 +177,3 @@ Format as structured markdown.`;
         }
     });
 }
-

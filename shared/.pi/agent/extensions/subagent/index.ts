@@ -19,19 +19,13 @@ import * as path from "node:path";
 import type { AgentToolResult } from "@mariozechner/pi-agent-core";
 import type { Message } from "@mariozechner/pi-ai";
 import { StringEnum } from "@mariozechner/pi-ai";
-import {
-	type CustomTool,
-	type CustomToolAPI,
-	type CustomToolFactory,
-	getMarkdownTheme,
-} from "@mariozechner/pi-coding-agent";
+import { type ExtensionAPI, getMarkdownTheme } from "@mariozechner/pi-coding-agent";
 import { Container, Markdown, Spacer, Text } from "@mariozechner/pi-tui";
 import { Type } from "@sinclair/typebox";
-import { type AgentConfig, type AgentScope, discoverAgents, formatAgentList } from "./agents.js";
+import { type AgentConfig, type AgentScope, discoverAgents } from "./agents.js";
 
 const MAX_PARALLEL_TASKS = 8;
 const MAX_CONCURRENCY = 4;
-const MAX_AGENTS_IN_DESCRIPTION = 10;
 const COLLAPSED_ITEM_COUNT = 10;
 
 function formatTokens(count: number): string {
@@ -224,7 +218,7 @@ function writePromptToTempFile(agentName: string, prompt: string): { dir: string
 type OnUpdateCallback = (partial: AgentToolResult<SubagentDetails>) => void;
 
 async function runSingleAgent(
-	pi: CustomToolAPI,
+	defaultCwd: string,
 	agents: AgentConfig[],
 	agentName: string,
 	task: string,
@@ -289,7 +283,7 @@ async function runSingleAgent(
 		let wasAborted = false;
 
 		const exitCode = await new Promise<number>((resolve) => {
-			const proc = spawn("pi", args, { cwd: cwd ?? pi.cwd, shell: false, stdio: ["ignore", "pipe", "pipe"] });
+			const proc = spawn("pi", args, { cwd: cwd ?? defaultCwd, shell: false, stdio: ["ignore", "pipe", "pipe"] });
 			let buffer = "";
 
 			const processLine = (line: string) => {
@@ -410,32 +404,21 @@ const SubagentParams = Type.Object({
 	cwd: Type.Optional(Type.String({ description: "Working directory for the agent process (single mode)" })),
 });
 
-const factory: CustomToolFactory = (pi) => {
-	const tool: CustomTool<typeof SubagentParams, SubagentDetails> = {
+export default function (pi: ExtensionAPI) {
+	pi.registerTool({
 		name: "subagent",
 		label: "Subagent",
-		get description() {
-			const user = discoverAgents(pi.cwd, "user");
-			const project = discoverAgents(pi.cwd, "project");
-			const userList = formatAgentList(user.agents, MAX_AGENTS_IN_DESCRIPTION);
-			const projectList = formatAgentList(project.agents, MAX_AGENTS_IN_DESCRIPTION);
-			const userSuffix = userList.remaining > 0 ? `; ... and ${userList.remaining} more` : "";
-			const projectSuffix = projectList.remaining > 0 ? `; ... and ${projectList.remaining} more` : "";
-			const projectDirNote = project.projectAgentsDir ? ` (from ${project.projectAgentsDir})` : "";
-			return [
-				"Delegate tasks to specialized subagents with isolated context.",
-				"Modes: single (agent + task), parallel (tasks array), chain (sequential with {previous} placeholder).",
-				'Default agent scope is "user" (from ~/.pi/agent/agents).',
-				'To enable project-local agents in .pi/agents, set agentScope: "both" (or "project").',
-				`User agents: ${userList.text}${userSuffix}.`,
-				`Project agents${projectDirNote}: ${projectList.text}${projectSuffix}.`,
-			].join(" ");
-		},
+		description: [
+			"Delegate tasks to specialized subagents with isolated context.",
+			"Modes: single (agent + task), parallel (tasks array), chain (sequential with {previous} placeholder).",
+			'Default agent scope is "user" (from ~/.pi/agent/agents).',
+			'To enable project-local agents in .pi/agents, set agentScope: "both" (or "project").',
+		].join(" "),
 		parameters: SubagentParams,
 
-		async execute(_toolCallId, params, onUpdate, _ctx, signal) {
+		async execute(_toolCallId, params, onUpdate, ctx, signal) {
 			const agentScope: AgentScope = params.agentScope ?? "user";
-			const discovery = discoverAgents(pi.cwd, agentScope);
+			const discovery = discoverAgents(ctx.cwd, agentScope);
 			const agents = discovery.agents;
 			const confirmProjectAgents = params.confirmProjectAgents ?? true;
 
@@ -466,7 +449,7 @@ const factory: CustomToolFactory = (pi) => {
 				};
 			}
 
-			if ((agentScope === "project" || agentScope === "both") && confirmProjectAgents && pi.hasUI) {
+			if ((agentScope === "project" || agentScope === "both") && confirmProjectAgents && ctx.hasUI) {
 				const requestedAgentNames = new Set<string>();
 				if (params.chain) for (const step of params.chain) requestedAgentNames.add(step.agent);
 				if (params.tasks) for (const t of params.tasks) requestedAgentNames.add(t.agent);
@@ -479,7 +462,7 @@ const factory: CustomToolFactory = (pi) => {
 				if (projectAgentsRequested.length > 0) {
 					const names = projectAgentsRequested.map((a) => a.name).join(", ");
 					const dir = discovery.projectAgentsDir ?? "(unknown)";
-					const ok = await pi.ui.confirm(
+					const ok = await ctx.ui.confirm(
 						"Run project-local agents?",
 						`Agents: ${names}\nSource: ${dir}\n\nProject agents are repo-controlled. Only continue for trusted repositories.`,
 					);
@@ -515,7 +498,7 @@ const factory: CustomToolFactory = (pi) => {
 						: undefined;
 
 					const result = await runSingleAgent(
-						pi,
+						ctx.cwd,
 						agents,
 						step.agent,
 						taskWithContext,
@@ -589,7 +572,7 @@ const factory: CustomToolFactory = (pi) => {
 
 				const results = await mapWithConcurrencyLimit(params.tasks, MAX_CONCURRENCY, async (t, index) => {
 					const result = await runSingleAgent(
-						pi,
+						ctx.cwd,
 						agents,
 						t.agent,
 						t.task,
@@ -629,7 +612,7 @@ const factory: CustomToolFactory = (pi) => {
 
 			if (params.agent && params.task) {
 				const result = await runSingleAgent(
-					pi,
+					ctx.cwd,
 					agents,
 					params.agent,
 					params.task,
@@ -707,7 +690,7 @@ const factory: CustomToolFactory = (pi) => {
 		},
 
 		renderResult(result, { expanded }, theme) {
-			const { details } = result;
+			const details = result.details as SubagentDetails | undefined;
 			if (!details || details.results.length === 0) {
 				const text = result.content[0];
 				return new Text(text?.type === "text" ? text.text : "(no output)", 0, 0);
@@ -976,9 +959,5 @@ const factory: CustomToolFactory = (pi) => {
 			const text = result.content[0];
 			return new Text(text?.type === "text" ? text.text : "(no output)", 0, 0);
 		},
-	};
-
-	return tool;
-};
-
-export default factory;
+	});
+}
