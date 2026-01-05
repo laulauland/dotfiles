@@ -57,39 +57,37 @@ export default function (pi: ExtensionAPI) {
             },
         ];
 
-        const systemPrompt = `You are a conversation summarizer with access to a bash tool. The conversation you need to summarize is stored at /conversation.json in the virtual filesystem.
+        const systemPrompt = `You are a conversation summarizer. The conversation is at /conversation.json - use the bash tool with jq, grep, head, tail to explore it.
 
-IMPORTANT: You MUST use the bash tool to read the conversation file. The file is NOT provided in this chat - you must read it yourself using commands like:
-- cat /conversation.json | head -200
-- jq 'length' /conversation.json
-- jq '.[0]' /conversation.json
+JSON structure:
+- Array of messages with "role" ("user" | "assistant" | "toolResult") and "content" array
+- Assistant content blocks: "type": "text", "toolCall" (with "name", "arguments"), or "thinking"
+- toolResult messages: "toolCallId", "toolName", "content" array
+- toolCall blocks show actions taken (read, write, edit, bash commands)
 
-The JSON structure is an array of messages with 'role' and 'content' fields. Content is an array of blocks (text, tool_use, tool_result).
+Explore the entire conversation - beginning, middle, and end. The end often shows what was actually completed.${previousContext}
 
-Start by running: cat /conversation.json | head -200
+Summarize:
+1. Main goals and objectives
+2. Key decisions and rationale
+3. Code changes, file modifications, technical details
+4. Current state - what is done vs pending
+5. Blockers or open questions
+6. Next steps
 
-Then explore more as needed. When you have enough information, provide a final summary that captures:${previousContext}
-
-1. The main goals and objectives discussed
-2. Key decisions made and their rationale  
-3. Important code changes, file modifications, or technical details
-4. Current state of any ongoing work
-5. Any blockers, issues, or open questions
-6. Next steps that were planned or suggested
-
-Format as structured markdown. Output only the summary itself without any preamble or introductory phrases.`;
+Format as markdown. Output only the summary without preamble.`;
 
         const messages: Message[] = [
             {
                 role: "user",
-                content: [{ type: "text", text: "Read /conversation.json using the bash tool and create a comprehensive summary. Start with: cat /conversation.json | head -200" }],
+                content: [{ type: "text", text: "Summarize the conversation in /conversation.json. Explore the entire file - beginning, middle, and end." }],
                 timestamp: Date.now(),
             } satisfies UserMessage,
         ];
 
         try {
             let iterations = 0;
-            const maxIterations = 20;
+            const maxIterations = 30;
 
             while (iterations < maxIterations) {
                 if (signal.aborted) throw new Error("Compaction aborted");
