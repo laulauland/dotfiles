@@ -132,6 +132,73 @@ jj parents                   # Show parents of current commit
 jj merge <bookmark>          # Create merge commit
 ```
 
+## Rewriting History (Squashing Related Commits)
+
+When commits contain intermediate refactors, fixes, or iterations that should be consolidated:
+
+### Review Recent History First
+
+```bash
+jj log --limit 15            # See recent commits
+jj log -r "..@"              # All ancestors of current commit
+```
+
+### Squash Commits Together
+
+```bash
+# Squash current commit into parent:
+jj squash
+
+# Squash specific commit into another:
+jj squash --from <source-rev> --into <target-rev>
+
+# Squash range of commits into one:
+jj squash --from <oldest>::<newest> --into <target>
+```
+
+### Edit Any Commit in History
+
+```bash
+# Change message of any commit:
+jj describe -r <rev> -m "new message"
+
+# Edit content of a commit (moves working copy there):
+jj edit <rev>
+# ... make changes ...
+jj new                       # Return to new work
+```
+
+### Workflow: Clean Up Feature Branch
+
+When you have intermediate commits like refactors, fixes, iterations:
+
+```bash
+# 1. Review what you have
+jj log --limit 10
+
+# 2. Identify logical groupings (e.g., all loop-related work)
+# 3. Squash related commits into the main feature commit:
+jj squash --from <refactor-rev> --into <feature-rev>
+jj squash --from <fix-rev> --into <feature-rev>
+
+# 4. Update the final commit message to reflect all changes:
+jj describe -r <feature-rev> -m "feat: complete feature with cleanup"
+```
+
+### Example: Consolidate Iterative Work
+
+If you have:
+- `abc123`: feat: implement feature
+- `def456`: refactor: clean up feature  
+- `ghi789`: fix: edge case in feature
+
+Squash them:
+```bash
+jj squash --from ghi789 --into abc123
+jj squash --from def456 --into abc123
+jj describe -r abc123 -m "feat: implement feature (cleaned up)"
+```
+
 ## Typical Workflow
 
 ```bash

@@ -4,6 +4,12 @@
 
 MCP (Model Context Protocol) servers are available in `~/.pi/agent/mcp/servers/`.
 
+Server configurations are read from multiple sources (first match wins):
+1. `~/.pi/agent/mcp.json` (pi's own config - recommended)
+2. `~/.cursor/mcp.json` (Cursor)
+3. Claude Desktop config (platform-specific path)
+4. `~/.claude.json` (Claude Code - current project only, HTTP/SSE servers)
+
 Before using an MCP tool:
 
 1. **Discover servers**: `ls ~/.pi/agent/mcp/servers/` to see available servers
@@ -37,8 +43,6 @@ Users can manage MCP servers with `/mcp` which opens an interactive menu to:
 - Authenticate/re-authenticate
 - Remove servers
 
-For CLI operations, use `mcporter` directly:
-- `mcporter list` — List servers
-- `mcporter auth <server>` — Authenticate
-- `mcporter config add <name> <url>` — Add server
-- `mcporter config remove <name>` — Remove server
+For CLI operations, use `mcpc` directly:
+- `mcpc -c <config-file> <server> tools-list` — List tools
+- `mcpc -c <config-file> <server> login` — Authenticate
