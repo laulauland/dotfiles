@@ -7,6 +7,11 @@ if test (uname) = "Linux"
 	set -x XDG_CURRENT_DESKTOP "sway"
 end
 
+# Auto-attach tmux on SSH (non-Mac only)
+if status is-interactive; and test -n "$SSH_CONNECTION"; and test -z "$TMUX"; and test (uname) != "Darwin"
+    tmux attach-session -t main; or tmux new-session -s main
+end
+
 # mise setup
 if status is-interactive
   mise activate fish | source
