@@ -1,0 +1,26 @@
+{
+	// "providers": {
+	// 	"cerebras": {
+	// 		"baseUrl": "https://api.cerebras.ai/v1",
+	// 		"api": "openai-completions",
+	// 		"models": [
+	// 			{
+	// 				"id": "zai-glm-4.7",
+	// 				"name": "GLM-4.7",
+	// 				"reasoning": true,
+	// 				"input": [
+	// 					"text"
+	// 				],
+	// 				"cost": {
+	// 					"input": 2.25,
+	// 					"output": 2.75,
+	// 					"cacheRead": 0,
+	// 					"cacheWrite": 0
+	// 				},
+	// 				"contextWindow": 64000,
+	// 				"maxTokens": 40000
+	// 			}
+	// 		]
+	// 	}
+	// }
+}
