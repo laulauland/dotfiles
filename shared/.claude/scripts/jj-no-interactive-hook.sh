@@ -8,6 +8,7 @@ command=$(echo "$input" | jq -r '.tool_input.command // ""')
 # Always interactive (open diff editor):
 #   jj split       - Opens diff editor to split commits (default when no filesets)
 #   jj diffedit    - Opens diff editor to edit changes
+#   jj squash      - Opens interactive editor to select changes
 #   jj resolve     - Opens merge tool (unless --list)
 #
 # Opens text editor without -m/--message/--stdin:
@@ -15,7 +16,6 @@ command=$(echo "$input" | jq -r '.tool_input.command // ""')
 #   jj commit      - Opens editor for commit message
 #
 # Interactive with -i/--interactive or --tool:
-#   jj squash -i   - Interactive squash
 #   jj commit -i   - Interactive commit
 #   jj restore -i  - Interactive restore
 #   jj split -i    - Explicitly interactive split
@@ -29,7 +29,19 @@ if [[ "$command" =~ ${JJ_PREFIX}jj[[:space:]]+(diffedit)([[:space:]]|$) ]]; then
         hookSpecificOutput: {
             hookEventName: "PreToolUse",
             permissionDecision: "deny",
-            permissionDecisionReason: "jj diffedit always opens a diff editor. Use jj restore or jj squash for non-interactive alternatives."
+            permissionDecisionReason: "jj diffedit always opens a diff editor. Use jj restore for non-interactive alternatives."
+        }
+    }'
+    exit 0
+fi
+
+# jj squash opens an interactive editor
+if [[ "$command" =~ ${JJ_PREFIX}jj[[:space:]]+(squash)([[:space:]]|$) ]]; then
+    jq -n '{
+        hookSpecificOutput: {
+            hookEventName: "PreToolUse",
+            permissionDecision: "deny",
+            permissionDecisionReason: "jj squash opens an interactive editor. Use jj absorb or manual editing instead."
         }
     }'
     exit 0
@@ -113,7 +125,7 @@ if [[ "$command" =~ ${JJ_PREFIX}jj[[:space:]]+(commit|ci)([[:space:]]|$) ]] && [
 fi
 
 # Commands with -i/--interactive or --tool flag
-if [[ "$command" =~ ${JJ_PREFIX}jj[[:space:]]+(squash|commit|ci|restore)[[:space:]] ]] && [[ "$command" =~ ([[:space:]](-i|--interactive|--tool)[[:space:]]|[[:space:]](-i|--interactive|--tool)$) ]]; then
+if [[ "$command" =~ ${JJ_PREFIX}jj[[:space:]]+(commit|ci|restore)[[:space:]] ]] && [[ "$command" =~ ([[:space:]](-i|--interactive|--tool)[[:space:]]|[[:space:]](-i|--interactive|--tool)$) ]]; then
     jq -n '{
         hookSpecificOutput: {
             hookEventName: "PreToolUse",
