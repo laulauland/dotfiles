@@ -2,6 +2,8 @@
   "name": "pi-mcp-extension",
   "type": "module",
   "dependencies": {
+    "@effect/platform": "^0.94.1",
+    "@effect/platform-node": "^0.104.0",
     "@mariozechner/pi-coding-agent": "^0.37.8",
     "@sinclair/typebox": "^0.34.47",
     "effect": "^3.12.0"

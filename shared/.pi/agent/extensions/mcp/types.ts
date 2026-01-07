@@ -65,6 +65,8 @@ export interface ServerStatus {
 	auth_command: string;
 	tool_count: number;
 	server_info: ServerInfo | null;
+	source?: string; // Config source label (e.g. ~/.pi/agent/mcp.json)
+	disabled?: boolean; // Whether server is disabled by user
 }
 
 export interface ServerConfig {
