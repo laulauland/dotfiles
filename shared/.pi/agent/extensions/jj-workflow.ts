@@ -28,8 +28,8 @@ function checkJJInteractiveCommands(command: string): string | null {
 		return "jj diffedit always opens a diff editor. Use jj restore for non-interactive alternatives.";
 	}
 
-	if (JJ_SQUASH_PATTERN.test(command)) {
-		return "jj squash opens an interactive editor. Use jj absorb or manual editing instead.";
+	if (JJ_SQUASH_PATTERN.test(command) && !HAS_MESSAGE_FLAG.test(command)) {
+		return 'jj squash without -m opens an editor. Use: jj squash -m "message"';
 	}
 
 	if (JJ_SPLIT_PATTERN.test(command)) {

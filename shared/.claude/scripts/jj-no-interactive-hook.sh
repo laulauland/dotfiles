@@ -8,8 +8,10 @@ command=$(echo "$input" | jq -r '.tool_input.command // ""')
 # Always interactive (open diff editor):
 #   jj split       - Opens diff editor to split commits (default when no filesets)
 #   jj diffedit    - Opens diff editor to edit changes
-#   jj squash      - Opens interactive editor to select changes
 #   jj resolve     - Opens merge tool (unless --list)
+#
+# Opens text editor without -m/--message:
+#   jj squash      - Opens editor for commit message
 #
 # Opens text editor without -m/--message/--stdin:
 #   jj describe    - Opens editor for commit message
@@ -35,13 +37,13 @@ if [[ "$command" =~ ${JJ_PREFIX}jj[[:space:]]+(diffedit)([[:space:]]|$) ]]; then
     exit 0
 fi
 
-# jj squash opens an interactive editor
-if [[ "$command" =~ ${JJ_PREFIX}jj[[:space:]]+(squash)([[:space:]]|$) ]]; then
+# jj squash without -m/--message opens editor
+if [[ "$command" =~ ${JJ_PREFIX}jj[[:space:]]+(squash)([[:space:]]|$) ]] && [[ ! "$command" =~ (-m[[:space:]]|--message[[:space:]]|-m\"|-m\'|--message=) ]]; then
     jq -n '{
         hookSpecificOutput: {
             hookEventName: "PreToolUse",
             permissionDecision: "deny",
-            permissionDecisionReason: "jj squash opens an interactive editor. Use jj absorb or manual editing instead."
+            permissionDecisionReason: "jj squash without -m opens an editor. Use: jj squash -m \"message\""
         }
     }'
     exit 0
