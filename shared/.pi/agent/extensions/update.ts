@@ -107,15 +107,15 @@ async function runUpdate(
 
 	switch (method) {
 		case "bun":
-			command = "bun update -g @mariozechner/pi-coding-agent";
+			command = "bun install -g @mariozechner/pi-coding-agent";
 			ctx.ui.notify(`Running: ${command}`, "info");
-			result = await pi.exec("bun", ["update", "-g", "@mariozechner/pi-coding-agent"]);
+			result = await pi.exec("bun", ["install", "-g", "@mariozechner/pi-coding-agent"]);
 			break;
 
 		case "npm":
-			command = "npm update -g @mariozechner/pi-coding-agent";
+			command = "npm install -g @mariozechner/pi-coding-agent";
 			ctx.ui.notify(`Running: ${command}`, "info");
-			result = await pi.exec("npm", ["update", "-g", "@mariozechner/pi-coding-agent"]);
+			result = await pi.exec("npm", ["install", "-g", "@mariozechner/pi-coding-agent"]);
 			break;
 
 		case "native":

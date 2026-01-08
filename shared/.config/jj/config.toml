@@ -31,6 +31,7 @@ overview = [
 	"jj diff --stat && jj log --limit 3",
 ]
 l = ["log", "-r", "all()", "--color=always", "-n", "15"]
+n = ["new"]
 # tug = ["bookmark", "move", "--from", "closest_bookmark(@-)", "--to", "@-"]
 tug = ["util", "exec", "--", "sh", "-c", """
 if [ "x$1" = "x" ]; then
