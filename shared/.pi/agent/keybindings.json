@@ -6,5 +6,8 @@
 	"selectDown": [
 		"down",
 		"ctrl+n"
+	],
+	"queueMessage": [
+		"ctrl+enter"
 	]
 }
