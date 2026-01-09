@@ -176,10 +176,10 @@ export default function (pi: ExtensionAPI) {
 					// Model + thinking level
 					let modelStr = ctx.model?.id || "no model";
 					// Shorten common model names
-					modelStr = modelStr
-						.replace("anthropic/", "")
-						.replace("claude-", "")
-						.replace("-latest", "");
+					// modelStr = modelStr
+					// 	.replace("anthropic/", "")
+					// 	.replace("claude-", "")
+					// 	.replace("-latest", "");
 					
 					const thinkingLevel = ctx.thinkingLevel;
 					if (thinkingLevel && thinkingLevel !== "none") {

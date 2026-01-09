@@ -37,7 +37,7 @@ if [[ "$command" =~ ${JJ_PREFIX}jj[[:space:]]+(diffedit)([[:space:]]|$) ]]; then
     exit 0
 fi
 
-# jj squash without -m/--message opens editor
+# jj squash without -m/--message opens an interactive editor
 if [[ "$command" =~ ${JJ_PREFIX}jj[[:space:]]+(squash)([[:space:]]|$) ]] && [[ ! "$command" =~ (-m[[:space:]]|--message[[:space:]]|-m\"|-m\'|--message=) ]]; then
     jq -n '{
         hookSpecificOutput: {
