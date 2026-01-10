@@ -121,17 +121,16 @@ export default function (pi: ExtensionAPI) {
         const sessionId = ctx.sessionManager.getSessionId() || `unknown-${Date.now()}`;
         debugLog(`sessionId: ${sessionId}`);
 
-        const model = getModel("anthropic", "claude-haiku-4-5");
+        // Prefer the currently selected "main" model for this session.
+        // If unavailable (should be rare), fall back to a reasonable default.
+        const model = ctx.model ?? getModel("anthropic", "claude-haiku-4-5");
         if (!model) {
-            ctx.ui.notify(`Could not find Claude Haiku model, using default compaction`, "warning");
+            ctx.ui.notify(`Could not resolve an active model, using default compaction`, "warning");
             return;
         }
 
+        // Prefer stored API key, but allow provider env var fallbacks handled by pi-ai.
         const apiKey = await ctx.modelRegistry.getApiKey(model);
-        if (!apiKey) {
-            ctx.ui.notify(`No API key for ${model.provider}, using default compaction`, "warning");
-            return;
-        }
 
         // Combine all messages and create in-memory bash environment
         const allMessages = [...messagesToSummarize, ...turnPrefixMessages];
@@ -143,7 +142,7 @@ export default function (pi: ExtensionAPI) {
             },
         });
 
-        ctx.ui.notify(`Compacting ${allMessages.length} messages with ${model.id}`, "info");
+        ctx.ui.notify(`Compacting ${allMessages.length} messages with ${model.provider}/${model.id}`, "info");
 
         debugLog(`allMessages length: ${allMessages.length}`);
         debugLog(`llmMessages length: ${llmMessages.length}`);
@@ -163,7 +162,7 @@ export default function (pi: ExtensionAPI) {
             trajectory: [],
             output: null,
             iterationsUsed: 0,
-            model: model.id,
+            model: `${model.provider}/${model.id}`,
         };
 
         const previousContext = previousSummary ? `\n\nPrevious session summary for context:\n${previousSummary}` : "";
@@ -331,7 +330,8 @@ Format as markdown. Output only the summary without preamble.`;
             debugData.iterationsUsed = messages.filter((m) => m.role === "assistant").length;
             if (!signal.aborted) {
                 saveCompactionDebug(debugData);
-                ctx.ui.notify(`Compaction failed: ${message}`, "error");
+                const notifyType: "warning" | "error" = message.includes("No API key for provider:") ? "warning" : "error";
+                ctx.ui.notify(`Compaction failed: ${message}`, notifyType);
             }
             return;
         }
