@@ -4,24 +4,24 @@
  * Inspired by ampcode.com's "Referencing Threads" feature.
  *
  * Features:
- * - Ctrl+T shortcut to open thread picker
+ * - Ctrl+R shortcut to open thread picker
  * - Tab to toggle between DIRECTORY (current cwd) and GLOBAL (all sessions)
  * - Fuzzy search through thread titles
  * - Inserts @thread:UUID reference at cursor
  * - Automatically injects context from referenced threads on prompt submit
  *
  * Usage:
- * 1. Press Ctrl+T while editing a prompt
+ * 1. Press Ctrl+R while editing a prompt
  * 2. Search for a thread by typing
  * 3. Use Tab to toggle between local and global threads
  * 4. Press Enter to insert the reference
  * 5. Submit your prompt - context will be injected automatically
  */
 
-import type { ExtensionAPI, ExtensionContext, Theme } from "@mariozechner/pi-coding-agent";
-import { matchesKey, Key, truncateToWidth } from "@mariozechner/pi-tui";
+import { CustomEditor, type ExtensionAPI, type ExtensionContext, type Theme } from "@mariozechner/pi-coding-agent";
+import { Key, matchesKey, truncateToWidth, type EditorTheme, type TUI, visibleWidth } from "@mariozechner/pi-tui";
 import { readdirSync, readFileSync, statSync } from "node:fs";
-import { join, basename } from "node:path";
+import { join } from "node:path";
 import { homedir } from "node:os";
 
 // Thread reference pattern: @thread:UUID or @thread:UUID#entryId
@@ -50,6 +50,12 @@ interface SessionHeader {
  * path are indistinguishable from path separators. Instead, we read the cwd from
  * the session header directly.
  */
+
+function toSingleLine(text: string): string {
+	// Session messages can contain literal newlines (tool output, code blocks, etc.).
+	// Keep the picker 1-row-per-item by collapsing all whitespace.
+	return text.replace(/[\s\u00A0]+/g, " ").trim();
+}
 
 /**
  * Format a path for display, replacing home directory with ~
@@ -95,7 +101,7 @@ function listThreadsFromDir(sessionDir: string): ThreadInfo[] {
 				// Parse header - get cwd from header, not directory name
 				let header: SessionHeader | null = null;
 				try {
-					const first = JSON.parse(lines[0]);
+					const first = JSON.parse(lines[0]!);
 					if (first.type === "session" && first.id && first.cwd) {
 						header = first;
 					}
@@ -103,7 +109,7 @@ function listThreadsFromDir(sessionDir: string): ThreadInfo[] {
 					continue;
 				}
 				if (!header) continue;
-				
+
 				const cwd = header.cwd;
 
 				const stats = statSync(filePath);
@@ -113,7 +119,7 @@ function listThreadsFromDir(sessionDir: string): ThreadInfo[] {
 
 				for (let i = 1; i < lines.length; i++) {
 					try {
-						const entry = JSON.parse(lines[i]);
+						const entry = JSON.parse(lines[i]!);
 
 						// Count messages
 						if (entry.type === "message") {
@@ -124,7 +130,7 @@ function listThreadsFromDir(sessionDir: string): ThreadInfo[] {
 									.map((c: any) => c.text)
 									.join(" ");
 								if (textContent) {
-									firstMessage = textContent;
+									firstMessage = toSingleLine(textContent);
 								}
 							}
 						}
@@ -167,7 +173,7 @@ function listThreadsFromDir(sessionDir: string): ThreadInfo[] {
  */
 function getAllThreads(currentCwd: string, globalScope: boolean): ThreadInfo[] {
 	const sessionDirs = getSessionDirectories();
-	let threads: ThreadInfo[] = [];
+	const threads: ThreadInfo[] = [];
 
 	for (const dir of sessionDirs) {
 		const dirThreads = listThreadsFromDir(dir);
@@ -211,37 +217,30 @@ function formatDate(date: Date): string {
 		return "yesterday";
 	} else if (diffDays < 7) {
 		return `${diffDays}d ago`;
-	} else {
-		return date.toLocaleDateString([], { month: "short", day: "numeric" });
 	}
+	return date.toLocaleDateString([], { month: "short", day: "numeric" });
 }
 
 /**
  * Thread picker UI component
  */
 class ThreadPicker {
-	private theme: Theme;
-	private done: (result: ThreadInfo | null) => void;
-	private tui: { requestRender: (force?: boolean) => void };
-	private currentCwd: string;
-	private globalScope: boolean = false;
-	private query: string = "";
+	readonly width = 100;
+
+	private globalScope = false;
+	private query = "";
 	private threads: ThreadInfo[] = [];
 	private filteredThreads: ThreadInfo[] = [];
-	private selectedIndex: number = 0;
-	private scrollOffset: number = 0;
-	private maxVisible: number = 10;
+	private selectedIndex = 0;
+	private scrollOffset = 0;
+	private maxVisible = 10;
 
 	constructor(
-		tui: { requestRender: () => void },
-		theme: Theme,
-		currentCwd: string,
-		done: (result: ThreadInfo | null) => void
+		private tui: { requestRender: (force?: boolean) => void },
+		private theme: Theme,
+		private currentCwd: string,
+		private done: (result: ThreadInfo | null) => void,
 	) {
-		this.tui = tui;
-		this.theme = theme;
-		this.currentCwd = currentCwd;
-		this.done = done;
 		this.refreshThreads();
 	}
 
@@ -258,7 +257,7 @@ class ThreadPicker {
 				(t) =>
 					fuzzyMatch(this.query, t.firstMessage) ||
 					fuzzyMatch(this.query, t.id) ||
-					fuzzyMatch(this.query, t.cwd)
+					fuzzyMatch(this.query, t.cwd),
 			);
 		}
 		this.selectedIndex = 0;
@@ -272,11 +271,7 @@ class ThreadPicker {
 		}
 
 		if (matchesKey(data, Key.enter) || matchesKey(data, Key.return)) {
-			if (this.filteredThreads.length > 0) {
-				this.done(this.filteredThreads[this.selectedIndex]);
-			} else {
-				this.done(null);
-			}
+			this.done(this.filteredThreads[this.selectedIndex] ?? null);
 			return;
 		}
 
@@ -293,7 +288,7 @@ class ThreadPicker {
 				if (this.selectedIndex < this.scrollOffset) {
 					this.scrollOffset = this.selectedIndex;
 				}
-				this.tui.requestRender(true); // Force full re-render
+				this.tui.requestRender(true);
 			}
 			return;
 		}
@@ -304,7 +299,7 @@ class ThreadPicker {
 				if (this.selectedIndex >= this.scrollOffset + this.maxVisible) {
 					this.scrollOffset = this.selectedIndex - this.maxVisible + 1;
 				}
-				this.tui.requestRender(true); // Force full re-render
+				this.tui.requestRender(true);
 			}
 			return;
 		}
@@ -319,8 +314,7 @@ class ThreadPicker {
 		}
 
 		// Regular character input - handle single chars or pasted text
-		// Check if all characters are printable (>= 32)
-		const isPrintable = data.length > 0 && [...data].every(c => c.charCodeAt(0) >= 32);
+		const isPrintable = data.length > 0 && [...data].every((c) => c.charCodeAt(0) >= 32);
 		if (isPrintable) {
 			this.query += data;
 			this.filterThreads();
@@ -330,41 +324,36 @@ class ThreadPicker {
 
 	render(width: number): string[] {
 		const th = this.theme;
-		
-		// Panel dimensions - use most of the width for cleaner look
-		const PANEL_WIDTH = Math.min(100, width - 8);
-		const INNER_WIDTH = PANEL_WIDTH - 4; // Account for border + padding
-		const leftPad = Math.floor((width - PANEL_WIDTH) / 2);
-		const pad = " ".repeat(leftPad);
-		
-		// Helper to get visible width (strips ANSI codes)
-		const getVisibleWidth = (str: string): number => {
-			return str.replace(/\x1b\[[0-9;]*m/g, '').length;
-		};
-		
-		// Helper to create a boxed line with transparent sides
-		// Uses spaces for left padding (preserving background is not possible in TUI)
+
+		const PANEL_WIDTH = Math.max(40, Math.min(this.width, width));
+		const INNER_WIDTH = PANEL_WIDTH - 4; // borders + spaces
+
+		const clip = (s: string) => truncateToWidth(s, INNER_WIDTH, "");
+
 		const boxLine = (content: string, align: "left" | "center" = "left"): string => {
-			const contentWidth = getVisibleWidth(content);
+			const clipped = clip(content);
+			const contentWidth = visibleWidth(clipped);
+
 			let padded: string;
 			if (align === "center") {
 				const leftSpace = Math.floor((INNER_WIDTH - contentWidth) / 2);
 				const rightSpace = INNER_WIDTH - contentWidth - leftSpace;
-				padded = " ".repeat(Math.max(0, leftSpace)) + content + " ".repeat(Math.max(0, rightSpace));
+				padded =
+					" ".repeat(Math.max(0, leftSpace)) +
+					clipped +
+					" ".repeat(Math.max(0, rightSpace));
 			} else {
-				padded = content + " ".repeat(Math.max(0, INNER_WIDTH - contentWidth));
+				padded = clipped + " ".repeat(Math.max(0, INNER_WIDTH - contentWidth));
 			}
-			return truncateToWidth(pad + th.fg("borderMuted", "│") + " " + padded + " " + th.fg("borderMuted", "│"), width);
+
+			return th.fg("borderMuted", "│") + " " + padded + " " + th.fg("borderMuted", "│");
 		};
-		
-		const boxLines: string[] = [];
-		
+
+		const lines: string[] = [];
+
 		// Top border
-		boxLines.push(truncateToWidth(
-			pad + th.fg("borderMuted", "╭" + "─".repeat(PANEL_WIDTH - 2) + "╮"), 
-			width
-		));
-		
+		lines.push(th.fg("borderMuted", `╭${"─".repeat(PANEL_WIDTH - 2)}╮`));
+
 		// Title with tabs
 		const dirTab = this.globalScope
 			? th.fg("dim", "DIRECTORY")
@@ -373,81 +362,68 @@ class ThreadPicker {
 			? th.fg("accent", th.bold("GLOBAL"))
 			: th.fg("dim", "GLOBAL");
 		const tabLine = `${dirTab} ${th.fg("borderMuted", "│")} ${globalTab}`;
-		boxLines.push(boxLine(tabLine, "center"));
-		
+		lines.push(boxLine(tabLine, "center"));
+
 		// Search input
 		const searchPrompt = th.fg("accent", "❯ ");
 		const searchText = this.query || th.fg("dim", "Search threads...");
-		boxLines.push(boxLine(searchPrompt + searchText));
-		
+		lines.push(boxLine(searchPrompt + searchText));
+
 		// Divider
-		boxLines.push(truncateToWidth(
-			pad + th.fg("borderMuted", "├" + "─".repeat(PANEL_WIDTH - 2) + "┤"),
-			width
-		));
-		
+		lines.push(th.fg("borderMuted", `├${"─".repeat(PANEL_WIDTH - 2)}┤`));
+
 		// Thread list - always show maxVisible slots
-		const visibleThreads = this.filteredThreads.slice(
-			this.scrollOffset,
-			this.scrollOffset + this.maxVisible
-		);
-		
+		const visibleThreads = this.filteredThreads.slice(this.scrollOffset, this.scrollOffset + this.maxVisible);
+
 		for (let i = 0; i < this.maxVisible; i++) {
 			if (i < visibleThreads.length) {
-				const thread = visibleThreads[i];
+				const thread = visibleThreads[i]!;
 				const actualIndex = this.scrollOffset + i;
 				const isSelected = actualIndex === this.selectedIndex;
-				
+
 				const prefix = isSelected ? th.fg("accent", "❯ ") : "  ";
 				const date = th.fg("muted", formatDate(thread.modified));
-				
-				// Show cwd in global mode
+
 				let cwdDisplay = "";
 				if (this.globalScope) {
 					cwdDisplay = th.fg("dim", ` [${formatPath(thread.cwd)}]`);
 				}
-				
-				// Truncate message to fit
-				const metaLength = 15 + (this.globalScope ? 25 : 0);
-				const maxMsgLength = Math.max(20, INNER_WIDTH - metaLength);
-				let msg = thread.firstMessage;
-				if (msg.length > maxMsgLength) {
-					msg = msg.slice(0, maxMsgLength - 1) + "…";
-				}
-				
+
+				const fixedWidth = visibleWidth(`${prefix}${date} `) + visibleWidth(cwdDisplay);
+				const maxMsgWidth = Math.max(10, INNER_WIDTH - fixedWidth);
 				const msgColor = isSelected ? "text" : "muted";
-				boxLines.push(boxLine(`${prefix}${date} ${th.fg(msgColor, msg)}${cwdDisplay}`));
+				const msg = truncateToWidth(th.fg(msgColor, toSingleLine(thread.firstMessage)), maxMsgWidth, "…");
+
+				lines.push(boxLine(`${prefix}${date} ${msg}${cwdDisplay}`));
 			} else if (i === 0 && this.filteredThreads.length === 0) {
-				boxLines.push(boxLine(th.fg("dim", "  No threads found")));
+				lines.push(boxLine(th.fg("dim", "  No threads found")));
 			} else {
-				boxLines.push(boxLine("")); // Empty line to maintain height
+				lines.push(boxLine(""));
 			}
 		}
-		
+
 		// Status line (scroll indicator or empty)
 		if (this.filteredThreads.length > this.maxVisible) {
-			const shown = `${this.scrollOffset + 1}-${Math.min(this.scrollOffset + this.maxVisible, this.filteredThreads.length)}`;
+			const shown = `${this.scrollOffset + 1}-${Math.min(
+				this.scrollOffset + this.maxVisible,
+				this.filteredThreads.length,
+			)}`;
 			const total = this.filteredThreads.length;
-			boxLines.push(boxLine(th.fg("dim", `(${shown} of ${total})`), "center"));
+			lines.push(boxLine(th.fg("dim", `(${shown} of ${total})`), "center"));
 		} else {
-			boxLines.push(boxLine(""));
+			lines.push(boxLine(""));
 		}
-		
+
 		// Footer
-		boxLines.push(boxLine(th.fg("dim", "[Tab] scope  [Enter] select  [Esc] cancel"), "center"));
-		
+		lines.push(boxLine(th.fg("dim", "[Tab] scope  [Enter] select  [Esc] cancel"), "center"));
+
 		// Bottom border
-		boxLines.push(truncateToWidth(
-			pad + th.fg("borderMuted", "╰" + "─".repeat(PANEL_WIDTH - 2) + "╯"),
-			width
-		));
-		
-		return boxLines;
+		lines.push(th.fg("borderMuted", `╰${"─".repeat(PANEL_WIDTH - 2)}╯`));
+
+		return lines;
 	}
 
-	invalidate(): void {
-		// No caching - always re-render
-	}
+	invalidate(): void {}
 }
 
 /**
@@ -465,10 +441,7 @@ function extractThreadContext(thread: ThreadInfo): string {
 /**
  * Resolve thread references in a prompt
  */
-function resolveThreadReferences(
-	prompt: string,
-	currentCwd: string
-): { resolvedPrompt: string; contexts: string[] } {
+function resolveThreadReferences(prompt: string, currentCwd: string): { resolvedPrompt: string; contexts: string[] } {
 	const contexts: string[] = [];
 	const allThreads = getAllThreads(currentCwd, true); // Search globally for references
 
@@ -484,8 +457,88 @@ function resolveThreadReferences(
 	return { resolvedPrompt, contexts };
 }
 
+class ThreadReferenceEditor extends CustomEditor {
+	private opening = false;
+
+	constructor(
+		private tui: TUI,
+		theme: EditorTheme,
+		keybindings: any,
+		private ui: ExtensionContext["ui"],
+		private getCwd: () => string,
+	) {
+		super(theme, keybindings);
+	}
+
+	handleInput(data: string): void {
+		if (this.opening) return;
+
+		if (data === "@" && this.shouldTriggerThreadPicker()) {
+			this.opening = true;
+
+			// Close the built-in @ file autocomplete UI and open the thread picker.
+			// We don't mutate the editor text here to reduce flicker; we replace the
+			// leading "@" only after a thread is selected.
+			if (this.isShowingAutocomplete()) {
+				super.handleInput("\x1b");
+			}
+			this.tui.requestRender(true);
+
+			void this.openThreadPicker();
+			return;
+		}
+
+		super.handleInput(data);
+	}
+
+	private shouldTriggerThreadPicker(): boolean {
+		const cursor = this.getCursor();
+		const line = this.getLines()[cursor.line] ?? "";
+
+		// Cursor is after the first @. If the char immediately before cursor is @,
+		// and it's at the start of the line or preceded by whitespace, treat the
+		// next @ as the @@ trigger.
+		if (cursor.col < 1) return false;
+		if (line[cursor.col - 1] !== "@") return false;
+		if (cursor.col === 1) return true;
+
+		const before = line[cursor.col - 2];
+		return before === " " || before === "\t";
+	}
+
+	private async openThreadPicker(): Promise<void> {
+		try {
+			const result = await this.ui.custom<ThreadInfo | null>(
+				(tui, theme, _kb, done) => new ThreadPicker(tui, theme, this.getCwd(), done),
+				{ overlay: true },
+			);
+
+			if (result) {
+				// Replace the leading '@' (typed as @@ trigger) with @thread:...
+				super.handleInput("\x7f");
+				this.insertTextAtCursor(`@thread:${result.id} `);
+				// Inserting @thread:... would re-trigger file autocomplete; close it.
+				if (this.isShowingAutocomplete()) {
+					super.handleInput("\x1b");
+				}
+				this.tui.requestRender(true);
+			} else {
+				// Ensure screen refresh after closing overlay even if cancelled.
+				this.tui.requestRender(true);
+			}
+		} finally {
+			this.opening = false;
+		}
+	}
+}
+
 export default function (pi: ExtensionAPI) {
-	// Register Ctrl+R shortcut for thread picker
+	// @@ trigger: open thread picker overlay and insert @thread:... at cursor.
+	pi.on("session_start", (_event, ctx) => {
+		if (!ctx.hasUI) return;
+		ctx.ui.setEditorComponent((tui, theme, keybindings) => new ThreadReferenceEditor(tui, theme, keybindings, ctx.ui, () => ctx.cwd));
+	});
+
 	pi.registerShortcut(Key.ctrl("r"), {
 		description: "Insert thread reference",
 		handler: async (ctx) => {
@@ -494,9 +547,10 @@ export default function (pi: ExtensionAPI) {
 				return;
 			}
 
-			const result = await ctx.ui.custom<ThreadInfo | null>((tui, theme, done) => {
-				return new ThreadPicker(tui, theme, ctx.cwd, done);
-			});
+			const result = await ctx.ui.custom<ThreadInfo | null>(
+				(tui, theme, _kb, done) => new ThreadPicker(tui, theme, ctx.cwd, done),
+				{ overlay: true },
+			);
 
 			if (result) {
 				const currentText = ctx.ui.getEditorText();
@@ -508,10 +562,7 @@ export default function (pi: ExtensionAPI) {
 
 	// Inject context when prompt contains thread references
 	pi.on("before_agent_start", async (event, ctx) => {
-		const { resolvedPrompt, contexts } = resolveThreadReferences(
-			event.prompt,
-			ctx.cwd
-		);
+		const { contexts } = resolveThreadReferences(event.prompt, ctx.cwd);
 
 		if (contexts.length === 0) {
 			return; // No thread references found
