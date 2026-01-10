@@ -54,7 +54,16 @@ export default function (pi: ExtensionAPI) {
 		firstErrorMessage = preview ? `${base}: ${clampPreview(preview)}` : base;
 	});
 
-	pi.on("agent_end", async (_event, ctx) => {
+	pi.on("agent_end", async (event, ctx) => {
+		const assistantMessages = event.messages.filter((m) => m.role === "assistant");
+		const lastAssistant = assistantMessages[assistantMessages.length - 1] as { stopReason?: string } | undefined;
+		const stopReason = lastAssistant?.stopReason;
+
+		// Skip notifications for cancelled runs.
+		if (!lastAssistant || stopReason === "aborted") {
+			return;
+		}
+
 		const durationMs = agentStartedAt > 0 ? Date.now() - agentStartedAt : 0;
 		const seconds = Math.max(0, Math.round(durationMs / 1000));
 		const suffix = durationMs > 0 ? ` (${seconds}s)` : "";
