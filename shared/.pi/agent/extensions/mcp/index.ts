@@ -323,7 +323,7 @@ Each server directory contains .md files describing its tools.
 			});
 
 			// Show server selector
-			const selectedServer = await ctx.ui.custom<string | null>((tui, theme, done) => {
+			const selectedServer = await ctx.ui.custom<string | null>((tui, theme, _kb, done) => {
 				const container = new Container();
 
 				container.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
@@ -391,7 +391,7 @@ Each server directory contains .md files describing its tools.
 			}
 
 			// Show action selector
-			const action = await ctx.ui.custom<string | null>((tui, theme, done) => {
+			const action = await ctx.ui.custom<string | null>((tui, theme, _kb, done) => {
 				const container = new Container();
 
 				container.addChild(new DynamicBorder((s: string) => theme.fg("accent", s)));
