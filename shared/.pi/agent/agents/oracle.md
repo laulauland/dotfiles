@@ -1,8 +1,8 @@
 ---
 name: oracle
 tools: read, grep, find, ls, bash
-model: claude-opus-4-5
-thinking: high
+model: openai/gpt-5.2-codex
+thinking: xhigh
 description: |
   Deep reasoning for analysis, code review, debugging, and architectural decisions. Use when you need careful thought, not quick action.
   

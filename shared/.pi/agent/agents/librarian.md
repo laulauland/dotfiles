@@ -1,7 +1,7 @@
 ---
 name: librarian
 tools: read, grep, find, ls, bash
-model: claude-sonnet-4-5
+model: cerebras/zai-glm-4.7
 description: |
   Deep research combining codebase analysis AND external documentation. Use before implementing features that require understanding APIs, libraries, or complex integrations.
   
