@@ -21,7 +21,7 @@ function clampPreview(text: string): string {
 export default function (pi: ExtensionAPI) {
 	let agentStartedAt = 0;
 	let toolCallCount = 0;
-	let didNotifyError = false;
+	let firstErrorMessage: string | undefined;
 
 	async function sendNotification(message: string, ctx: { hasUI: boolean; cwd: string }) {
 		// Avoid leaking OSC sequences into print/RPC output.
@@ -38,32 +38,35 @@ export default function (pi: ExtensionAPI) {
 	pi.on("agent_start", async () => {
 		agentStartedAt = Date.now();
 		toolCallCount = 0;
-		didNotifyError = false;
+		firstErrorMessage = undefined;
 	});
 
 	pi.on("tool_call", async () => {
 		toolCallCount++;
 	});
 
-	pi.on("tool_result", async (event, ctx) => {
-		if (!event.isError || didNotifyError) return;
-		didNotifyError = true;
+	// Track failures, but only notify at agent_end.
+	pi.on("tool_result", async (event) => {
+		if (!event.isError || firstErrorMessage) return;
 
 		const preview = getTextPreview(event.content as any);
 		const base = `pi: ${event.toolName} failed`;
-		const body = preview ? `${base}: ${clampPreview(preview)}` : base;
-		await sendNotification(body, ctx);
+		firstErrorMessage = preview ? `${base}: ${clampPreview(preview)}` : base;
 	});
 
 	pi.on("agent_end", async (_event, ctx) => {
-		if (didNotifyError) return;
-
 		const durationMs = agentStartedAt > 0 ? Date.now() - agentStartedAt : 0;
+		const seconds = Math.max(0, Math.round(durationMs / 1000));
+		const suffix = durationMs > 0 ? ` (${seconds}s)` : "";
+
+		if (firstErrorMessage) {
+			await sendNotification(`${firstErrorMessage}${suffix}`, ctx);
+			return;
+		}
+
 		const shouldNotify = toolCallCount > 0 || durationMs >= NOTIFY_MIN_MS;
 		if (!shouldNotify) return;
 
-		const seconds = Math.max(0, Math.round(durationMs / 1000));
-		const suffix = durationMs > 0 ? ` (${seconds}s)` : "";
 		await sendNotification(`pi: done${suffix}`, ctx);
 	});
 }
