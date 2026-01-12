@@ -1,7 +1,7 @@
 ---
 name: librarian
 color: purple
-model: haiku
+model: sonnet
 tools: Read, Grep, LS, Glob, WebFetch, WebSearch, mcp__context7__resolve-library-id, mcp__context7__get-library-docs, mcp__notion__search, mcp__notion__fetch, ListMcpResourcesTool, ReadMcpResourceTool, BashOutput, TodoWrite
 description: |
   Use this agent to gather context before implementation. The librarian finds information from two sources: the codebase (files, patterns, existing implementations) and external documentation (APIs, libraries, packages).
