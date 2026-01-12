@@ -191,10 +191,34 @@ vim.api.nvim_create_autocmd("LspAttach", {
 	callback = function(args)
 		require("utils").set_keymaps({
 			n = {
-				["gd"] = { vim.lsp.buf.definition, desc = "Go to definition", buffer = args.buf },
-				["gD"] = { vim.lsp.buf.declaration, desc = "Go to declaration", buffer = args.buf },
-				["gr"] = { "<cmd>Telescope lsp_references<CR>", desc = "Go to references", buffer = args.buf },
-				["<F12>"] = { "<cmd>Telescope lsp_references<CR>", desc = "Go to references", buffer = args.buf },
+				["gd"] = {
+					function()
+						require("telescope.builtin").lsp_definitions()
+					end,
+					desc = "Go to declaration",
+					buffer = args.buf
+				},
+				["gD"] = {
+					function()
+						require("telescope.builtin").lsp_type_definitions()
+					end,
+					desc = "Go to declaration",
+					buffer = args.buf
+				},
+				["gr"] = {
+					function()
+						require("telescope.builtin").lsp_references()
+					end,
+					desc = "Go to references",
+					buffer = args.buf
+				},
+				["<F12>"] = {
+					function()
+						require("telescope.builtin").lsp_references()
+					end,
+					desc = "Go to references",
+					buffer = args.buf
+				},
 				["gi"] = { function() require("telescope.builtin").lsp_implementations() end, desc = "Go to implementation", buffer = args.buf },
 				["K"] = { vim.lsp.buf.hover, desc = "Show hover", buffer = args.buf },
 				["<leader>r"] = { vim.lsp.buf.rename, desc = "Rename symbol", buffer = args.buf },
