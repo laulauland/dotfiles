@@ -61,7 +61,7 @@ gh pr create --head $(jj log -r 'closest_bookmark(@)' -T 'bookmarks' --no-graph 
 """,
 ]
 sync = ["git", "fetch", "--all-remotes"]
-stack = ["stack()"]
+stack = ["log", "-r", "stack()"]
 c = ["commit"]
 ci = ["commit", "--interactive"]
 e = ["edit"]
@@ -99,6 +99,10 @@ fi
 [remotes.origin]
 auto-track-bookmarks = "glob:*"
 
+[fsmonitor]
+# Use Watchman for faster working copy snapshots in large repos
+# Requires: brew install watchman
+backend = "watchman"
 
 [git]
 write-change-id-header = true
@@ -110,15 +114,15 @@ private-commits = "description(glob:'wip:*') | description(glob:'private:*')"
 [revset-aliases]
 "closest_bookmark(to)" = "heads(::to & bookmarks())"
 "fork_history(to, from)" = "fork_point(to | from)..@"
-'immutable_heads()' = "builtin_immutable_heads() | remote_bookmarks()"
-'closest_pushable(to)' = 'heads(::to & mutable() & ~description(exact:"") & (~empty() | merges()))'
+"immutable_heads()" = "builtin_immutable_heads() | remote_bookmarks()"
+"closest_pushable(to)" = 'heads(::to & mutable() & ~description(exact:"") & (~empty() | merges()))'
 # stack(x, n) is the set of mutable commits reachable from 'x', with 'n'
 # parents. 'n' is often useful to customize the display and return set for
 # certain operations. 'x' can be used to target the set of 'roots' to traverse,
 # e.g. @ is the current stack.
-'stack()' = 'ancestors(reachable(@, mutable()), 2)'
-'stack(x)' = 'ancestors(reachable(x, mutable()), 2)'
-'stack(x, n)' = 'ancestors(reachable(x, mutable()), n)'
+"stack()" = 'ancestors(reachable(@, mutable()))'
+"stack(x)" = 'ancestors(reachable(x, mutable()))'
+"stack(x, n)" = 'ancestors(reachable(x, mutable()), n)'
 
 [template-aliases]
 "format_timestamp(timestamp)" = "timestamp.ago()"
