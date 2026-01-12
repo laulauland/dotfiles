@@ -4,11 +4,12 @@ const GIT_COMMANDS_PATTERN = /(^|&&|\|\||;|\|)\s*git\s+(commit|push|pull|checkou
 
 const JJ_PREFIX = /(^|&&|\|\||;|\|)\s*/
 const JJ_DIFFEDIT_PATTERN = new RegExp(JJ_PREFIX.source + /jj\s+diffedit(\s|$)/.source)
+const JJ_SQUASH_PATTERN = new RegExp(JJ_PREFIX.source + /jj\s+squash(\s|$)/.source)
 const JJ_SPLIT_PATTERN = new RegExp(JJ_PREFIX.source + /jj\s+split(\s|$)/.source)
 const JJ_RESOLVE_PATTERN = new RegExp(JJ_PREFIX.source + /jj\s+resolve(\s|$)/.source)
 const JJ_DESCRIBE_PATTERN = new RegExp(JJ_PREFIX.source + /jj\s+(describe|desc)(\s|$)/.source)
 const JJ_COMMIT_PATTERN = new RegExp(JJ_PREFIX.source + /jj\s+(commit|ci)(\s|$)/.source)
-const JJ_INTERACTIVE_PATTERN = new RegExp(JJ_PREFIX.source + /jj\s+(squash|commit|ci|restore)\s/.source)
+const JJ_INTERACTIVE_PATTERN = new RegExp(JJ_PREFIX.source + /jj\s+(commit|ci|restore)\s/.source)
 
 const HAS_MESSAGE_FLAG = /(-m\s|--message\s|-m"|--message=|-m'|--stdin)/
 const HAS_INTERACTIVE_FLAG = /(\s(-i|--interactive|--tool)\s|\s(-i|--interactive|--tool)$)/
@@ -44,7 +45,11 @@ function checkGitCommand(command: string): string | null {
 
 function checkJJInteractiveCommands(command: string): string | null {
 	if (JJ_DIFFEDIT_PATTERN.test(command)) {
-		return "jj diffedit always opens a diff editor. Use jj restore or jj squash for non-interactive alternatives."
+		return "jj diffedit always opens a diff editor. Use jj restore for non-interactive alternatives."
+	}
+
+	if (JJ_SQUASH_PATTERN.test(command) && !HAS_MESSAGE_FLAG.test(command)) {
+		return 'jj squash without -m opens an editor. Use: jj squash -m "message"'
 	}
 
 	if (JJ_SPLIT_PATTERN.test(command)) {

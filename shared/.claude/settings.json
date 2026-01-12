@@ -53,9 +53,7 @@
   "enabledPlugins": {
     "frontend-design@claude-code-plugins": true,
     "plugin-dev@claude-code-plugins": true,
-    "fp@fiberplane-claude-code-plugins": true,
-    "typescript-lsp@claude-plugins-official": true,
-    "rust-analyzer-lsp@claude-plugins-official": true
+    "fp@fiberplane-claude-code-plugins": true
   },
   "alwaysThinkingEnabled": true
 }
