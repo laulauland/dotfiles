@@ -1,0 +1,183 @@
+#!/bin/bash
+
+# Tmux Capture Pane Tool
+# Select a pane and capture its output with navigation command
+
+set -euo pipefail
+
+# Check if tmux is installed
+if ! command -v tmux &>/dev/null; then
+    echo "Error: tmux is not installed"
+    exit 1
+fi
+
+# Check if any tmux sessions exist
+if ! tmux has-session &>/dev/null; then
+    echo "No tmux sessions found. Start a session first."
+    exit 1
+fi
+
+# Check if fzf is installed
+if ! command -v fzf &>/dev/null; then
+    echo "Error: fzf is not installed"
+    exit 1
+fi
+
+# Get current session/window/pane if in tmux
+CURRENT_SESSION=""
+CURRENT_WINDOW=""
+CURRENT_PANE=""
+
+if [[ -n $TMUX ]]; then
+    CURRENT_SESSION=$(tmux display-message -p '#S' 2>/dev/null || true)
+    CURRENT_WINDOW=$(tmux display-message -p '#I' 2>/dev/null || true)
+    CURRENT_PANE=$(tmux display-message -p '#P' 2>/dev/null || true)
+fi
+
+# Format for display
+FORMAT='#{session_name}:#{window_index}.#{pane_index} #{window_name}'
+
+# Build list of all panes
+if [[ -n "$CURRENT_SESSION" ]]; then
+    all_panes=$(tmux list-panes -a -F "$FORMAT")
+    current_ref="${CURRENT_SESSION}:${CURRENT_WINDOW}.${CURRENT_PANE}"
+    current_pane=$(echo "$all_panes" | grep -E "^${current_ref} " || true)
+    other_panes=$(echo "$all_panes" | grep -vE "^${current_ref} " || true)
+
+    if [[ -n "$current_pane" ]]; then
+        pane_list=$(echo -e "${current_pane}\n${other_panes}" | awk '!seen[$0]++')
+    else
+        pane_list="$all_panes"
+    fi
+else
+    pane_list=$(tmux list-panes -a -F "$FORMAT")
+fi
+
+# Create a temporary script for fzf selection
+TMP_SCRIPT=$(mktemp -t tmux-pane-select.XXXXXX)
+trap 'rm -f "$TMP_SCRIPT"' EXIT
+
+# Write the selector script
+cat > "$TMP_SCRIPT" << 'SCRIPT'
+#!/bin/bash
+INPUT_FILE="$1"
+KEY_FILE="$2"
+CONTENT_FILE="$3"
+
+# Run fzf and output key and content
+# {1} is the pane reference (first field of the line)
+RESULT=$(cat "$INPUT_FILE" | fzf \
+    --prompt='Select pane: ' \
+    --height=90% \
+    --layout=reverse \
+    --border=rounded \
+    --header='Enter: capture all | Ctrl-Y: reference only | Alt-P: toggle preview | Ctrl-C: cancel' \
+    --expect=enter,ctrl-y,alt-p \
+    --preview='tmux capture-pane -t {1} -p -S -30 -e -J' \
+    --preview-window=right:65%:wrap \
+    --bind='alt-p:toggle-preview')
+
+echo "$RESULT" | head -1 > "$KEY_FILE"
+echo "$RESULT" | sed -n '2,$p' > "$CONTENT_FILE"
+SCRIPT
+chmod +x "$TMP_SCRIPT"
+
+# Show selector - in popup if running in tmux
+if [[ -n $TMUX ]]; then
+    input_file=$(mktemp)
+    key_file=$(mktemp)
+    content_file=$(mktemp)
+    trap 'rm -f "$input_file" "$key_file" "$content_file" "$TMP_SCRIPT"' EXIT
+    printf '%s\n' "$pane_list" > "$input_file"
+
+    # Get terminal dimensions for popup sizing
+    term_width=$(tmux display-message -p '#{window_width}')
+    term_height=$(tmux display-message -p '#{window_height}')
+
+    # Calculate popup dimensions with margins
+    # Use min(80% of terminal, 120) for width, min(60% of terminal, 30) for height
+    popup_width=$((term_width * 80 / 100))
+    popup_height=$((term_height * 60 / 100))
+    [[ $popup_width -gt 120 ]] && popup_width=120
+    [[ $popup_width -lt 60 ]] && popup_width=60
+    [[ $popup_height -gt 30 ]] && popup_height=30
+    [[ $popup_height -lt 15 ]] && popup_height=15
+
+    tmux popup -E -w "$popup_width" -h "$popup_height" "$TMP_SCRIPT" "$input_file" "$key_file" "$content_file"
+
+    key=$(cat "$key_file" 2>/dev/null || echo "")
+    selected=$(cat "$content_file" 2>/dev/null || echo "")
+
+    [[ -z "$key" && -z "$selected" ]] && exit 0
+
+    REFERENCE_ONLY=false
+    [[ "$key" == "ctrl-y" ]] && REFERENCE_ONLY=true
+
+else
+    output=$(echo "$pane_list" | fzf \
+        --prompt="Select pane: " \
+        --height=40% \
+        --layout=reverse \
+        --header='Enter: capture all | Ctrl-Y: reference only | Alt-P: toggle preview | Ctrl-C: cancel' \
+        --expect=enter,ctrl-y,alt-p \
+        --preview="tmux capture-pane -t {1} -p -S -30 -e -J" \
+        --preview-window=right:65% \
+        --bind='alt-p:toggle-preview')
+
+    key=$(echo "$output" | head -1)
+    selected=$(echo "$output" | sed -n '2,$p')
+
+    REFERENCE_ONLY=false
+    [[ "$key" == "ctrl-y" ]] && REFERENCE_ONLY=true
+fi
+
+# Exit if nothing was selected
+[[ -z "$selected" ]] && exit 0
+
+# Parse selection
+pane_ref=$(echo "$selected" | awk '{print $1}')
+window_title=$(echo "$selected" | awk '{$1=""; print substr($0, 2)}')
+
+# Reference-only mode - just print the capture command
+if [[ "$REFERENCE_ONLY" == "true" ]]; then
+    echo "tmux capture-pane -e -p -t \"$pane_ref\""
+    exit 0
+fi
+
+# Capture pane output (500 lines)
+pane_output=$(tmux capture-pane -e -S -500 -p -t "$pane_ref" 2>/dev/null || true)
+
+# Get line count
+line_count=$(echo "$pane_output" | wc -l | tr -d ' ')
+if [[ "$line_count" -lt 500 ]]; then
+    capture_note="($line_count lines captured)"
+else
+    capture_note="(500 lines captured - use command below for full output)"
+fi
+
+# Display output to stdout
+cat <<EOF
+════════════════════════════════════════════════════════════════════════
+  TMUX PANE CAPTURE
+════════════════════════════════════════════════════════════════════════
+
+Pane:      $pane_ref
+Title:     $window_title
+Lines:     $capture_note
+
+────────────────────────────────────────────────────────────────────────
+
+$pane_output
+
+────────────────────────────────────────────────────────────────────────
+
+To capture full output:
+  tmux capture-pane -e -p -t "$pane_ref"
+
+To capture full output to file:
+  tmux capture-pane -e -p -t "$pane_ref" > capture.txt
+
+To scroll in tmux:
+  Prefix + [  (then use hjkl or arrow keys)
+
+EOF

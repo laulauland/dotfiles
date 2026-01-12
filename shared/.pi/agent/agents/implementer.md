@@ -1,6 +1,6 @@
 ---
 name: implementer
-model: gpt-5.2-codex
+model: anthropic/claude-opus-4-5
 description: |
   Code executor. Takes a clear plan or specification and produces working code. Use after planning/research is complete.
   

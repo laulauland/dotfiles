@@ -106,6 +106,44 @@ function getSessionEntries(entries: FileEntry[]): SessionEntry[] {
 	return entries.filter((e): e is SessionEntry => e.type !== "session");
 }
 
+function getLeafEntry(entries: SessionEntry[]): SessionEntry | null {
+	if (entries.length === 0) return null;
+
+	const parentIds = new Set<string>();
+	for (const entry of entries) {
+		if ("parentId" in entry && entry.parentId) {
+			parentIds.add(entry.parentId);
+		}
+	}
+
+	for (let i = entries.length - 1; i >= 0; i--) {
+		const entry = entries[i]!;
+		if (!parentIds.has(entry.id)) {
+			return entry;
+		}
+	}
+
+	return entries[entries.length - 1] ?? null;
+}
+
+function getEntryPath(entries: SessionEntry[]): SessionEntry[] {
+	const leaf = getLeafEntry(entries);
+	if (!leaf) return [];
+
+	const byId = new Map(entries.map((entry) => [entry.id, entry]));
+	const path: SessionEntry[] = [];
+	let current: SessionEntry | undefined = leaf;
+
+	while (current) {
+		path.push(current);
+		const parentId = "parentId" in current ? current.parentId : null;
+		if (!parentId) break;
+		current = byId.get(parentId);
+	}
+
+	return path.reverse();
+}
+
 function parseSessionHeader(filePath: string): SessionMeta | null {
 	const stats = fs.statSync(filePath);
 	const cacheKey = `${filePath}:${stats.mtimeMs}`;
@@ -270,9 +308,9 @@ export default function (pi: ExtensionAPI) {
 			if (params.cwd) {
 				const cwdFilter = params.cwd.toLowerCase();
 				sessionFiles = sessionFiles.filter((f) => {
-					const dirName = path.basename(path.dirname(f));
-					const cwd = cwdFromDirName(dirName).toLowerCase();
-					return cwd.includes(cwdFilter);
+					const meta = parseSessionHeader(f);
+					if (!meta) return false;
+					return meta.cwd.toLowerCase().includes(cwdFilter);
 				});
 			}
 
@@ -425,7 +463,8 @@ export default function (pi: ExtensionAPI) {
 				// Search by UUID
 				const allSessions = await getAllSessions(sessionsDir);
 				for (const sessionPath of allSessions) {
-					if (sessionPath.includes(thread_id)) {
+					const meta = parseSessionHeader(sessionPath);
+					if (meta?.id === thread_id) {
 						filePath = sessionPath;
 						break;
 					}
@@ -452,13 +491,27 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			const sessionEntries = getSessionEntries(fileEntries);
+			const branchEntries = getEntryPath(sessionEntries);
 
 			// Build message list
 			const messages: ThreadContent["messages"] = [];
 			let totalTokens = 0;
 			let totalCost = 0;
 
-			for (const entry of sessionEntries) {
+			for (const entry of branchEntries) {
+				if (entry.type === "custom_message") {
+					const customEntry = entry as any;
+					const customContent = extractTextContent(customEntry.content);
+					if (!customContent.trim()) continue;
+					const customType = customEntry.customType ? `custom:${customEntry.customType}` : "custom";
+					messages.push({
+						role: customType,
+						content: customContent.trim(),
+						timestamp: customEntry.timestamp,
+					});
+					continue;
+				}
+
 				if (entry.type !== "message") continue;
 
 				const msg = entry.message;

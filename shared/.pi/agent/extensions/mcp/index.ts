@@ -523,7 +523,7 @@ Each server directory contains .md files describing its tools.
 		parameters: Type.Object({
 			server: Type.String({ description: "MCP server name" }),
 			tool: Type.String({ description: "Tool name to invoke" }),
-			args: Type.Optional(Type.Record(Type.String(), Type.Unknown(), { description: "Tool arguments" })),
+			args: Type.Optional(Type.Object({}, { description: "Tool arguments", additionalProperties: true })),
 		}),
 
 		async execute(toolCallId, params, onUpdate, ctx, signal) {

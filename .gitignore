@@ -4,3 +4,4 @@ node_modules
 
 # FP snapshot directory (isolated git repo for workdir snapshots)
 .fp/
+.ragrep/

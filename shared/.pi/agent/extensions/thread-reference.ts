@@ -19,7 +19,7 @@
  */
 
 import { CustomEditor, type ExtensionAPI, type ExtensionContext, type Theme } from "@mariozechner/pi-coding-agent";
-import { Key, matchesKey, truncateToWidth, type EditorTheme, type TUI, visibleWidth } from "@mariozechner/pi-tui";
+import { Key, matchesKey, visibleWidth, type EditorTheme, type TUI } from "@mariozechner/pi-tui";
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
 import { homedir } from "node:os";
@@ -55,6 +55,57 @@ function toSingleLine(text: string): string {
 	// Session messages can contain literal newlines (tool output, code blocks, etc.).
 	// Keep the picker 1-row-per-item by collapsing all whitespace.
 	return text.replace(/[\s\u00A0]+/g, " ").trim();
+}
+
+function extractTextContent(content: unknown): string {
+	if (typeof content === "string") {
+		return content;
+	}
+	if (Array.isArray(content)) {
+		const parts: string[] = [];
+		for (const part of content) {
+			if (part.type === "text" && part.text) {
+				parts.push(part.text);
+			} else if (part.type === "toolCall" && part.name) {
+				parts.push(`[Tool: ${part.name}]`);
+			}
+		}
+		return parts.join("\n");
+	}
+	return "";
+}
+
+function getEntrySnippet(thread: ThreadInfo, entryId: string): string | null {
+	try {
+		const content = readFileSync(thread.path, "utf8");
+		const lines = content.trim().split("\n");
+		for (const line of lines) {
+			try {
+				const entry = JSON.parse(line);
+				if (entry?.id !== entryId) continue;
+				if (entry.type === "message") {
+					const text = extractTextContent(entry.message?.content);
+					return text ? toSingleLine(text) : null;
+				}
+				if (entry.type === "custom_message") {
+					const text = extractTextContent(entry.content);
+					return text ? toSingleLine(text) : null;
+				}
+				if ((entry.type === "compaction" || entry.type === "branch_summary") && entry.summary) {
+					return toSingleLine(entry.summary);
+				}
+				if (entry.type === "session_info" && entry.name) {
+					return toSingleLine(entry.name);
+				}
+				return null;
+			} catch {
+				// Skip malformed lines
+			}
+		}
+	} catch {
+		// Ignore read errors
+	}
+	return null;
 }
 
 /**
@@ -192,18 +243,6 @@ function getAllThreads(currentCwd: string, globalScope: boolean): ThreadInfo[] {
 }
 
 /**
- * Fuzzy match a query against text
- */
-function fuzzyMatch(query: string, text: string): boolean {
-	if (!query) return true;
-	const lowerQuery = query.toLowerCase();
-	const lowerText = text.toLowerCase();
-
-	// Simple substring match for now
-	return lowerText.includes(lowerQuery);
-}
-
-/**
  * Format date for display
  */
 function formatDate(date: Date): string {
@@ -222,10 +261,11 @@ function formatDate(date: Date): string {
 }
 
 /**
- * Thread picker UI component
+ * Thread picker overlay component
  */
-class ThreadPicker {
-	readonly width = 100;
+class ThreadPickerOverlay {
+	readonly width = 80;
+	private readonly maxVisible = 10;
 
 	private globalScope = false;
 	private query = "";
@@ -233,10 +273,8 @@ class ThreadPicker {
 	private filteredThreads: ThreadInfo[] = [];
 	private selectedIndex = 0;
 	private scrollOffset = 0;
-	private maxVisible = 10;
 
 	constructor(
-		private tui: { requestRender: (force?: boolean) => void },
 		private theme: Theme,
 		private currentCwd: string,
 		private done: (result: ThreadInfo | null) => void,
@@ -253,11 +291,12 @@ class ThreadPicker {
 		if (!this.query) {
 			this.filteredThreads = this.threads;
 		} else {
+			const lowerQuery = this.query.toLowerCase();
 			this.filteredThreads = this.threads.filter(
 				(t) =>
-					fuzzyMatch(this.query, t.firstMessage) ||
-					fuzzyMatch(this.query, t.id) ||
-					fuzzyMatch(this.query, t.cwd),
+					t.firstMessage.toLowerCase().includes(lowerQuery) ||
+					t.id.toLowerCase().includes(lowerQuery) ||
+					t.cwd.toLowerCase().includes(lowerQuery),
 			);
 		}
 		this.selectedIndex = 0;
@@ -265,115 +304,95 @@ class ThreadPicker {
 	}
 
 	handleInput(data: string): void {
-		if (matchesKey(data, Key.escape) || matchesKey(data, Key.ctrl("c"))) {
+		if (matchesKey(data, "escape")) {
 			this.done(null);
 			return;
 		}
 
-		if (matchesKey(data, Key.enter) || matchesKey(data, Key.return)) {
+		if (matchesKey(data, "return")) {
 			this.done(this.filteredThreads[this.selectedIndex] ?? null);
 			return;
 		}
 
-		if (matchesKey(data, Key.tab)) {
+		if (matchesKey(data, "tab")) {
 			this.globalScope = !this.globalScope;
 			this.refreshThreads();
-			this.tui.requestRender(true);
 			return;
 		}
 
-		if (matchesKey(data, Key.up)) {
+		if (matchesKey(data, "up")) {
 			if (this.selectedIndex > 0) {
 				this.selectedIndex--;
 				if (this.selectedIndex < this.scrollOffset) {
 					this.scrollOffset = this.selectedIndex;
 				}
-				this.tui.requestRender(true);
 			}
 			return;
 		}
 
-		if (matchesKey(data, Key.down)) {
+		if (matchesKey(data, "down")) {
 			if (this.selectedIndex < this.filteredThreads.length - 1) {
 				this.selectedIndex++;
 				if (this.selectedIndex >= this.scrollOffset + this.maxVisible) {
 					this.scrollOffset = this.selectedIndex - this.maxVisible + 1;
 				}
-				this.tui.requestRender(true);
 			}
 			return;
 		}
 
-		if (matchesKey(data, Key.backspace)) {
+		if (matchesKey(data, "backspace")) {
 			if (this.query.length > 0) {
 				this.query = this.query.slice(0, -1);
 				this.filterThreads();
-				this.tui.requestRender(true);
 			}
 			return;
 		}
 
-		// Regular character input - handle single chars or pasted text
-		const isPrintable = data.length > 0 && [...data].every((c) => c.charCodeAt(0) >= 32);
-		if (isPrintable) {
+		// Regular character input
+		if (data.length === 1 && data.charCodeAt(0) >= 32) {
 			this.query += data;
 			this.filterThreads();
-			this.tui.requestRender(true);
 		}
 	}
 
-	render(width: number): string[] {
+	render(_width: number): string[] {
+		const w = this.width;
 		const th = this.theme;
-
-		const PANEL_WIDTH = Math.max(40, Math.min(this.width, width));
-		const INNER_WIDTH = PANEL_WIDTH - 4; // borders + spaces
-
-		const clip = (s: string) => truncateToWidth(s, INNER_WIDTH, "");
-
-		const boxLine = (content: string, align: "left" | "center" = "left"): string => {
-			const clipped = clip(content);
-			const contentWidth = visibleWidth(clipped);
-
-			let padded: string;
-			if (align === "center") {
-				const leftSpace = Math.floor((INNER_WIDTH - contentWidth) / 2);
-				const rightSpace = INNER_WIDTH - contentWidth - leftSpace;
-				padded =
-					" ".repeat(Math.max(0, leftSpace)) +
-					clipped +
-					" ".repeat(Math.max(0, rightSpace));
-			} else {
-				padded = clipped + " ".repeat(Math.max(0, INNER_WIDTH - contentWidth));
-			}
-
-			return th.fg("borderMuted", "│") + " " + padded + " " + th.fg("borderMuted", "│");
-		};
-
+		const innerW = w - 2;
 		const lines: string[] = [];
 
-		// Top border
-		lines.push(th.fg("borderMuted", `╭${"─".repeat(PANEL_WIDTH - 2)}╮`));
+		const pad = (s: string, len: number) => {
+			const vis = visibleWidth(s);
+			return s + " ".repeat(Math.max(0, len - vis));
+		};
 
-		// Title with tabs
+		const row = (content: string) => th.fg("border", "│") + pad(content, innerW) + th.fg("border", "│");
+
+		// Top border
+		lines.push(th.fg("border", `╭${"─".repeat(innerW)}╮`));
+
+		// Title with scope tabs
 		const dirTab = this.globalScope
 			? th.fg("dim", "DIRECTORY")
 			: th.fg("accent", th.bold("DIRECTORY"));
 		const globalTab = this.globalScope
 			? th.fg("accent", th.bold("GLOBAL"))
 			: th.fg("dim", "GLOBAL");
-		const tabLine = `${dirTab} ${th.fg("borderMuted", "│")} ${globalTab}`;
-		lines.push(boxLine(tabLine, "center"));
+		lines.push(row(` ${dirTab} ${th.fg("border", "│")} ${globalTab}`));
 
 		// Search input
 		const searchPrompt = th.fg("accent", "❯ ");
 		const searchText = this.query || th.fg("dim", "Search threads...");
-		lines.push(boxLine(searchPrompt + searchText));
+		lines.push(row(` ${searchPrompt}${searchText}`));
 
 		// Divider
-		lines.push(th.fg("borderMuted", `├${"─".repeat(PANEL_WIDTH - 2)}┤`));
+		lines.push(th.fg("border", `├${"─".repeat(innerW)}┤`));
 
-		// Thread list - always show maxVisible slots
-		const visibleThreads = this.filteredThreads.slice(this.scrollOffset, this.scrollOffset + this.maxVisible);
+		// Thread list
+		const visibleThreads = this.filteredThreads.slice(
+			this.scrollOffset,
+			this.scrollOffset + this.maxVisible,
+		);
 
 		for (let i = 0; i < this.maxVisible; i++) {
 			if (i < visibleThreads.length) {
@@ -381,7 +400,7 @@ class ThreadPicker {
 				const actualIndex = this.scrollOffset + i;
 				const isSelected = actualIndex === this.selectedIndex;
 
-				const prefix = isSelected ? th.fg("accent", "❯ ") : "  ";
+				const prefix = isSelected ? th.fg("accent", " ▶ ") : "   ";
 				const date = th.fg("muted", formatDate(thread.modified));
 
 				let cwdDisplay = "";
@@ -389,53 +408,60 @@ class ThreadPicker {
 					cwdDisplay = th.fg("dim", ` [${formatPath(thread.cwd)}]`);
 				}
 
-				const fixedWidth = visibleWidth(`${prefix}${date} `) + visibleWidth(cwdDisplay);
-				const maxMsgWidth = Math.max(10, INNER_WIDTH - fixedWidth);
-				const msgColor = isSelected ? "text" : "muted";
-				const msg = truncateToWidth(th.fg(msgColor, toSingleLine(thread.firstMessage)), maxMsgWidth, "…");
+				const fixedWidth = visibleWidth(prefix) + visibleWidth(date) + 1 + visibleWidth(cwdDisplay);
+				const maxMsgWidth = Math.max(10, innerW - fixedWidth - 1);
+				const msg = toSingleLine(thread.firstMessage);
+				const truncatedMsg = visibleWidth(msg) > maxMsgWidth
+					? msg.slice(0, maxMsgWidth - 1) + "…"
+					: msg;
+				const msgStyled = isSelected ? th.fg("text", truncatedMsg) : th.fg("muted", truncatedMsg);
 
-				lines.push(boxLine(`${prefix}${date} ${msg}${cwdDisplay}`));
+				lines.push(row(`${prefix}${date} ${msgStyled}${cwdDisplay}`));
 			} else if (i === 0 && this.filteredThreads.length === 0) {
-				lines.push(boxLine(th.fg("dim", "  No threads found")));
+				lines.push(row(th.fg("dim", "   No threads found")));
 			} else {
-				lines.push(boxLine(""));
+				lines.push(row(""));
 			}
 		}
 
-		// Status line (scroll indicator or empty)
+		// Scroll indicator
 		if (this.filteredThreads.length > this.maxVisible) {
 			const shown = `${this.scrollOffset + 1}-${Math.min(
 				this.scrollOffset + this.maxVisible,
 				this.filteredThreads.length,
 			)}`;
 			const total = this.filteredThreads.length;
-			lines.push(boxLine(th.fg("dim", `(${shown} of ${total})`), "center"));
+			lines.push(row(th.fg("dim", ` (${shown} of ${total})`)));
 		} else {
-			lines.push(boxLine(""));
+			lines.push(row(""));
 		}
 
 		// Footer
-		lines.push(boxLine(th.fg("dim", "[Tab] scope  [Enter] select  [Esc] cancel"), "center"));
+		lines.push(row(th.fg("dim", " [Tab] scope  ↑↓ navigate  [Enter] select  [Esc] cancel")));
 
 		// Bottom border
-		lines.push(th.fg("borderMuted", `╰${"─".repeat(PANEL_WIDTH - 2)}╯`));
+		lines.push(th.fg("border", `╰${"─".repeat(innerW)}╯`));
 
 		return lines;
 	}
 
 	invalidate(): void {}
+	dispose(): void {}
 }
 
 /**
  * Extract context from a thread for injection
  */
-function extractThreadContext(thread: ThreadInfo): string {
+function extractThreadContext(thread: ThreadInfo, entryId?: string): string {
+	const entrySnippet = entryId ? getEntrySnippet(thread, entryId) : null;
+	const entryLine = entrySnippet ? `\n\n**Entry ${entryId}:** ${entrySnippet}` : "";
+
 	if (thread.summary) {
-		return `## Referenced Thread: ${thread.id}\n\n**Summary:**\n${thread.summary}\n\n**First message:** ${thread.firstMessage}`;
+		return `## Referenced Thread: ${thread.id}\n\n**Summary:**\n${thread.summary}\n\n**First message:** ${thread.firstMessage}${entryLine}`;
 	}
 
 	// No summary available - provide hint
-	return `## Referenced Thread: ${thread.id}\n\n**First message:** ${thread.firstMessage}\n\n_No summary available. Use the \`read_thread\` tool with thread_id "${thread.id}" to see the full conversation._`;
+	return `## Referenced Thread: ${thread.id}\n\n**First message:** ${thread.firstMessage}${entryLine}\n\n_No summary available. Use the \`read_thread\` tool with thread_id "${thread.id}" to see the full conversation._`;
 }
 
 /**
@@ -445,11 +471,11 @@ function resolveThreadReferences(prompt: string, currentCwd: string): { resolved
 	const contexts: string[] = [];
 	const allThreads = getAllThreads(currentCwd, true); // Search globally for references
 
-	const resolvedPrompt = prompt.replace(THREAD_REF_PATTERN, (match, threadId) => {
+	const resolvedPrompt = prompt.replace(THREAD_REF_PATTERN, (match, threadId, entryId) => {
 		const thread = allThreads.find((t) => t.id === threadId);
 		if (thread) {
-			contexts.push(extractThreadContext(thread));
-			return `@thread:${threadId}`; // Keep the reference but we'll inject context
+			contexts.push(extractThreadContext(thread, entryId));
+			return entryId ? `@thread:${threadId}#${entryId}` : `@thread:${threadId}`;
 		}
 		return match; // Keep unresolved references as-is
 	});
@@ -509,7 +535,7 @@ class ThreadReferenceEditor extends CustomEditor {
 	private async openThreadPicker(): Promise<void> {
 		try {
 			const result = await this.ui.custom<ThreadInfo | null>(
-				(tui, theme, _kb, done) => new ThreadPicker(tui, theme, this.getCwd(), done),
+				(_tui, theme, _kb, done) => new ThreadPickerOverlay(theme, this.getCwd(), done),
 				{ overlay: true },
 			);
 
@@ -534,9 +560,17 @@ class ThreadReferenceEditor extends CustomEditor {
 
 export default function (pi: ExtensionAPI) {
 	// @@ trigger: open thread picker overlay and insert @thread:... at cursor.
-	pi.on("session_start", (_event, ctx) => {
+	const attachEditor = (ctx: ExtensionContext) => {
 		if (!ctx.hasUI) return;
 		ctx.ui.setEditorComponent((tui, theme, keybindings) => new ThreadReferenceEditor(tui, theme, keybindings, ctx.ui, () => ctx.cwd));
+	};
+
+	pi.on("session_start", (_event, ctx) => {
+		attachEditor(ctx);
+	});
+
+	pi.on("session_switch", (_event, ctx) => {
+		attachEditor(ctx);
 	});
 
 	pi.registerShortcut(Key.ctrl("r"), {
@@ -548,7 +582,7 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			const result = await ctx.ui.custom<ThreadInfo | null>(
-				(tui, theme, _kb, done) => new ThreadPicker(tui, theme, ctx.cwd, done),
+				(_tui, theme, _kb, done) => new ThreadPickerOverlay(theme, ctx.cwd, done),
 				{ overlay: true },
 			);
 
