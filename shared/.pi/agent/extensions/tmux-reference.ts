@@ -2,21 +2,21 @@
  * Tmux Reference Extension - Reference tmux pane content in your prompts
  *
  * Features:
- * - Ctrl+Y shortcut to open tmux pane picker
+ * - /tmux command to open tmux pane picker
  * - Shows all panes across all sessions
  * - Captures pane content (scrollback buffer)
  * - Inserts @tmux:session:window.pane reference at cursor
  * - Automatically injects pane content on prompt submit
  *
  * Usage:
- * 1. Press Ctrl+Y while editing a prompt
+ * 1. Type /tmux while editing a prompt
  * 2. Select a tmux pane from the list
  * 3. Press Enter to insert the reference
  * 4. Submit your prompt - pane content will be injected automatically
  */
 
 import { type ExtensionAPI, type ExtensionContext, type Theme } from "@mariozechner/pi-coding-agent";
-import { Key, matchesKey, visibleWidth } from "@mariozechner/pi-tui";
+import { matchesKey, visibleWidth } from "@mariozechner/pi-tui";
 import { execSync } from "node:child_process";
 
 // Tmux reference pattern: @tmux:session:window.pane
@@ -347,9 +347,9 @@ function resolveTmuxReferences(prompt: string): { resolvedPrompt: string; contex
 }
 
 export default function (pi: ExtensionAPI) {
-	pi.registerShortcut(Key.ctrl("y"), {
+	pi.registerCommand("tmux", {
 		description: "Insert tmux pane reference",
-		handler: async (ctx) => {
+		handler: async (_args, ctx) => {
 			if (!ctx.hasUI) {
 				ctx.ui.notify("Tmux picker requires interactive mode", "error");
 				return;
