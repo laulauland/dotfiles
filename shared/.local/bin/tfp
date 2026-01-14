@@ -1,0 +1,132 @@
+#!/bin/bash
+
+# FP Issue Picker Tool (tfp)
+# Select and display FP issue context with live preview
+
+set -euo pipefail
+
+# Check dependencies
+if ! command -v fzf &>/dev/null; then
+    echo "Error: fzf is not installed"
+    exit 1
+fi
+
+if ! command -v fp &>/dev/null; then
+    echo "Error: fp is not installed"
+    exit 1
+fi
+
+if ! command -v jq &>/dev/null; then
+    echo "Error: jq is not installed"
+    exit 1
+fi
+
+# Check if we're in an fp project
+if ! fp issue list &>/dev/null; then
+    echo "Error: Not in an FP project. Run 'fp init' first."
+    exit 1
+fi
+
+# Get all issues as JSON
+issues_json=$(fp issue list --format json 2>/dev/null || echo '{"issues":[]}')
+
+# Check if there are any issues
+issue_count=$(echo "$issues_json" | jq '.issues | length')
+if [[ "$issue_count" == "0" ]]; then
+    echo "No issues found. Create one with: fp issue create --title \"Your issue\""
+    exit 0
+fi
+
+# Build the display list with format: "shortId [status] issue_title"
+issue_list=$(echo "$issues_json" | jq -r '.issues[] | "\(.shortId) [\(.status)] \(.title)"')
+
+# Create a preview script that will be called by fzf
+PREVIEW_SCRIPT=$(mktemp -t tfp-preview.XXXXXX)
+trap 'rm -f "$PREVIEW_SCRIPT"' EXIT
+
+cat > "$PREVIEW_SCRIPT" << 'PREVIEW'
+#!/bin/bash
+# Extract issue ID (first word before space)
+issue_id=$(echo "$1" | awk '{print $1}')
+if [[ -n "$issue_id" ]]; then
+    fp context "$issue_id" 2>/dev/null || echo "Error loading context for $issue_id"
+fi
+PREVIEW
+chmod +x "$PREVIEW_SCRIPT"
+
+# Function to run fzf with preview
+run_fzf() {
+    echo "$issue_list" | fzf \
+        --prompt='Select issue: ' \
+        --height=100% \
+        --layout=reverse \
+        --border=rounded \
+        --header='Enter: select | Ctrl-C: cancel | ↑↓: navigate | Ctrl-U/D: scroll preview' \
+        --preview="$PREVIEW_SCRIPT {}" \
+        --preview-window='down,60%,wrap,border-top' \
+        --bind='ctrl-u:preview-half-page-up,ctrl-d:preview-half-page-down' \
+        || true
+}
+
+# Run in tmux popup if in tmux, otherwise run directly
+if [[ -n "${TMUX:-}" ]]; then
+    # Create temp files for communication
+    input_file=$(mktemp -t tfp-input.XXXXXX)
+    output_file=$(mktemp -t tfp-output.XXXXXX)
+    trap 'rm -f "$PREVIEW_SCRIPT" "$input_file" "$output_file"' EXIT
+
+    echo "$issue_list" > "$input_file"
+
+    # Get terminal dimensions for popup sizing
+    term_width=$(tmux display-message -p '#{window_width}')
+    term_height=$(tmux display-message -p '#{window_height}')
+
+    # Calculate popup dimensions (80% width, 80% height)
+    popup_width=$((term_width * 85 / 100))
+    popup_height=$((term_height * 85 / 100))
+    [[ $popup_width -gt 140 ]] && popup_width=140
+    [[ $popup_width -lt 80 ]] && popup_width=80
+    [[ $popup_height -gt 50 ]] && popup_height=50
+    [[ $popup_height -lt 20 ]] && popup_height=20
+
+    # Run fzf in tmux popup
+    tmux popup -E -w "$popup_width" -h "$popup_height" \
+        "cat '$input_file' | fzf \
+            --prompt='Select issue: ' \
+            --height=100% \
+            --layout=reverse \
+            --border=rounded \
+            --header='Enter: select | Ctrl-C: cancel | ↑↓: navigate | Ctrl-U/D: scroll preview' \
+            --preview=\"$PREVIEW_SCRIPT {}\" \
+            --preview-window='down,60%,wrap,border-top' \
+            --bind='ctrl-u:preview-half-page-up,ctrl-d:preview-half-page-down' \
+            > '$output_file' || true"
+
+    selected=$(cat "$output_file" 2>/dev/null || echo "")
+else
+    selected=$(run_fzf)
+fi
+
+# Exit if nothing was selected
+[[ -z "$selected" ]] && exit 0
+
+# Extract issue ID
+issue_id=$(echo "$selected" | awk '{print $1}')
+
+# Output the selected issue info
+cat <<EOF
+════════════════════════════════════════════════════════════════════════
+  SELECTED ISSUE: $issue_id
+════════════════════════════════════════════════════════════════════════
+
+$selected
+
+────────────────────────────────────────────────────────────────────────
+
+Quick commands:
+  fp run $issue_id                            Start working on this issue
+  fp issue update $issue_id --status todo     Update status
+  fp comment add $issue_id "Your comment"     Add a comment
+  fp context $issue_id                        View full context
+
+EOF
