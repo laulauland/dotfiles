@@ -1,6 +1,6 @@
 ---
 name: librarian
-tools: read, grep, find, ls, bash
+tools: read, grep, find, ls, bash, webfetch, websearch
 model: google/gemini-3-flash-preview
 description: |
   Deep research combining codebase analysis AND external documentation. Use before implementing features that require understanding APIs, libraries, or complex integrations.

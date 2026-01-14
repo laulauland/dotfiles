@@ -1,7 +1,9 @@
 {
   "includeCoAuthoredBy": false,
   "permissions": {
-    "deny": ["EnterPlanMode"]
+    "deny": [
+      "EnterPlanMode"
+    ]
   },
   "hooks": {
     "PreToolUse": [
