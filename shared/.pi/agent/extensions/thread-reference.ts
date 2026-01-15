@@ -602,7 +602,7 @@ export default function (pi: ExtensionAPI) {
 		const { contexts } = resolveThreadReferences(event.prompt, ctx.cwd);
 
 		if (contexts.length === 0) {
-			return; // No thread references found
+			return;
 		}
 
 		// Inject contexts as a message

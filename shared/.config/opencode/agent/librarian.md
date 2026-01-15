@@ -43,7 +43,7 @@ description: >-
       </commentary>
     </example>
 mode: subagent
-model: anthropic/claude-haiku-4-5
+model: google/gemini-3-flash-preview
 tools:
   write: false
   edit: false
