@@ -487,14 +487,17 @@ class ThreadReferenceEditor extends CustomEditor {
 	private opening = false;
 
 	constructor(
-		private tui: TUI,
+		tui: TUI,
 		theme: EditorTheme,
 		keybindings: any,
 		private ui: ExtensionContext["ui"],
 		private getCwd: () => string,
 	) {
-		super(theme, keybindings);
+		super(tui, theme, keybindings);
+		this.tui = tui;
 	}
+
+	private tui: TUI;
 
 	handleInput(data: string): void {
 		if (this.opening) return;
