@@ -41,7 +41,23 @@ else
 fi
 """, ""]
 pull = ["git", "fetch"]
-push = ["git", "push"]
+push = [
+	"util",
+	"exec",
+	"--",
+	"sh",
+	"-c",
+	"""
+# Use closest_pushable to find the right commit (skips empty/no-description)
+target=$(jj log -r 'closest_pushable(@)' -T 'change_id' --no-graph 2>/dev/null | head -1)
+if [ -n "$target" ]; then
+  jj git push -c "$target"
+else
+  echo "No pushable commit found (need non-empty commit with description)"
+  exit 1
+fi
+""",
+]
 pushall = [
 	"util",
 	"exec",
@@ -58,6 +74,58 @@ pr = [
 	"-c",
 	"""
 gh pr create --head $(jj log -r 'closest_bookmark(@)' -T 'bookmarks' --no-graph | cut -d ' ' -f 1)
+""",
+]
+aipr = [
+	"util",
+	"exec",
+	"--",
+	"bash",
+	"-c",
+	"""
+set -e
+
+# Get the bookmark name
+bookmark=$(jj log -r 'closest_bookmark(@)' -T 'bookmarks' --no-graph | cut -d ' ' -f 1)
+if [ -z "$bookmark" ]; then
+  echo "Error: No bookmark found. Run 'jj push' first to create one."
+  exit 1
+fi
+
+# Get commits in the stack
+commits=$(jj log -r "::@ & ~::main" -T 'change_id.short() ++ " " ++ description.first_line() ++ "\n"' --no-graph)
+
+# Get the diff
+diff=$(jj diff -r 'main..@' --stat)
+
+# Generate PR description using claude
+description=$(claude -p "You are a PR description writer. Write a concise, technical PR description.
+
+Keep the language technical and straightforward, avoiding unnecessary adjectives.
+
+Format:
+## Summary
+<1-2 sentence summary>
+
+## Changes
+<bullet points of key changes>
+
+---
+
+Commits:
+$commits
+
+Changes:
+$diff" 2>/dev/null)
+
+# Check if PR already exists
+if gh pr view "$bookmark" &>/dev/null; then
+  echo "Updating existing PR..."
+  gh pr edit "$bookmark" --body "$description"
+else
+  echo "Creating new draft PR..."
+  gh pr create --draft --head "$bookmark" --body "$description"
+fi
 """,
 ]
 sync = ["git", "fetch", "--all-remotes"]
