@@ -48,7 +48,14 @@ push = [
 	"sh",
 	"-c",
 	"""
-# Use closest_pushable to find the right commit (skips empty/no-description)
+# Prefer pushing the closest bookmark (e.g. main) if it exists
+bookmark=$(jj log -r 'closest_bookmark(@)' -T 'bookmarks' --no-graph 2>/dev/null | head -1 | cut -d ' ' -f 1)
+if [ -n "$bookmark" ]; then
+  jj git push -b "$bookmark"
+  exit $?
+fi
+
+# Fallback: use closest_pushable to find the right commit (skips empty/no-description)
 target=$(jj log -r 'closest_pushable(@)' -T 'change_id' --no-graph 2>/dev/null | head -1)
 if [ -n "$target" ]; then
   jj git push -c "$target"
