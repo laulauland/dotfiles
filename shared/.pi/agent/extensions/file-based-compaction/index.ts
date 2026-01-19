@@ -23,6 +23,9 @@ const DEBUG_COMPACTIONS = true;
 const COMPACTIONS_DIR = path.join(homedir(), ".pi", "agent", "compactions");
 const DEBUG_LOG_FILE = path.join(COMPACTIONS_DIR, "debug.log");
 
+// Providers known to support tool use properly
+const TOOL_COMPATIBLE_PROVIDERS = ["anthropic", "openai", "google"];
+
 function debugLog(message: string): void {
     if (!DEBUG_COMPACTIONS) return;
     try {
@@ -100,40 +103,111 @@ function saveCompactionDebug(data: CompactionDebugData): void {
     }
 }
 
+/**
+ * Clean up summary preambles that models sometimes add
+ */
+function cleanSummaryPreamble(summary: string): string {
+    return summary
+        // Remove common preambles
+        .replace(/^(Based on my exploration|Perfect!|Now I have|Let me|I'll now|Here's the|Here is the|After exploring|Having explored|Looking at the conversation).+?\n+/i, '')
+        // Remove leading horizontal rules
+        .replace(/^---\n*/m, '')
+        // Remove "Summary" header if it's the first thing (redundant)
+        .replace(/^#\s*Summary\s*\n+/i, '')
+        .trim();
+}
+
+/**
+ * Validate summary quality - returns null if valid, error message if not
+ */
+function validateSummary(summary: string): string | null {
+    // Check minimum length
+    if (summary.length < 200) {
+        return `Summary too short (${summary.length} chars, minimum 200)`;
+    }
+
+    // Check for structure (should have headers or bold sections)
+    const hasStructure = summary.includes('##') || summary.includes('**') || summary.includes('###');
+    if (!hasStructure) {
+        return "Summary lacks structure (no headers or bold sections)";
+    }
+
+    // Check for "I couldn't" or similar failure indicators
+    const failurePatterns = [
+        /i couldn't find/i,
+        /no conversation/i,
+        /empty conversation/i,
+        /unable to access/i,
+        /file is empty/i,
+    ];
+    for (const pattern of failurePatterns) {
+        if (pattern.test(summary)) {
+            return `Summary indicates failure: ${pattern.toString()}`;
+        }
+    }
+
+    return null; // Valid
+}
+
+/**
+ * Extract messages from branchEntries (the complete session history)
+ * branchEntries contains entries like {type: "message", message: {...}} 
+ * as well as other entry types like model_change, thinking_level_change, etc.
+ */
+function extractMessagesFromBranchEntries(branchEntries: any[]): any[] {
+    if (!branchEntries || !Array.isArray(branchEntries)) {
+        return [];
+    }
+    return branchEntries
+        .filter((entry: any) => entry.type === "message" && entry.message)
+        .map((entry: any) => entry.message);
+}
+
 export default function (pi: ExtensionAPI) {
     pi.on("session_before_compact", async (event, ctx) => {
-        // Log everything we receive
-        debugLog(`event keys: ${Object.keys(event)}`);
-        debugLog(`event.preparation keys: ${Object.keys(event.preparation || {})}`);
-        debugLog(`branchEntries length: ${event.branchEntries?.length}`);
-        
-        const { preparation, signal } = event;
-        debugLog(`preparation.messagesToSummarize: ${preparation.messagesToSummarize?.length}, type: ${typeof preparation.messagesToSummarize}, isArray: ${Array.isArray(preparation.messagesToSummarize)}`);
-        debugLog(`preparation.turnPrefixMessages: ${preparation.turnPrefixMessages?.length}, type: ${typeof preparation.turnPrefixMessages}`);
-        debugLog(`preparation.tokensBefore: ${preparation.tokensBefore}`);
-        debugLog(`preparation.firstKeptEntryId: ${preparation.firstKeptEntryId}`);
-        
+        const { preparation, signal, branchEntries } = event;
         const { messagesToSummarize, turnPrefixMessages, tokensBefore, firstKeptEntryId, previousSummary } = preparation;
-        
-        debugLog(`after destructure - messagesToSummarize: ${messagesToSummarize?.length}, turnPrefixMessages: ${turnPrefixMessages?.length}`);
 
         // Get session ID for debugging
         const sessionId = ctx.sessionManager.getSessionId() || `unknown-${Date.now()}`;
-        debugLog(`sessionId: ${sessionId}`);
+
+        // === FIX: Use branchEntries as source of truth ===
+        // The preparation.messagesToSummarize sometimes misses messages, 
+        // but branchEntries contains the complete session history
+        const branchMessages = extractMessagesFromBranchEntries(branchEntries);
+        const preparationMessages = [...messagesToSummarize, ...turnPrefixMessages];
+        
+        // Use branchMessages if available and larger, otherwise fall back to preparation
+        const allMessages = branchMessages.length > preparationMessages.length 
+            ? branchMessages 
+            : preparationMessages;
+        
+        debugLog(`branchMessages: ${branchMessages.length}, preparationMessages: ${preparationMessages.length}, using: ${allMessages.length}`);
+
+        // === IMPROVEMENT 1: Early return for empty input ===
+        if (allMessages.length === 0) {
+            ctx.ui.notify("No messages to compact, skipping custom compaction", "info");
+            debugLog(`Empty input - messagesToSummarize: ${messagesToSummarize.length}, turnPrefixMessages: ${turnPrefixMessages.length}`);
+            return; // Let default compaction handle it
+        }
 
         // Prefer the currently selected "main" model for this session.
-        // If unavailable (should be rare), fall back to a reasonable default.
-        const model = ctx.model ?? getModel("anthropic", "claude-haiku-4-5");
+        const model = getModel("anthropic", "claude-haiku-4-5") ?? ctx.model;
         if (!model) {
-            ctx.ui.notify(`Could not resolve an active model, using default compaction`, "warning");
+            ctx.ui.notify("Could not resolve an active model, using default compaction", "warning");
             return;
+        }
+
+        // === IMPROVEMENT 2: Check model compatibility ===
+        if (!TOOL_COMPATIBLE_PROVIDERS.includes(model.provider)) {
+            ctx.ui.notify(`Model ${model.provider}/${model.id} may not support tools well, using default compaction`, "warning");
+            debugLog(`Incompatible provider: ${model.provider}`);
+            return; // Fall back to default compaction
         }
 
         // Prefer stored API key, but allow provider env var fallbacks handled by pi-ai.
         const apiKey = await ctx.modelRegistry.getApiKey(model);
 
-        // Combine all messages and create in-memory bash environment
-        const allMessages = [...messagesToSummarize, ...turnPrefixMessages];
         const llmMessages = convertToLlm(allMessages);
 
         const bash = new Bash({
@@ -144,21 +218,27 @@ export default function (pi: ExtensionAPI) {
 
         ctx.ui.notify(`Compacting ${allMessages.length} messages with ${model.provider}/${model.id}`, "info");
 
-        debugLog(`allMessages length: ${allMessages.length}`);
-        debugLog(`llmMessages length: ${llmMessages.length}`);
+        debugLog(`allMessages length: ${allMessages.length}, llmMessages length: ${llmMessages.length}`);
         
-        // Initialize debug data - clone immediately to capture current state
+        // Track which source we used
+        const usedBranchEntries = branchMessages.length > preparationMessages.length;
+
+        // Initialize debug data
         const debugData: CompactionDebugData = {
             timestamp: new Date().toISOString(),
             sessionId,
             input: {
                 messagesToSummarize: safeClone(messagesToSummarize),
                 turnPrefixMessages: safeClone(turnPrefixMessages),
-                branchEntries: safeClone(event.branchEntries),
+                branchEntries: safeClone(branchEntries),
                 tokensBefore,
                 previousSummary: previousSummary || null,
                 llmMessages: safeClone(llmMessages),
-            },
+                // Track which source was used
+                messageSource: usedBranchEntries ? "branchEntries" : "preparation",
+                branchMessagesCount: branchMessages.length,
+                preparationMessagesCount: preparationMessages.length,
+            } as any,
             trajectory: [],
             output: null,
             iterationsUsed: 0,
@@ -178,45 +258,108 @@ export default function (pi: ExtensionAPI) {
             },
         ];
 
+        // === IMPROVEMENT 3: Much better system prompt with exploration strategy ===
         const systemPrompt = `You are a conversation summarizer. The conversation is at /conversation.json - use the bash tool with jq, grep, head, tail to explore it.
 
-JSON structure:
+## JSON Structure
 - Array of messages with "role" ("user" | "assistant" | "toolResult") and "content" array
 - Assistant content blocks: "type": "text", "toolCall" (with "name", "arguments"), or "thinking"
 - toolResult messages: "toolCallId", "toolName", "content" array
 - toolCall blocks show actions taken (read, write, edit, bash commands)
 
-Explore the entire conversation - beginning, middle, and end. The end often shows what was actually completed.${previousContext}
+## REQUIRED Exploration Strategy
+You MUST explore thoroughly before summarizing. Follow this sequence:
 
-Summarize:
-1. Main goals and objectives
-2. Key decisions and rationale
-3. Code changes, file modifications, technical details
-4. Current state - what is done vs pending
-5. Blockers or open questions
-6. Next steps
+1. **Count messages**: \`jq 'length' /conversation.json\`
+2. **First user request**: \`jq '.[0:3]' /conversation.json\` - understand the initial goal
+3. **Last 10-15 messages**: \`jq '.[-15:]' /conversation.json\` - see final state and any issues
+4. **Find ALL file modifications**: \`jq '[.[] | .content[]? | select(.type=="toolCall" and (.name | test("write|edit"))) | {name, file: .arguments.path}]' /conversation.json\`
+5. **Check for user feedback/issues**: \`jq '.[] | select(.role=="user") | .content[0].text' /conversation.json | grep -i "doesn't work\\|still\\|bug\\|issue\\|error\\|wrong\\|fix" | tail -10\`
+6. **Middle section** (if >50 messages): \`jq '.[length/2 - 5 : length/2 + 5]' /conversation.json\`
 
-Format as markdown. Output only the summary without preamble.`;
+## CRITICAL Rules for Accuracy
 
+1. **Session Type Detection**: 
+   - If you only see "read" tool calls → this is a CODE REVIEW/EXPLORATION session, NOT implementation
+   - Only claim files were "modified" if you see successful "write" or "edit" tool results
+
+2. **Done vs In-Progress**:
+   - Check the LAST 10 user messages for complaints like "doesn't work", "still broken", "bug"
+   - If user reports issues after a change, mark it as "In Progress" NOT "Done"
+   - Only mark "Done" if there's user confirmation OR successful test output
+
+3. **Exact Names**:
+   - Use EXACT variable/function/parameter names from the code, not paraphrased versions
+   - Quote specific values when relevant
+
+4. **File Lists**:
+   - List ALL files that were modified (check write/edit tool calls)
+   - Don't list files that were only read
+
+${previousContext}
+
+## Output Format
+Summarize in markdown with these sections:
+1. **Main Goal** - What the user asked for (quote if short)
+2. **Session Type** - Implementation / Code Review / Debugging / Discussion
+3. **Key Decisions** - Technical decisions and rationale
+4. **Files Modified** - List with brief description of changes (only files with write/edit)
+5. **Status** - What is Done ✓ vs In Progress ⏳ vs Blocked ❌
+6. **Issues/Blockers** - Any reported problems or unresolved issues
+7. **Next Steps** - What remains to be done
+
+Be accurate. Don't claim things are done if the user reported issues. Don't invent features that weren't discussed.`;
+
+        // === IMPROVEMENT 4: Better initial prompt with exploration instructions ===
         const initialUserMessage: UserMessage = {
             role: "user",
-            content: [{ type: "text", text: "Summarize the conversation in /conversation.json. Explore the entire file - beginning, middle, and end." }],
+            content: [{ 
+                type: "text", 
+                text: `Summarize the conversation in /conversation.json. 
+
+IMPORTANT: Follow the exploration strategy in your instructions. You MUST:
+1. First count messages and check the beginning (initial request)
+2. Then check the END (last 10-15 messages) for final state and any issues
+3. Find ALL file modifications (write/edit tool calls)
+4. Search for user feedback about bugs/issues
+5. Only then write your summary
+
+Start by counting messages and viewing the first few.` 
+            }],
             timestamp: Date.now(),
         };
 
         const messages: Message[] = [initialUserMessage];
-
-        // Track trajectory starting with the initial user message
         debugData.trajectory.push(initialUserMessage);
 
         try {
             let iterations = 0;
             const maxIterations = 30;
+            let retryCount = 0;
+            const maxRetries = 2;
 
             while (iterations < maxIterations) {
                 if (signal.aborted) throw new Error("Compaction aborted");
 
                 const response = await complete(model, { systemPrompt, messages, tools }, { apiKey, maxTokens: 4096, signal });
+
+                // === IMPROVEMENT 5: Retry on error responses ===
+                if (response.stopReason === "error" || (response.content.length === 0 && retryCount < maxRetries)) {
+                    retryCount++;
+                    ctx.ui.notify(`Compaction attempt ${retryCount} got empty/error response, retrying...`, "warning");
+                    debugLog(`Retry ${retryCount}: stopReason=${response.stopReason}, content.length=${response.content.length}`);
+                    
+                    // Add a nudge message
+                    const nudgeMessage: UserMessage = {
+                        role: "user",
+                        content: [{ type: "text", text: "Please try again. Start by running: jq 'length' /conversation.json" }],
+                        timestamp: Date.now(),
+                    };
+                    messages.push(nudgeMessage);
+                    debugData.trajectory.push(nudgeMessage);
+                    iterations++;
+                    continue;
+                }
 
                 const toolCalls = response.content.filter(
                     (c): c is { type: "toolCall"; id: string; name: string; arguments: Record<string, any> } => c.type === "toolCall"
@@ -224,7 +367,6 @@ Format as markdown. Output only the summary without preamble.`;
 
                 // If model wants to use tools, process them
                 if (toolCalls.length > 0 || response.stopReason === "toolUse") {
-                    // Add assistant message with tool use
                     const assistantMessage: AssistantMessage = {
                         role: "assistant",
                         content: response.content,
@@ -238,7 +380,7 @@ Format as markdown. Output only the summary without preamble.`;
                     messages.push(assistantMessage);
                     debugData.trajectory.push(assistantMessage);
 
-                    // Execute tools in virtual bash and add results
+                    // Execute tools
                     for (const toolCall of toolCalls) {
                         if (toolCall.name === "bash") {
                             const { command } = toolCall.arguments as { command: string };
@@ -252,12 +394,11 @@ Format as markdown. Output only the summary without preamble.`;
                                     result += `\nexit code: ${execResult.exitCode}`;
                                     isError = true;
                                 }
-                                result = result.slice(0, 50000); // Limit output size
+                                result = result.slice(0, 50000);
                             } catch (err: any) {
                                 result = `Error: ${err.message}`;
                                 isError = true;
                             }
-                            // Use pi-ai's ToolResultMessage format
                             const toolResultMessage: ToolResultMessage = {
                                 role: "toolResult",
                                 toolCallId: toolCall.id,
@@ -275,7 +416,7 @@ Format as markdown. Output only the summary without preamble.`;
                 }
 
                 // Model is done - extract summary
-                const summary = response.content
+                let summary = response.content
                     .filter((c): c is { type: "text"; text: string } => c.type === "text")
                     .map((c) => c.text)
                     .join("\n");
@@ -294,9 +435,14 @@ Format as markdown. Output only the summary without preamble.`;
                 debugData.trajectory.push(finalAssistantMessage);
                 debugData.iterationsUsed = iterations;
 
-                if (!summary.trim()) {
-                    ctx.ui.notify("Compaction summary was empty, using default", "warning");
-                    debugData.error = "Empty summary";
+                // === IMPROVEMENT 6: Clean up preambles ===
+                summary = cleanSummaryPreamble(summary);
+
+                // === IMPROVEMENT 7: Validate summary quality ===
+                const validationError = validateSummary(summary);
+                if (validationError) {
+                    ctx.ui.notify(`Summary validation failed: ${validationError}, using default`, "warning");
+                    debugData.error = validationError;
                     saveCompactionDebug(debugData);
                     return;
                 }
