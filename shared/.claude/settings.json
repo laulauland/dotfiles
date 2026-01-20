@@ -1,9 +1,57 @@
 {
   "includeCoAuthoredBy": false,
   "permissions": {
+    "allow": [
+      "Bash(cat:*)",
+      "WebSearch",
+      "WebFetch(domain:www.better-auth.com)",
+      "Bash(fd:*)",
+      "Bash(sqlite3:*)",
+      "mcp__cloudflare-agents-repo__search_agents_documentation",
+      "mcp__cloudflare-agents-repo__search_agents_code",
+      "mcp__cloudflare-agents-repo__fetch_generic_url_content",
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:localhost)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "WebFetch(domain:alexzhang13.github.io)",
+      "WebFetch(domain:lucumr.pocoo.org)",
+      "Bash(jj:*)",
+      "Bash(tmux capture-pane:*)",
+      "Bash(tmux list-panes:*)",
+      "WebFetch(domain:platform.claude.com)",
+      "mcp__context7__resolve-library-id",
+      "mcp__context7__get-library-docs",
+      "WebFetch(domain:app.unpkg.com)",
+      "Bash(mkdir:*)",
+      "Bash(/opt/homebrew/bin/jj log:*)",
+      "Bash(/opt/homebrew/bin/jj diff -r \"b3b365d6b99d::@\" --stat)",
+      "Bash(/opt/homebrew/bin/jj status)",
+      "Bash(/opt/homebrew/bin/jj describe:*)",
+      "Bash(/opt/homebrew/bin/jj bookmark list)",
+      "Bash(/opt/homebrew/bin/jj bookmark set project-registry-for-fp -r @)",
+      "Bash(/opt/homebrew/bin/jj git push --bookmark project-registry-for-fp)",
+      "WebFetch(domain:o1302973.ingest.us.sentry.io)",
+      "WebFetch(domain:api.github.com)",
+      "Bash(fp:*)",
+      "Skill(jj-hunk)",
+      "Bash(jj-hunk split:*)",
+      "Bash(fp-dev view create:*)",
+      "Bash(lsof:*)",
+      "Bash(bun:*)",
+      "Bash(jj-hunk list:*)",
+      "Bash(jj-hunk squash:*)",
+      "Bash(curl:*)",
+      "WebFetch(domain:effect.website)",
+      "Bash(fp-dev issue create:*)",
+      "Bash(pkill:*)",
+      "Bash(fp-dev review:*)",
+      "Bash(./apps/fp/dist/aarch64-apple-darwin/fp view:*)",
+      "Bash(FP_DEBUG=1 ./apps/fp/dist/aarch64-apple-darwin/fp view create:*)"
+    ],
     "deny": [
       "EnterPlanMode"
-    ]
+    ],
+    "defaultMode": "acceptEdits"
   },
   "hooks": {
     "PreToolUse": [

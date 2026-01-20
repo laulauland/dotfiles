@@ -1,5 +1,5 @@
 ---
-name: implementer
+name: operator
 model: anthropic/claude-opus-4-5
 description: |
   Code executor. Takes a clear plan or specification and produces working code. Use after planning/research is complete.

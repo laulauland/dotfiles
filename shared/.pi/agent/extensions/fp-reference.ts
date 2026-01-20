@@ -3,7 +3,8 @@
  *
  * Features:
  * - /fp command to open fp issue picker
- * - Shows all issues in the current fp project
+ * - Shows all issues in the current fp project with hierarchical view
+ * - Parent issues can be expanded/collapsed to show children
  * - Displays issue details including title, status, and description
  * - Inserts @fp:SHORTID reference at cursor (e.g., @fp:sfsb)
  * - Automatically injects issue context on prompt submit
@@ -11,7 +12,7 @@
  * Usage:
  * 1. Type /fp while editing a prompt
  * 2. Select an issue from the list
- * 3. Press Enter to insert the reference
+ * 3. Press Enter to insert the reference (or Tab to expand/collapse)
  * 4. Submit your prompt - issue context will be injected automatically
  */
 
@@ -23,7 +24,7 @@ import { join } from "node:path";
 import { readFileSync, unlinkSync } from "node:fs";
 
 // FP reference pattern: @fp:SHORTID (e.g., @fp:sfsb)
-const FP_REF_PATTERN = /@fp:([A-Za-z0-9]{4})/g;
+const FP_REF_PATTERN = /@fp:([A-Za-z0-9]{4,8})/g;
 
 interface FPIssue {
 	id: string;
@@ -44,6 +45,14 @@ interface FPContext {
 	issues: FPIssue[];
 	ready: boolean;
 	error?: string;
+	cwd?: string; // Track which directory this was loaded from
+}
+
+// Hierarchical view item
+interface HierarchyItem {
+	issue: FPIssue;
+	children: HierarchyItem[];
+	depth: number;
 }
 
 // Module-level cache for issues (used by getIssueContext)
@@ -61,6 +70,7 @@ function isFpAvailable(): boolean {
 
 function loadFpIssues(): FPContext {
 	let tempFile: string | null = null;
+	const cwd = process.cwd();
 	try {
 		// Write output to a temp file to avoid buffer limitations
 		tempFile = join(tmpdir(), `fp-issues-${Date.now()}-${Math.random().toString(36).slice(2)}.json`);
@@ -72,12 +82,13 @@ function loadFpIssues(): FPContext {
 		const data = JSON.parse(output) as { issues: FPIssue[] };
 		const issues: FPIssue[] = data.issues || [];
 
-		return { issues, ready: true };
+		return { issues, ready: true, cwd };
 	} catch (error) {
 		return {
 			issues: [],
 			ready: false,
 			error: error instanceof Error ? error.message : String(error),
+			cwd,
 		};
 	} finally {
 		// Clean up temp file
@@ -89,6 +100,63 @@ function loadFpIssues(): FPContext {
 			}
 		}
 	}
+}
+
+/**
+ * Build hierarchical tree from flat issue list
+ */
+function buildHierarchy(issues: FPIssue[]): HierarchyItem[] {
+	const issueById = new Map<string, FPIssue>();
+	for (const issue of issues) {
+		issueById.set(issue.id, issue);
+	}
+
+	const rootItems: HierarchyItem[] = [];
+	const itemById = new Map<string, HierarchyItem>();
+
+	// Create HierarchyItem for each issue
+	for (const issue of issues) {
+		const item: HierarchyItem = { issue, children: [], depth: 0 };
+		itemById.set(issue.id, item);
+	}
+
+	// Build parent-child relationships
+	for (const issue of issues) {
+		const item = itemById.get(issue.id)!;
+		if (issue.parent && issueById.has(issue.parent)) {
+			const parentItem = itemById.get(issue.parent)!;
+			parentItem.children.push(item);
+		} else {
+			rootItems.push(item);
+		}
+	}
+
+	// Set depth recursively
+	function setDepth(items: HierarchyItem[], depth: number): void {
+		for (const item of items) {
+			item.depth = depth;
+			setDepth(item.children, depth + 1);
+		}
+	}
+	setDepth(rootItems, 0);
+
+	// Sort children by status (todo first, then in-progress, then done)
+	function sortChildren(items: HierarchyItem[]): void {
+		const statusOrder = (s: string) => {
+			const lower = s.toLowerCase();
+			if (lower === "todo") return 0;
+			if (lower === "in-progress" || lower === "in_progress") return 1;
+			if (lower === "done" || lower === "closed" || lower === "resolved") return 2;
+			return 1;
+		};
+		items.sort((a, b) => statusOrder(a.issue.status) - statusOrder(b.issue.status));
+		for (const item of items) {
+			sortChildren(item.children);
+		}
+	}
+	sortChildren(rootItems);
+
+	return rootItems;
 }
 
 function getIssueContext(shortId: string): string {
@@ -112,7 +180,10 @@ function getIssueContext(shortId: string): string {
 	}
 
 	if (issue.parent) {
-		context += `\n**Parent:** ${issue.parent}`;
+		const parentIssue = fpContext.issues.find((i) => i.id === issue.parent);
+		if (parentIssue) {
+			context += `\n**Parent:** ${parentIssue.shortId} - ${parentIssue.title}`;
+		}
 	}
 
 	if (issue.dependencies.length > 0) {
@@ -129,21 +200,31 @@ function formatIssueLabel(issue: FPIssue): string {
 function getStatusColor(status: string): string {
 	const s = status.toLowerCase();
 	if (s === "done" || s === "closed" || s === "resolved") return "success";
-	if (s === "in-progress" || s === "in-progress" || s === "working") return "accent";
+	if (s === "in-progress" || s === "in_progress" || s === "working") return "accent";
 	if (s === "blocked" || s === "stuck") return "error";
 	return "muted";
 }
 
+// Visible item in the list (could be at any depth)
+interface VisibleItem {
+	issue: FPIssue;
+	depth: number;
+	hasChildren: boolean;
+	isExpanded: boolean;
+}
+
 /**
- * FP issue picker overlay component
+ * FP issue picker overlay component with hierarchical view
  */
 class FpPickerOverlay {
 	readonly width = 120;
-	private readonly maxVisible = 8;
-	private readonly previewLines = 14;
+	private readonly maxVisible = 10;
+	private readonly previewLines = 12;
 
 	private context: FPContext;
-	private filteredIssues: FPIssue[] = [];
+	private hierarchy: HierarchyItem[] = [];
+	private visibleItems: VisibleItem[] = [];
+	private expandedIds: Set<string> = new Set();
 	private query = "";
 	private selectedIndex = 0;
 	private scrollOffset = 0;
@@ -153,28 +234,77 @@ class FpPickerOverlay {
 		private done: (result: FPIssue | null) => void,
 	) {
 		this.context = loadFpIssues();
-		this.filterIssues();
+		if (this.context.ready) {
+			this.hierarchy = buildHierarchy(this.context.issues);
+		}
+		this.rebuildVisibleItems();
 	}
 
-	private filterIssues(): void {
+	private rebuildVisibleItems(): void {
+		this.visibleItems = [];
+
 		if (!this.context.ready) {
-			this.filteredIssues = [];
 			return;
 		}
 
-		if (!this.query) {
-			this.filteredIssues = this.context.issues;
+		const lowerQuery = this.query.toLowerCase();
+
+		// If searching, show flat filtered list
+		if (this.query) {
+			for (const issue of this.context.issues) {
+				if (
+					issue.id.toLowerCase().includes(lowerQuery) ||
+					issue.shortId.toLowerCase().includes(lowerQuery) ||
+					issue.title.toLowerCase().includes(lowerQuery) ||
+					(issue.description && issue.description.toLowerCase().includes(lowerQuery))
+				) {
+					this.visibleItems.push({
+						issue,
+						depth: 0,
+						hasChildren: false,
+						isExpanded: false,
+					});
+				}
+			}
 		} else {
-			const lowerQuery = this.query.toLowerCase();
-			this.filteredIssues = this.context.issues.filter(
-				(i) =>
-					i.id.toLowerCase().includes(lowerQuery) ||
-					i.title.toLowerCase().includes(lowerQuery) ||
-					(i.description && i.description.toLowerCase().includes(lowerQuery)),
-			);
+			// Build visible list from hierarchy respecting expansion state
+			const addItems = (items: HierarchyItem[]): void => {
+				for (const item of items) {
+					const hasChildren = item.children.length > 0;
+					const isExpanded = this.expandedIds.has(item.issue.id);
+
+					this.visibleItems.push({
+						issue: item.issue,
+						depth: item.depth,
+						hasChildren,
+						isExpanded,
+					});
+
+					// Only add children if expanded
+					if (isExpanded && hasChildren) {
+						addItems(item.children);
+					}
+				}
+			};
+			addItems(this.hierarchy);
 		}
-		this.selectedIndex = 0;
-		this.scrollOffset = 0;
+
+		// Reset selection if out of bounds
+		if (this.selectedIndex >= this.visibleItems.length) {
+			this.selectedIndex = Math.max(0, this.visibleItems.length - 1);
+		}
+		if (this.scrollOffset > this.selectedIndex) {
+			this.scrollOffset = this.selectedIndex;
+		}
+	}
+
+	private toggleExpand(issueId: string): void {
+		if (this.expandedIds.has(issueId)) {
+			this.expandedIds.delete(issueId);
+		} else {
+			this.expandedIds.add(issueId);
+		}
+		this.rebuildVisibleItems();
 	}
 
 	private getPreview(issue: FPIssue): string[] {
@@ -200,8 +330,17 @@ class FpPickerOverlay {
 			lines.push(`Priority: ${issue.priority}`);
 		}
 
-		if (issue.parentId) {
-			lines.push(`Parent: ${issue.parentId}`);
+		if (issue.parent) {
+			const parentIssue = this.context.issues.find((i) => i.id === issue.parent);
+			if (parentIssue) {
+				lines.push(`Parent: ${parentIssue.shortId} - ${parentIssue.title}`);
+			}
+		}
+
+		// Count children
+		const childCount = this.context.issues.filter((i) => i.parent === issue.id).length;
+		if (childCount > 0) {
+			lines.push(`Children: ${childCount} sub-issue${childCount > 1 ? "s" : ""}`);
 		}
 
 		// Pad to ensure consistent height
@@ -219,7 +358,25 @@ class FpPickerOverlay {
 		}
 
 		if (matchesKey(data, "return")) {
-			this.done(this.filteredIssues[this.selectedIndex] ?? null);
+			const item = this.visibleItems[this.selectedIndex];
+			this.done(item?.issue ?? null);
+			return;
+		}
+
+		// Tab or Right arrow to expand, Left arrow to collapse
+		if (matchesKey(data, "tab") || matchesKey(data, "right")) {
+			const item = this.visibleItems[this.selectedIndex];
+			if (item?.hasChildren && !item.isExpanded) {
+				this.toggleExpand(item.issue.id);
+			}
+			return;
+		}
+
+		if (matchesKey(data, "left")) {
+			const item = this.visibleItems[this.selectedIndex];
+			if (item?.hasChildren && item.isExpanded) {
+				this.toggleExpand(item.issue.id);
+			}
 			return;
 		}
 
@@ -234,7 +391,7 @@ class FpPickerOverlay {
 		}
 
 		if (matchesKey(data, "down")) {
-			if (this.selectedIndex < this.filteredIssues.length - 1) {
+			if (this.selectedIndex < this.visibleItems.length - 1) {
 				this.selectedIndex++;
 				if (this.selectedIndex >= this.scrollOffset + this.maxVisible) {
 					this.scrollOffset = this.selectedIndex - this.maxVisible + 1;
@@ -246,7 +403,7 @@ class FpPickerOverlay {
 		if (matchesKey(data, "backspace")) {
 			if (this.query.length > 0) {
 				this.query = this.query.slice(0, -1);
-				this.filterIssues();
+				this.rebuildVisibleItems();
 			}
 			return;
 		}
@@ -254,7 +411,7 @@ class FpPickerOverlay {
 		// Regular character input
 		if (data.length === 1 && data.charCodeAt(0) >= 32) {
 			this.query += data;
-			this.filterIssues();
+			this.rebuildVisibleItems();
 		}
 	}
 
@@ -295,7 +452,7 @@ class FpPickerOverlay {
 		if (!this.context.ready) {
 			const errorText = this.context.error || "Not an FP project";
 			lines.push(row(` ${th.fg("error", errorText)}`));
-		} else if (this.filteredIssues.length === 0) {
+		} else if (this.visibleItems.length === 0) {
 			lines.push(row(` ${searchPrompt}${this.query || th.fg("dim", "Search issues...")}`));
 		} else {
 			lines.push(row(` ${searchPrompt}${this.query || th.fg("dim", "Search issues...")}`));
@@ -313,44 +470,56 @@ class FpPickerOverlay {
 				else if (i === 1) lines.push(row(th.fg("dim", `   ${helpText}`)));
 				else lines.push(row(""));
 			}
-		} else if (this.filteredIssues.length === 0) {
+		} else if (this.visibleItems.length === 0) {
 			for (let i = 0; i < this.maxVisible; i++) {
 				if (i === 0) lines.push(row(th.fg("dim", "   No issues found")));
 				else lines.push(row(""));
 			}
 		} else {
-			const visibleIssues = this.filteredIssues.slice(
+			const visibleSlice = this.visibleItems.slice(
 				this.scrollOffset,
 				this.scrollOffset + this.maxVisible,
 			);
 
-			// Calculate max ID/Status width for alignment
-			const idWidth = 14;
-
 			for (let i = 0; i < this.maxVisible; i++) {
-				if (i < visibleIssues.length) {
-					const issue = visibleIssues[i]!;
+				if (i < visibleSlice.length) {
+					const item = visibleSlice[i]!;
 					const actualIndex = this.scrollOffset + i;
 					const isSelected = actualIndex === this.selectedIndex;
 
-					const prefix = isSelected ? th.fg("accent", " ▶ ") : "   ";
-					const idStr = issue.id;
+					// Build indent and expand indicator
+					const indent = "  ".repeat(item.depth);
+					let expandIcon = "  ";
+					if (item.hasChildren) {
+						expandIcon = item.isExpanded ? "▼ " : "▶ ";
+					}
+
+					const prefix = isSelected ? th.fg("accent", " ❯") : "  ";
+
+					// ID (shortened)
+					const idWidth = 10;
+					const idStr = item.issue.shortId;
 					const fittedId = visibleWidth(idStr) > idWidth ? truncate(idStr, idWidth) : pad(idStr, idWidth);
 					const id = th.fg("muted", fittedId);
 					const separator = th.fg("dim", "│ ");
 
 					// Status badge
-					const statusColor = getStatusColor(issue.status);
-					const status = th.fg(statusColor, `[${issue.status}]`);
-					const statusSep = th.fg("dim", " ");
+					const statusColor = getStatusColor(item.issue.status);
+					const status = th.fg(statusColor, `[${item.issue.status}]`);
+					const statusSep = " ";
 
-					const title = issue.title || "untitled";
-					const fixedWidth = 3 + idWidth + 2 + status.length + 1; // prefix + id + separator + status
+					// Title
+					const title = item.issue.title || "untitled";
+					const indentStr = th.fg("dim", indent + expandIcon);
+					// Calculate remaining width for title
+					const prefixW = 3; // " ❯"
+					const indentW = item.depth * 2 + 2; // indent + expand icon
+					const fixedWidth = prefixW + indentW + idWidth + 2 + visibleWidth(`[${item.issue.status}]`) + 1;
 					const maxTitleWidth = Math.max(10, innerW - fixedWidth - 1);
 					const truncatedTitle = truncate(title, maxTitleWidth);
 					const titleStyled = isSelected ? th.fg("text", truncatedTitle) : th.fg("muted", truncatedTitle);
 
-					lines.push(row(`${prefix}${id}${separator}${status}${statusSep}${titleStyled}`));
+					lines.push(row(`${prefix}${indentStr}${id}${separator}${status}${statusSep}${titleStyled}`));
 				} else {
 					lines.push(row(""));
 				}
@@ -358,12 +527,12 @@ class FpPickerOverlay {
 		}
 
 		// Scroll indicator
-		if (this.context.ready && this.filteredIssues.length > this.maxVisible) {
+		if (this.context.ready && this.visibleItems.length > this.maxVisible) {
 			const shown = `${this.scrollOffset + 1}-${Math.min(
 				this.scrollOffset + this.maxVisible,
-				this.filteredIssues.length,
+				this.visibleItems.length,
 			)}`;
-			const total = this.filteredIssues.length;
+			const total = this.visibleItems.length;
 			lines.push(row(th.fg("dim", ` (${shown} of ${total})`)));
 		} else {
 			lines.push(row(""));
@@ -372,11 +541,11 @@ class FpPickerOverlay {
 		// Preview section
 		lines.push(th.fg("border", `├${"─".repeat(innerW)}┤`));
 
-		const selectedIssue = this.filteredIssues[this.selectedIndex];
-		if (selectedIssue) {
-			lines.push(row(` ${th.fg("accent", "Preview:")} ${th.fg("dim", selectedIssue.id)}`));
+		const selectedItem = this.visibleItems[this.selectedIndex];
+		if (selectedItem) {
+			lines.push(row(` ${th.fg("accent", "Preview:")} ${th.fg("dim", selectedItem.issue.shortId)}`));
 
-			const preview = this.getPreview(selectedIssue);
+			const preview = this.getPreview(selectedItem.issue);
 			for (let i = 0; i < this.previewLines; i++) {
 				const previewLine = preview[i] ?? "";
 				const truncatedPreview = truncate(previewLine, innerW - 2);
@@ -391,7 +560,7 @@ class FpPickerOverlay {
 
 		// Footer
 		lines.push(th.fg("border", `├${"─".repeat(innerW)}┤`));
-		lines.push(row(th.fg("dim", " ↑↓ navigate  [Enter] select  [Esc] cancel")));
+		lines.push(row(th.fg("dim", " ↑↓ navigate  ◀▶/Tab expand  [Enter] select  [Esc] cancel")));
 
 		// Bottom border
 		lines.push(th.fg("border", `╰${"─".repeat(innerW)}╯`));
@@ -409,8 +578,9 @@ class FpPickerOverlay {
 function resolveFpReferences(prompt: string): { resolvedPrompt: string; contexts: string[] } {
 	const contexts: string[] = [];
 
-	// Load/refresh issues if not already loaded or if fp is available
-	if (!fpContext.ready && isFpAvailable()) {
+	// Load/refresh issues if not already loaded, cwd changed, or if fp is available
+	const cwd = process.cwd();
+	if ((!fpContext.ready || fpContext.cwd !== cwd) && isFpAvailable()) {
 		fpContext = loadFpIssues();
 	}
 

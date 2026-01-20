@@ -1,4 +1,8 @@
 {
+	"cycleModelForward": "",
+	"cycleModelBackward": "",
+	"toggleThinking": "",
+	"selectModel": "ctrl+/",
 	"selectUp": [
 		"up",
 		"ctrl+p"
@@ -7,7 +11,24 @@
 		"down",
 		"ctrl+n"
 	],
-	"queueMessage": [
+	"cursorUp": [
+		"up",
+		"ctrl+p"
+	],
+	"cursorDown": [
+		"down",
+		"ctrl+n"
+	],
+	"cursorLeft": [
+		"left",
+		"ctrl+b"
+	],
+	"cursorRight": [
+		"right",
+		"ctrl+f"
+	],
+	"followUp": [
 		"ctrl+enter"
-	]
+	],
+	"dequeue": "ctrl+up"
 }
