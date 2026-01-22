@@ -3,11 +3,6 @@
  *
  * Provides find_threads and read_thread tools for searching and reading
  * past conversation sessions.
- *
- * Performance optimizations:
- * - ripgrep for full-text search (sub-20ms for typical searches)
- * - Lazy parsing: only parse files that match search criteria
- * - Index caching: cache session metadata to avoid re-parsing headers
  */
 
 import * as fs from "node:fs";
@@ -25,71 +20,11 @@ import {
 import { Text, Container, Spacer } from "@mariozechner/pi-tui";
 
 // ============================================================================
-// Types
-// ============================================================================
-
-interface SessionMeta {
-	id: string;
-	timestamp: string;
-	cwd: string;
-	filePath: string;
-	fileSize: number;
-	modifiedAt: Date;
-}
-
-interface ThreadSearchResult {
-	id: string;
-	cwd: string;
-	timestamp: string;
-	preview: string;
-	messageCount: number;
-	filePath: string;
-	matchCount?: number;
-}
-
-interface ThreadContent {
-	id: string;
-	cwd: string;
-	timestamp: string;
-	messages: Array<{
-		role: string;
-		content: string;
-		timestamp?: string;
-		model?: string;
-		toolName?: string;
-	}>;
-	totalTokens: number;
-	totalCost: number;
-}
-
-interface FindThreadsDetails {
-	threads: ThreadSearchResult[];
-	searchTime: number;
-	totalSessions: number;
-}
-
-interface ReadThreadDetails {
-	thread: ThreadContent | null;
-	error?: string;
-}
-
-// ============================================================================
-// Session Index Cache
-// ============================================================================
-
-const indexCache = new Map<string, SessionMeta>();
-
-// ============================================================================
 // Session Parsing Utilities
 // ============================================================================
 
 function getSessionsDir(): string {
 	return path.join(os.homedir(), ".pi", "agent", "sessions");
-}
-
-function cwdFromDirName(dirName: string): string {
-	// Convert --Users-laurynas-fp-Code-project-- to /Users/laurynas-fp/Code/project
-	return dirName.replace(/^--/, "/").replace(/--$/, "").replace(/-/g, "/");
 }
 
 function loadSessionFile(filePath: string): FileEntry[] {
@@ -98,8 +33,7 @@ function loadSessionFile(filePath: string): FileEntry[] {
 }
 
 function getSessionHeader(entries: FileEntry[]): SessionHeader | null {
-	const header = entries.find((e): e is SessionHeader => e.type === "session");
-	return header ?? null;
+	return entries.find((e): e is SessionHeader => e.type === "session") ?? null;
 }
 
 function getSessionEntries(entries: FileEntry[]): SessionEntry[] {
@@ -144,39 +78,8 @@ function getEntryPath(entries: SessionEntry[]): SessionEntry[] {
 	return path.reverse();
 }
 
-function parseSessionHeader(filePath: string): SessionMeta | null {
-	const stats = fs.statSync(filePath);
-	const cacheKey = `${filePath}:${stats.mtimeMs}`;
-
-	if (indexCache.has(cacheKey)) {
-		return indexCache.get(cacheKey)!;
-	}
-
-	try {
-		const entries = loadSessionFile(filePath);
-		const header = getSessionHeader(entries);
-
-		if (!header) return null;
-
-		const meta: SessionMeta = {
-			id: header.id,
-			timestamp: header.timestamp,
-			cwd: header.cwd || cwdFromDirName(path.basename(path.dirname(filePath))),
-			filePath,
-			fileSize: stats.size,
-			modifiedAt: stats.mtime,
-		};
-		indexCache.set(cacheKey, meta);
-		return meta;
-	} catch {
-		return null;
-	}
-}
-
 function extractTextContent(content: unknown): string {
-	if (typeof content === "string") {
-		return content;
-	}
+	if (typeof content === "string") return content;
 	if (Array.isArray(content)) {
 		const parts: string[] = [];
 		for (const part of content) {
@@ -195,9 +98,7 @@ function getFirstUserMessage(entries: SessionEntry[]): string {
 	for (const entry of entries) {
 		if (entry.type === "message" && entry.message.role === "user") {
 			const text = extractTextContent(entry.message.content);
-			if (text) {
-				return text.slice(0, 200);
-			}
+			if (text) return text.slice(0, 200);
 		}
 	}
 	return "(no user message)";
@@ -211,38 +112,52 @@ function countMessages(entries: SessionEntry[]): number {
 // Search Functions
 // ============================================================================
 
-async function searchWithRipgrep(
+async function searchWithGrep(
 	exec: (cmd: string, args: string[], opts?: { timeout?: number }) => Promise<{ stdout: string; stderr: string; code: number }>,
 	query: string,
 	sessionsDir: string,
+	onFallback?: () => void,
 ): Promise<Map<string, number>> {
 	const results = new Map<string, number>();
 
+	// Try ripgrep first
 	try {
-		const { stdout } = await exec("rg", ["-c", "-i", "--", query, sessionsDir], { timeout: 10000 });
+		const { stdout, code } = await exec("rg", ["-c", "-i", "--", query, sessionsDir], { timeout: 10000 });
+		if (code === 0 || code === 1) { // 1 = no matches, which is fine
+			for (const line of stdout.split("\n")) {
+				if (!line.trim()) continue;
+				const match = line.match(/^(.+):(\d+)$/);
+				if (match) results.set(match[1], parseInt(match[2], 10));
+			}
+			return results;
+		}
+	} catch {
+		// ripgrep not found or failed, fall back to grep
+	}
 
+	// Fallback to grep
+	onFallback?.();
+	try {
+		const { stdout } = await exec("grep", ["-r", "-c", "-i", query, sessionsDir], { timeout: 30000 });
 		for (const line of stdout.split("\n")) {
 			if (!line.trim()) continue;
 			const match = line.match(/^(.+):(\d+)$/);
-			if (match) {
+			if (match && parseInt(match[2], 10) > 0) {
 				results.set(match[1], parseInt(match[2], 10));
 			}
 		}
 	} catch {
-		// Ripgrep returns non-zero if no matches, which is fine
+		// grep also failed or no matches
 	}
-
 	return results;
 }
 
 async function getAllSessions(sessionsDir: string): Promise<string[]> {
 	const sessions: string[] = [];
-
 	if (!fs.existsSync(sessionsDir)) return sessions;
 
 	for (const dirEntry of fs.readdirSync(sessionsDir, { withFileTypes: true })) {
 		if (!dirEntry.isDirectory() || dirEntry.name.startsWith(".")) continue;
-
 		const dirPath = path.join(sessionsDir, dirEntry.name);
 		for (const fileEntry of fs.readdirSync(dirPath, { withFileTypes: true })) {
 			if (fileEntry.name.endsWith(".jsonl")) {
@@ -250,7 +165,6 @@ async function getAllSessions(sessionsDir: string): Promise<string[]> {
 			}
 		}
 	}
-
 	return sessions;
 }
 
@@ -282,14 +196,14 @@ export default function (pi: ExtensionAPI) {
 	// ========================================================================
 	// find_threads tool
 	// ========================================================================
-	pi.registerTool<typeof FindThreadsParams, FindThreadsDetails>({
+	pi.registerTool({
 		name: "find_threads",
 		label: "Find Threads",
 		description:
 			"Search through past conversation sessions. Use to find previous discussions, code changes, or decisions. Searches message content using ripgrep for speed.",
 		parameters: FindThreadsParams,
 
-		async execute(_toolCallId, params, _onUpdate, _ctx, _signal) {
+		async execute(_toolCallId, params, _onUpdate, ctx, _signal) {
 			const startTime = Date.now();
 			const sessionsDir = getSessionsDir();
 			const limit = params.limit ?? 10;
@@ -298,9 +212,14 @@ export default function (pi: ExtensionAPI) {
 			let sessionFiles = await getAllSessions(sessionsDir);
 			let matchCounts: Map<string, number> | null = null;
 
-			// Filter by query using ripgrep
+			// Filter by query using ripgrep (with grep fallback)
 			if (params.query) {
-				matchCounts = await searchWithRipgrep(pi.exec.bind(pi), params.query, sessionsDir);
+				matchCounts = await searchWithGrep(
+					pi.exec.bind(pi),
+					params.query,
+					sessionsDir,
+					() => ctx.ui.notify("ripgrep not found, falling back to grep (slower)", "warning"),
+				);
 				sessionFiles = sessionFiles.filter((f) => matchCounts!.has(f));
 			}
 
@@ -308,28 +227,36 @@ export default function (pi: ExtensionAPI) {
 			if (params.cwd) {
 				const cwdFilter = params.cwd.toLowerCase();
 				sessionFiles = sessionFiles.filter((f) => {
-					const meta = parseSessionHeader(f);
-					if (!meta) return false;
-					return meta.cwd.toLowerCase().includes(cwdFilter);
+					const entries = loadSessionFile(f);
+					const header = getSessionHeader(entries);
+					return header?.cwd?.toLowerCase().includes(cwdFilter);
 				});
 			}
 
-			// Parse headers and build results
-			const results: ThreadSearchResult[] = [];
+			// Parse and build results
+			const results: Array<{
+				id: string;
+				cwd: string;
+				timestamp: string;
+				preview: string;
+				messageCount: number;
+				filePath: string;
+				matchCount?: number;
+			}> = [];
+
 			for (const filePath of sessionFiles) {
-				const meta = parseSessionHeader(filePath);
-				if (!meta) continue;
+				const entries = loadSessionFile(filePath);
+				const header = getSessionHeader(entries);
+				if (!header) continue;
 
-				const fileEntries = loadSessionFile(filePath);
-				const sessionEntries = getSessionEntries(fileEntries);
-
+				const sessionEntries = getSessionEntries(entries);
 				results.push({
-					id: meta.id,
-					cwd: meta.cwd,
-					timestamp: meta.timestamp,
+					id: header.id,
+					cwd: header.cwd || "",
+					timestamp: header.timestamp,
 					preview: getFirstUserMessage(sessionEntries),
 					messageCount: countMessages(sessionEntries),
-					filePath: meta.filePath,
+					filePath,
 					matchCount: matchCounts?.get(filePath),
 				});
 			}
@@ -343,15 +270,8 @@ export default function (pi: ExtensionAPI) {
 				results.sort((a, b) => (b.matchCount ?? 0) - (a.matchCount ?? 0));
 			}
 
-			// Limit
 			const limitedResults = results.slice(0, limit);
-
 			const searchTime = Date.now() - startTime;
-			const details: FindThreadsDetails = {
-				threads: limitedResults,
-				searchTime,
-				totalSessions: sessionFiles.length,
-			};
 
 			// Format text output
 			let text = `Found ${results.length} threads`;
@@ -374,7 +294,7 @@ export default function (pi: ExtensionAPI) {
 
 			return {
 				content: [{ type: "text", text }],
-				details,
+				details: { threads: limitedResults, searchTime, totalSessions: sessionFiles.length },
 			};
 		},
 
@@ -388,7 +308,7 @@ export default function (pi: ExtensionAPI) {
 
 		renderResult(result, { expanded }, theme) {
 			const { details } = result;
-			if (!details) {
+			if (!details?.threads) {
 				const text = result.content[0];
 				return new Text(text?.type === "text" ? text.text : "(no output)", 0, 0);
 			}
@@ -399,11 +319,7 @@ export default function (pi: ExtensionAPI) {
 			if (expanded) {
 				const container = new Container();
 				container.addChild(
-					new Text(
-						`${icon} Found ${theme.fg("accent", String(threads.length))} threads (${searchTime}ms)`,
-						0,
-						0,
-					),
+					new Text(`${icon} Found ${theme.fg("accent", String(threads.length))} threads (${searchTime}ms)`, 0, 0),
 				);
 
 				for (const t of threads) {
@@ -442,7 +358,7 @@ export default function (pi: ExtensionAPI) {
 	// ========================================================================
 	// read_thread tool
 	// ========================================================================
-	pi.registerTool<typeof ReadThreadParams, ReadThreadDetails>({
+	pi.registerTool({
 		name: "read_thread",
 		label: "Read Thread",
 		description:
@@ -457,14 +373,13 @@ export default function (pi: ExtensionAPI) {
 			let filePath: string | null = null;
 
 			if (thread_id.endsWith(".jsonl") || thread_id.startsWith("/")) {
-				// Direct file path
 				filePath = thread_id;
 			} else {
-				// Search by UUID
 				const allSessions = await getAllSessions(sessionsDir);
 				for (const sessionPath of allSessions) {
-					const meta = parseSessionHeader(sessionPath);
-					if (meta?.id === thread_id) {
+					const entries = loadSessionFile(sessionPath);
+					const header = getSessionHeader(entries);
+					if (header?.id === thread_id) {
 						filePath = sessionPath;
 						break;
 					}
@@ -494,7 +409,13 @@ export default function (pi: ExtensionAPI) {
 			const branchEntries = getEntryPath(sessionEntries);
 
 			// Build message list
-			const messages: ThreadContent["messages"] = [];
+			const messages: Array<{
+				role: string;
+				content: string;
+				timestamp?: string;
+				model?: string;
+				toolName?: string;
+			}> = [];
 			let totalTokens = 0;
 			let totalCost = 0;
 
@@ -503,9 +424,8 @@ export default function (pi: ExtensionAPI) {
 					const customEntry = entry as any;
 					const customContent = extractTextContent(customEntry.content);
 					if (!customContent.trim()) continue;
-					const customType = customEntry.customType ? `custom:${customEntry.customType}` : "custom";
 					messages.push({
-						role: customType,
+						role: customEntry.customType ? `custom:${customEntry.customType}` : "custom",
 						content: customContent.trim(),
 						timestamp: customEntry.timestamp,
 					});
@@ -515,24 +435,19 @@ export default function (pi: ExtensionAPI) {
 				if (entry.type !== "message") continue;
 
 				const msg = entry.message;
-				const role = msg.role;
+				if (msg.role === "toolResult" && !include_tool_results) continue;
 
-				// Skip tool results unless requested
-				if (role === "toolResult" && !include_tool_results) continue;
-
-				// Extract text content
 				const content = extractTextContent(msg.content);
 				if (!content.trim()) continue;
 
 				messages.push({
-					role,
+					role: msg.role,
 					content: content.trim(),
 					timestamp: entry.timestamp,
 					model: "model" in msg ? (msg as any).model : undefined,
 					toolName: "toolName" in msg ? (msg as any).toolName : undefined,
 				});
 
-				// Accumulate usage
 				if ("usage" in msg && msg.usage) {
 					const usage = msg.usage as { input?: number; output?: number; cost?: { total?: number } };
 					totalTokens += (usage.input || 0) + (usage.output || 0);
@@ -540,12 +455,11 @@ export default function (pi: ExtensionAPI) {
 				}
 			}
 
-			// Apply max_messages limit
 			const limitedMessages = max_messages ? messages.slice(-max_messages) : messages;
 
-			const thread: ThreadContent = {
+			const thread = {
 				id: header.id,
-				cwd: header.cwd || cwdFromDirName(path.basename(path.dirname(filePath))),
+				cwd: header.cwd || "",
 				timestamp: header.timestamp,
 				messages: limitedMessages,
 				totalTokens,
@@ -603,19 +517,11 @@ export default function (pi: ExtensionAPI) {
 			if (expanded) {
 				const container = new Container();
 				container.addChild(
-					new Text(
-						`${icon} Thread ${theme.fg("accent", thread.id.slice(0, 8))} (${thread.messages.length} messages)`,
-						0,
-						0,
-					),
+					new Text(`${icon} Thread ${theme.fg("accent", thread.id.slice(0, 8))} (${thread.messages.length} messages)`, 0, 0),
 				);
 				container.addChild(new Text(theme.fg("muted", `📁 ${thread.cwd}`), 0, 0));
 				container.addChild(
-					new Text(
-						theme.fg("dim", `📊 ${thread.totalTokens.toLocaleString()} tokens | $${thread.totalCost.toFixed(4)}`),
-						0,
-						0,
-					),
+					new Text(theme.fg("dim", `📊 ${thread.totalTokens.toLocaleString()} tokens | $${thread.totalCost.toFixed(4)}`), 0, 0),
 				);
 
 				for (const msg of thread.messages) {

@@ -1,0 +1,22 @@
+{
+  "name": "pi-threads",
+  "version": "0.2.0",
+  "description": "Pi extension for searching and reading past conversation threads with ripgrep-powered search",
+  "type": "module",
+  "keywords": ["pi-package"],
+  "license": "MIT",
+  "author": "laulauland",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/laulauland/dotfiles"
+  },
+  "pi": {
+    "extensions": ["./index.ts"]
+  },
+  "peerDependencies": {
+    "@mariozechner/pi-ai": "*",
+    "@mariozechner/pi-coding-agent": "*",
+    "@mariozechner/pi-tui": "*",
+    "@sinclair/typebox": "*"
+  }
+}
