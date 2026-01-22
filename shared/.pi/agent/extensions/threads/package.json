@@ -1,6 +1,6 @@
 {
   "name": "pi-threads",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Pi extension for searching and reading past conversation threads with ripgrep-powered search",
   "type": "module",
   "keywords": ["pi-package"],

@@ -8,7 +8,6 @@ A [pi](https://github.com/badlogic/pi-mono) extension that provides tools for se
 - **`read_thread` tool**: Read a specific conversation thread by ID or file path
 - **Custom rendering**: Compact and expanded views with proper theming
 - **Lazy parsing**: Only parse files that match search criteria
-- **Index caching**: Cache session metadata to avoid re-parsing headers
 
 ## Installation
 
@@ -61,11 +60,6 @@ Read thread abc123-def456 to see the authentication implementation discussion
 - **Code archaeology**: "Find the thread where we implemented the caching layer"
 - **Continuation**: "What was the status of the refactoring work?"
 - **Knowledge transfer**: "Show me conversations about the payment integration"
-
-## Requirements
-
-- pi coding agent
-- ripgrep (`rg`) installed for fast search
 
 ## License
 

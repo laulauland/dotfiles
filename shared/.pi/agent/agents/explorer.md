@@ -1,7 +1,7 @@
 ---
 name: explorer
 tools: read, grep, find, ls, bash
-model: anthropic/claude-haiku-4-5
+model: cerebras/zai-glm-4.7
 description: |
   Quick codebase reconnaissance. Use for fast file discovery and navigation when you need to find where code lives.
   

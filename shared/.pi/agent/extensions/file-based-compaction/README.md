@@ -1,14 +1,6 @@
 # pi-agentic-compaction
 
-A [pi](https://github.com/badlogic/pi-mono) extension that provides intelligent conversation compaction using a virtual filesystem approach.
-
-## Features
-
-- **Virtual filesystem exploration**: Uses [just-bash](https://github.com/nicolo-ribaudo/just-bash) to provide an in-memory filesystem where the conversation is available as `/conversation.json`
-- **LLM-powered summarization**: The summarizer agent explores the conversation using jq, grep, head, tail, etc. without loading everything into context
-- **Structured output**: Generates summaries with Main Goal, Key Decisions, Files Modified, Status, and Next Steps
-- **Debug logging**: Saves compaction trajectories to `~/.pi/agent/compactions/` for debugging
-- **Quality validation**: Validates summaries for structure and completeness before accepting
+A [pi](https://github.com/badlogic/pi-mono) extension that provides conversation compaction using a virtual filesystem approach.
 
 ## Installation
 
@@ -35,19 +27,56 @@ When pi triggers compaction (either manually via `/compact` or automatically whe
    - Check the end (last 10-15 messages) for final state
    - Find all file modifications (write/edit tool calls)
    - Search for user feedback about bugs/issues
-4. Validates the summary quality before accepting
-5. Returns the summary to pi for storage
+4. Returns the summary to pi
 
-This approach keeps the summarizer's context small - it only loads what it queries, rather than the entire conversation at once.
+### Comparison with pi's built-in compaction
+
+**pi's default compaction** (in `core/compaction/compaction.ts`):
+
+1. Serializes the entire conversation to text
+2. Wraps it in `<conversation>` tags
+3. Sends it all to an LLM with a summarization prompt
+4. LLM processes everything in one pass
+
+This works well for shorter conversations, but for long sessions (50k+ tokens), you pay for all those input tokens and the model may struggle with "lost in the middle" effects.
+
+**This extension's approach**:
+
+1. Mounts the conversation as `/conversation.json` in a virtual filesystem
+2. Spawns a summarizer agent with bash/jq tools
+3. The agent **explores** the conversation by querying specific parts
+4. Only the queried portions enter the summarizer's context
+
+Example queries the summarizer might run:
+
+```bash
+# How many messages?
+jq 'length' /conversation.json
+
+# What was the initial request?
+jq '.[0:3]' /conversation.json
+
+# What files were modified?
+jq '[.[] | select(.role == "assistant") | .tool_calls[]? | select(.name == "write" or .name == "edit")] | .[].args.path' /conversation.json
+
+# Any errors or bugs mentioned?
+grep -i "error\|bug\|fix" /conversation.json | head -20
+
+# What happened at the end?
+jq '.[-15:]' /conversation.json
+```
+
+The summarizer's context stays small (just its system prompt + tool results), while still being able to extract key information from conversations of any length. This is similar to how a human would skim a long document—you don't read every word, you jump to relevant sections.
+
+**Trade-offs**:
+- Exploration is **cheaper** for very long conversations (only loads what's queried)
+- Exploration may **miss context** that a full-pass approach would catch
+- Exploration requires **multiple LLM calls** (one per tool use), but with a small, fast model this is still fast
+- Built-in compaction is **simpler** and has no external dependencies
 
 ## Configuration
 
 The extension uses `cerebras/zai-glm-4.7` by default (fast), falling back to `claude-haiku-4-5` if unavailable. To change this, edit `index.ts`.
-
-## Requirements
-
-- pi coding agent
-- Model that supports tool use (Anthropic, OpenAI, or Google)
 
 ## License
 

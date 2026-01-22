@@ -1,3 +1,8 @@
+---
+name: console-debugging
+description: "Console.log debugging patterns for React/TypeScript. Use when tracking down bugs involving data transformations, conditional logic, state management, or when you need to trace data flow through pipelines."
+---
+
 # Console.log Debugging Skill
 
 Effective console.log debugging patterns for React/TypeScript applications. Use when tracking down bugs involving data transformations, conditional logic, or state management.
