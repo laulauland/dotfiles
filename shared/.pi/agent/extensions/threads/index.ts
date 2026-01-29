@@ -1,7 +1,7 @@
 /**
  * Thread Search and Reading Extension
  *
- * Provides find_threads and read_thread tools for searching and reading
+ * Provides find_threads and search_thread tools for searching and reading
  * past conversation sessions.
  */
 
@@ -184,12 +184,13 @@ const FindThreadsParams = Type.Object({
 	),
 });
 
-const ReadThreadParams = Type.Object({
+const SearchThreadParams = Type.Object({
 	thread_id: Type.String({ description: "Thread ID (session UUID) or file path" }),
-	include_tool_results: Type.Optional(
-		Type.Boolean({ description: "Include tool call results in output (default: false)", default: false }),
-	),
-	max_messages: Type.Optional(Type.Number({ description: "Maximum messages to return (default: all)" })),
+	query: Type.Optional(Type.String({ description: "Search for messages containing this text (case-insensitive). If omitted, returns all messages." })),
+	context: Type.Optional(Type.Number({ description: "Include N messages before/after each match (default: 0)", default: 0 })),
+	roles: Type.Optional(Type.Array(Type.String(), { description: "Filter to specific roles: user, assistant, toolResult (default: all)" })),
+	max_messages: Type.Optional(Type.Number({ description: "Maximum messages to return" })),
+	max_content_length: Type.Optional(Type.Number({ description: "Truncate each message content to N chars" })),
 });
 
 export default function (pi: ExtensionAPI) {
@@ -203,7 +204,7 @@ export default function (pi: ExtensionAPI) {
 			"Search through past conversation sessions. Use to find previous discussions, code changes, or decisions. Searches message content using ripgrep for speed.",
 		parameters: FindThreadsParams,
 
-		async execute(_toolCallId, params, _onUpdate, ctx, _signal) {
+		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
 			const startTime = Date.now();
 			const sessionsDir = getSessionsDir();
 			const limit = params.limit ?? 10;
@@ -356,17 +357,17 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	// ========================================================================
-	// read_thread tool
+	// search_thread tool
 	// ========================================================================
 	pi.registerTool({
-		name: "read_thread",
-		label: "Read Thread",
+		name: "search_thread",
+		label: "Search Thread",
 		description:
-			"Read a specific conversation thread by ID or file path. Returns the full conversation history with user messages, assistant responses, and optionally tool results.",
-		parameters: ReadThreadParams,
+			"Search and read a specific conversation thread by ID or file path. Returns conversation messages with optional filtering by query text, roles, and context window.",
+		parameters: SearchThreadParams,
 
-		async execute(_toolCallId, params, _onUpdate, _ctx, _signal) {
-			const { thread_id, include_tool_results, max_messages } = params;
+		async execute(_toolCallId, params, _signal, _onUpdate, _ctx) {
+			const { thread_id, query, context = 0, roles, max_messages, max_content_length } = params;
 			const sessionsDir = getSessionsDir();
 
 			// Find the session file
@@ -409,7 +410,7 @@ export default function (pi: ExtensionAPI) {
 			const branchEntries = getEntryPath(sessionEntries);
 
 			// Build message list
-			const messages: Array<{
+			const allMessages: Array<{
 				role: string;
 				content: string;
 				timestamp?: string;
@@ -424,7 +425,7 @@ export default function (pi: ExtensionAPI) {
 					const customEntry = entry as any;
 					const customContent = extractTextContent(customEntry.content);
 					if (!customContent.trim()) continue;
-					messages.push({
+					allMessages.push({
 						role: customEntry.customType ? `custom:${customEntry.customType}` : "custom",
 						content: customContent.trim(),
 						timestamp: customEntry.timestamp,
@@ -435,12 +436,10 @@ export default function (pi: ExtensionAPI) {
 				if (entry.type !== "message") continue;
 
 				const msg = entry.message;
-				if (msg.role === "toolResult" && !include_tool_results) continue;
-
 				const content = extractTextContent(msg.content);
 				if (!content.trim()) continue;
 
-				messages.push({
+				allMessages.push({
 					role: msg.role,
 					content: content.trim(),
 					timestamp: entry.timestamp,
@@ -455,13 +454,57 @@ export default function (pi: ExtensionAPI) {
 				}
 			}
 
-			const limitedMessages = max_messages ? messages.slice(-max_messages) : messages;
+			// Apply filtering
+			let filteredMessages = allMessages;
+			const originalCount = allMessages.length;
+
+			// 1. Filter by roles if specified
+			if (roles && roles.length > 0) {
+				const rolesLower = roles.map(r => r.toLowerCase());
+				filteredMessages = filteredMessages.filter(msg => 
+					rolesLower.includes(msg.role.toLowerCase())
+				);
+			}
+
+			// 2. Filter by query if specified, with context
+			let matchCount = 0;
+			if (query) {
+				const queryLower = query.toLowerCase();
+				const matchIndices = new Set<number>();
+				
+				// Find matching message indices
+				for (let i = 0; i < filteredMessages.length; i++) {
+					if (filteredMessages[i].content.toLowerCase().includes(queryLower)) {
+						matchCount++;
+						// Add the match and context
+						for (let j = Math.max(0, i - context); j <= Math.min(filteredMessages.length - 1, i + context); j++) {
+							matchIndices.add(j);
+						}
+					}
+				}
+				
+				// Keep only messages in the match set (preserving order)
+				filteredMessages = filteredMessages.filter((_, idx) => matchIndices.has(idx));
+			}
+
+			// 3. Apply max_messages limit (from end)
+			const limitedMessages = max_messages ? filteredMessages.slice(-max_messages) : filteredMessages;
+
+			// 4. Apply content length truncation
+			const finalMessages = max_content_length
+				? limitedMessages.map(msg => ({
+						...msg,
+						content: msg.content.length > max_content_length 
+							? msg.content.slice(0, max_content_length) + "..."
+							: msg.content,
+					}))
+				: limitedMessages;
 
 			const thread = {
 				id: header.id,
 				cwd: header.cwd || "",
 				timestamp: header.timestamp,
-				messages: limitedMessages,
+				messages: finalMessages,
 				totalTokens,
 				totalCost,
 			};
@@ -470,15 +513,24 @@ export default function (pi: ExtensionAPI) {
 			let text = `## Thread ${thread.id}\n`;
 			text += `**Directory:** ${thread.cwd}\n`;
 			text += `**Started:** ${new Date(thread.timestamp).toLocaleString()}\n`;
-			text += `**Messages:** ${messages.length} | **Tokens:** ${totalTokens.toLocaleString()} | **Cost:** $${totalCost.toFixed(4)}\n\n`;
-
-			if (max_messages && messages.length > max_messages) {
-				text += `*Showing last ${max_messages} of ${messages.length} messages*\n\n`;
+			text += `**Messages:** ${originalCount} total | **Tokens:** ${totalTokens.toLocaleString()} | **Cost:** $${totalCost.toFixed(4)}\n`;
+			
+			// Show filtering info
+			const filters: string[] = [];
+			if (query) filters.push(`query="${query}" (${matchCount} matches)`);
+			if (roles) filters.push(`roles=[${roles.join(", ")}]`);
+			if (context > 0) filters.push(`context=${context}`);
+			if (max_messages) filters.push(`max_messages=${max_messages}`);
+			if (max_content_length) filters.push(`truncate=${max_content_length}`);
+			
+			if (filters.length > 0) {
+				text += `**Filters:** ${filters.join(" | ")}\n`;
+				text += `**Showing:** ${finalMessages.length} of ${originalCount} messages\n`;
 			}
+			
+			text += "\n---\n\n";
 
-			text += "---\n\n";
-
-			for (const msg of limitedMessages) {
+			for (const msg of finalMessages) {
 				const roleIcon = msg.role === "user" ? "👤" : msg.role === "assistant" ? "🤖" : "🔧";
 				const roleLabel = msg.role === "toolResult" ? `tool:${msg.toolName}` : msg.role;
 				text += `### ${roleIcon} ${roleLabel}\n`;
@@ -488,14 +540,16 @@ export default function (pi: ExtensionAPI) {
 
 			return {
 				content: [{ type: "text", text }],
-				details: { thread },
+				details: { thread, matchCount, originalCount },
 			};
 		},
 
 		renderCall(args, theme) {
-			let text = theme.fg("toolTitle", theme.bold("read_thread"));
+			let text = theme.fg("toolTitle", theme.bold("search_thread"));
 			text += " " + theme.fg("accent", args.thread_id.slice(0, 36));
-			if (args.include_tool_results) text += " " + theme.fg("dim", "+tools");
+			if (args.query) text += " " + theme.fg("warning", `"${args.query}"`);
+			if (args.roles) text += " " + theme.fg("dim", `roles:[${args.roles.join(",")}]`);
+			if (args.context) text += " " + theme.fg("dim", `ctx:${args.context}`);
 			if (args.max_messages) text += " " + theme.fg("dim", `last:${args.max_messages}`);
 			return new Text(text, 0, 0);
 		},
@@ -511,13 +565,16 @@ export default function (pi: ExtensionAPI) {
 				);
 			}
 
-			const { thread } = details;
+			const { thread, matchCount, originalCount } = details;
 			const icon = theme.fg("success", "✓");
+			const countInfo = matchCount !== undefined 
+				? `${matchCount} matches, ${thread.messages.length}/${originalCount} shown`
+				: `${thread.messages.length} messages`;
 
 			if (expanded) {
 				const container = new Container();
 				container.addChild(
-					new Text(`${icon} Thread ${theme.fg("accent", thread.id.slice(0, 8))} (${thread.messages.length} messages)`, 0, 0),
+					new Text(`${icon} Thread ${theme.fg("accent", thread.id.slice(0, 8))} (${countInfo})`, 0, 0),
 				);
 				container.addChild(new Text(theme.fg("muted", `📁 ${thread.cwd}`), 0, 0));
 				container.addChild(
@@ -535,7 +592,7 @@ export default function (pi: ExtensionAPI) {
 			}
 
 			// Collapsed
-			let text = `${icon} Thread ${theme.fg("accent", thread.id.slice(0, 8))} (${thread.messages.length} messages)`;
+			let text = `${icon} Thread ${theme.fg("accent", thread.id.slice(0, 8))} (${countInfo})`;
 			text += `\n  ${theme.fg("muted", thread.cwd)}`;
 			for (const msg of thread.messages.slice(0, 3)) {
 				const preview = msg.content.slice(0, 60).replace(/\n/g, " ");
