@@ -151,6 +151,8 @@ interface SingleResult {
 	stopReason?: string;
 	errorMessage?: string;
 	step?: number;
+	sessionId?: string;
+	sessionFile?: string;
 }
 
 interface SubagentDetails {
@@ -243,7 +245,7 @@ async function runSingleAgent(
 		};
 	}
 
-	const args: string[] = ["--mode", "json", "-p", "--no-session"];
+	const args: string[] = ["--mode", "json", "-p"];
 	if (agent.model) args.push("--model", agent.model);
 	if (agent.tools && agent.tools.length > 0) args.push("--tools", agent.tools.join(","));
 
@@ -293,6 +295,17 @@ async function runSingleAgent(
 					event = JSON.parse(line);
 				} catch {
 					return;
+				}
+
+				// Capture session info from the first event
+				if (event.type === "session" && event.id) {
+					currentResult.sessionId = event.id;
+					// Session file path follows pi's convention: <sessions-dir>/<encoded-cwd>/<timestamp>_<uuid>.jsonl
+					const sessionCwd = event.cwd || cwd || defaultCwd;
+					const encodedCwd = `--${sessionCwd.replace(/^[/\\]/, "").replace(/[/\\:]/g, "-")}--`;
+					const timestamp = event.timestamp?.replace(/:/g, "-").replace(/\./g, "-") || "";
+					const sessionsDir = path.join(os.homedir(), ".pi", "agent", "sessions", encodedCwd);
+					currentResult.sessionFile = path.join(sessionsDir, `${timestamp}_${event.id}.jsonl`);
 				}
 
 				if (event.type === "message_end" && event.message) {
@@ -358,6 +371,49 @@ async function runSingleAgent(
 
 		currentResult.exitCode = exitCode;
 		if (wasAborted) throw new Error("Subagent was aborted");
+
+		// Add session name to the session file if session was recorded
+		if (currentResult.sessionFile && currentResult.sessionId) {
+			try {
+				// Create a short task preview (first ~50 chars, no newlines)
+				const shortTask = task.replace(/\n/g, " ").slice(0, 50).trim();
+				const sessionName = `subagent:${agentName}:${shortTask}`;
+
+				// Generate a unique entry ID (8 hex chars like SessionManager does)
+				const entryId = Math.random().toString(16).slice(2, 10);
+
+				// Find the last entry id from the session file for parentId
+				let lastEntryId: string | null = null;
+				if (fs.existsSync(currentResult.sessionFile)) {
+					const content = fs.readFileSync(currentResult.sessionFile, "utf-8");
+					const lines = content.trim().split("\n");
+					for (let i = lines.length - 1; i >= 0; i--) {
+						try {
+							const entry = JSON.parse(lines[i]);
+							if (entry.id && entry.type !== "session") {
+								lastEntryId = entry.id;
+								break;
+							}
+						} catch {
+							/* ignore parse errors */
+						}
+					}
+				}
+
+				// Append session_info entry to the session file
+				const sessionInfoEntry = {
+					type: "session_info",
+					id: entryId,
+					parentId: lastEntryId,
+					timestamp: new Date().toISOString(),
+					name: sessionName,
+				};
+				fs.appendFileSync(currentResult.sessionFile, JSON.stringify(sessionInfoEntry) + "\n");
+			} catch {
+				/* ignore errors naming session - it's not critical */
+			}
+		}
+
 		return currentResult;
 	} finally {
 		if (tmpPromptPath)
@@ -435,7 +491,7 @@ export default function (pi: ExtensionAPI) {
 		description: buildToolDescription(),
 		parameters: SubagentParams,
 
-		async execute(_toolCallId, params, onUpdate, ctx, signal) {
+		async execute(_toolCallId, params, signal, onUpdate, ctx) {
 			const agentScope: AgentScope = params.agentScope ?? "user";
 			const discovery = discoverAgents(ctx.cwd, agentScope);
 			const agents = discovery.agents;

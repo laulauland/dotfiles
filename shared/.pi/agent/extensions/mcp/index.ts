@@ -526,7 +526,7 @@ Each server directory contains .md files describing its tools.
 			args: Type.Optional(Type.Object({}, { description: "Tool arguments", additionalProperties: true })),
 		}),
 
-		async execute(toolCallId, params, onUpdate, ctx, signal) {
+		async execute(toolCallId, params, signal, onUpdate, ctx) {
 			const { server, tool, args = {} } = params;
 
 			const result = await runEffect(

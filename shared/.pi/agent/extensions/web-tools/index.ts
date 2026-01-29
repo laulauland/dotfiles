@@ -140,7 +140,7 @@ export default function (pi: ExtensionAPI) {
 			),
 		}),
 
-		async execute(_toolCallId, params, onUpdate, ctx, signal) {
+		async execute(_toolCallId, params, signal, onUpdate, ctx) {
 			const { url, format = "markdown", timeout: timeoutSec } = params;
 
 			// Validate URL
@@ -393,7 +393,7 @@ export default function (pi: ExtensionAPI) {
 			),
 		}),
 
-		async execute(_toolCallId, params, onUpdate, _ctx, signal) {
+		async execute(_toolCallId, params, signal, onUpdate, _ctx) {
 			const {
 				query,
 				numResults,
