@@ -1,6 +1,6 @@
 {
   "name": "pi-shell-completions",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Pi extension that adds native shell completions (fish/zsh/bash) to ! and !! bash mode commands",
   "type": "module",
   "keywords": ["pi-package"],
