@@ -18,8 +18,8 @@
 
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 
-// Tools available in orchestrator mode - only subagent for delegation
-const ORC_MODE_TOOLS = ["subagent"];
+// Tools available in orchestrator mode - subagent for delegation, subagent_status for async monitoring
+const ORC_MODE_TOOLS = ["subagent", "subagent_status"];
 
 // Store the original tools to restore them when disabling orc mode
 let savedTools: string[] | null = null;
@@ -119,6 +119,48 @@ You only have access to the **subagent** tool. Use it to delegate all work:
 - **oracle**: Deep analysis, code review, debugging, architecture decisions
 - **simplifier**: Clean up and simplify code
 
+### Subagent Modes
+
+**Single agent:**
+\`\`\`typescript
+{ agent: "explorer", task: "Find all auth-related files" }
+\`\`\`
+
+**Parallel tasks** (independent work):
+\`\`\`typescript
+{ tasks: [
+  { agent: "explorer", task: "Find frontend modules" },
+  { agent: "explorer", task: "Find backend modules" }
+]}
+\`\`\`
+
+**Chain** (sequential pipeline with \`{previous}\` carrying output forward):
+\`\`\`typescript
+{ chain: [
+  { agent: "explorer", task: "Gather context for auth refactor" },
+  { agent: "oracle", task: "Analyze and plan based on {previous}" },
+  { agent: "operator" },  // defaults to {previous}
+  { agent: "oracle", task: "Review changes from {previous}" }
+]}
+\`\`\`
+
+**Chain with parallel fan-out/fan-in:**
+\`\`\`typescript
+{ chain: [
+  { agent: "explorer", task: "Find all service modules" },
+  { parallel: [
+    { agent: "operator", task: "Refactor auth service from {previous}" },
+    { agent: "operator", task: "Refactor user service from {previous}" }
+  ]},
+  { agent: "oracle", task: "Review all changes from {previous}" }
+]}
+\`\`\`
+
+### Chain Variables
+- \`{task}\` - Original task from first step
+- \`{previous}\` - Output from prior step (or aggregated parallel outputs)
+- \`{chain_dir}\` - Shared artifacts directory for inter-step files
+
 ### Workflow
 1. **Analyze** the user's request
 2. **Plan** the approach (break into steps if complex)
@@ -127,8 +169,9 @@ You only have access to the **subagent** tool. Use it to delegate all work:
 
 ### Guidelines
 - Always use subagent to delegate work
-- For complex tasks, use chain mode for sequential steps
+- For complex multi-step tasks, use chain mode
 - For independent tasks, use parallel mode
+- Use parallel-in-chain for fan-out/fan-in patterns
 - Provide clear, specific task descriptions to subagents
 - After subagents complete, summarize findings or confirm changes`;
 

@@ -54,8 +54,25 @@ if status is-interactive
     set fzf_preview_file_cmd bat --color=always
 
 
+		function _find_gitignore
+			set -l dir (pwd)
+			while test "$dir" != "/"
+				if test -f "$dir/.gitignore"
+					echo "$dir/.gitignore"
+					return 0
+				end
+				set dir (dirname "$dir")
+			end
+			return 1
+		end
+
 		function _open_fzf
-			fd --type f --hidden --follow --exclude .git | 
+			set -l ignore_args --exclude .git --exclude .jj
+			set -l gitignore (_find_gitignore)
+			if test -n "$gitignore"
+				set ignore_args $ignore_args --ignore-file "$gitignore"
+			end
+			fd --type f --hidden --follow $ignore_args | 
 		    fzf \
 						--height=30% \
 						--layout=reverse \
@@ -65,7 +82,12 @@ if status is-interactive
 		end
 
     function _rg_fzf_nvim
-        set RG_PREFIX "rg --column --line-number --no-heading --color=always --smart-case "
+        set -l gitignore (_find_gitignore)
+        set -l ignore_file ""
+        if test -n "$gitignore"
+            set ignore_file "--ignore-file $gitignore"
+        end
+        set RG_PREFIX "rg --column --line-number --no-heading --color=always --smart-case --glob '!.jj' $ignore_file "
 
         : | fzf --ansi --disabled --query "" \
             --bind "start:reload:$RG_PREFIX {q}" \
