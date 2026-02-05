@@ -15,6 +15,8 @@ end
 # mise setup
 if status is-interactive
   mise activate fish | source
+  # Auto-detect light/dark terminal and apply matching fish colors
+  auto_theme
 else
   mise activate fish --shims | source
 end

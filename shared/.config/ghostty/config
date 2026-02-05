@@ -13,6 +13,6 @@ window-inherit-working-directory = false
 # Keep shift+enter for Claude Code multiline input
 keybind = shift+enter=text:\x1b[200~\x0a\x1b[201~
 
+theme = Alabaster
 
 config-file = mode/tmux
-

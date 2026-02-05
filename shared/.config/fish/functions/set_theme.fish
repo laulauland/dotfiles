@@ -4,7 +4,12 @@ function set_theme
 		return 1
 	end
 
-	if test -f $XDG_CONFIG_HOME/fish/colors/$argv[1].fish
-		fish $XDG_CONFIG_HOME/fish/colors/$argv[1].fish
+	set -l colors_dir ~/.config/fish/colors
+	if test -f $colors_dir/$argv[1].fish
+		source $colors_dir/$argv[1].fish
+		echo "Applied theme: $argv[1]"
+	else
+		echo "Theme not found: $colors_dir/$argv[1].fish"
+		return 1
 	end
 end

@@ -1,0 +1,46 @@
+function term_background -d "Detect terminal background: light or dark"
+    # Use stty to read raw terminal response without echo
+    set -l old_settings (command stty -g </dev/tty 2>/dev/null)
+    command stty raw -echo min 0 time 5 </dev/tty 2>/dev/null
+
+    # Send OSC 11 query
+    printf '\e]11;?\e\\' >/dev/tty
+
+    # Read response directly
+    set -l response ""
+    set response (dd bs=256 count=1 </dev/tty 2>/dev/null)
+
+    # Restore terminal settings
+    command stty $old_settings </dev/tty 2>/dev/null
+
+    # Parse rgb:RRRR/GGGG/BBBB
+    set -l parts (string match -r 'rgb:([0-9a-fA-F]+)/([0-9a-fA-F]+)/([0-9a-fA-F]+)' -- $response)
+    or begin
+        echo dark
+        return
+    end
+
+    set -l r_hex $parts[2]
+    set -l g_hex $parts[3]
+    set -l b_hex $parts[4]
+
+    # Convert to 0-255 (terminals may send 2 or 4 hex digits)
+    set -l r (math "0x$r_hex")
+    set -l g (math "0x$g_hex")
+    set -l b (math "0x$b_hex")
+
+    if test (string length $r_hex) -ge 4
+        set r (math "$r / 256")
+        set g (math "$g / 256")
+        set b (math "$b / 256")
+    end
+
+    # Perceived luminance (ITU-R BT.601)
+    set -l luminance (math "0.299 * $r + 0.587 * $g + 0.114 * $b")
+
+    if test (math "$luminance") -gt 128
+        echo light
+    else
+        echo dark
+    end
+end

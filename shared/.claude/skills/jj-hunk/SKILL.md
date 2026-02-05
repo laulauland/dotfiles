@@ -32,7 +32,8 @@ edit-args = ["select", "$left", "$right"]
 ### 1. List Hunks
 
 ```bash
-jj-hunk list
+jj-hunk list              # working copy (@)
+jj-hunk list -r <rev>     # any revision
 ```
 
 Output (JSON):
@@ -76,12 +77,14 @@ Select hunks by index or use file-level actions:
 ```bash
 # Split: selected hunks → first commit, rest → second commit
 jj-hunk split '<spec>' "commit message"
+jj-hunk split -r <rev> '<spec>' "commit message"  # split any revision
 
 # Commit: selected hunks committed, rest stays in working copy
 jj-hunk commit '<spec>' "commit message"
 
 # Squash: selected hunks squashed into parent
 jj-hunk squash '<spec>'
+jj-hunk squash -r <rev> '<spec>'  # squash any revision into its parent
 ```
 
 ## Examples
@@ -122,6 +125,18 @@ jj-hunk squash '{"files": {"src/tests.rs": {"action": "keep"}}, "default": "rese
 ```bash
 jj-hunk split '{"files": {"src/wip.rs": {"action": "reset"}}, "default": "keep"}' \
   "feat: complete implementation"
+```
+
+### Split a Non-Working-Copy Revision
+
+```bash
+# List hunks in a specific revision
+jj-hunk list -r urx
+
+# Split it — examples go to first commit, rest stays
+jj-hunk split -r urx \
+  '{"files": {"examples/README.md": {"action": "keep"}}, "default": "reset"}' \
+  "examples of extensions"
 ```
 
 ## Direct jj --tool Usage

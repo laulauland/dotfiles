@@ -83,58 +83,6 @@ pr = [
 gh pr create --head $(jj log -r 'closest_bookmark(@)' -T 'bookmarks' --no-graph | cut -d ' ' -f 1)
 """,
 ]
-aipr = [
-	"util",
-	"exec",
-	"--",
-	"bash",
-	"-c",
-	"""
-set -e
-
-# Get the bookmark name
-bookmark=$(jj log -r 'closest_bookmark(@)' -T 'bookmarks' --no-graph | cut -d ' ' -f 1)
-if [ -z "$bookmark" ]; then
-  echo "Error: No bookmark found. Run 'jj push' first to create one."
-  exit 1
-fi
-
-# Get commits in the stack
-commits=$(jj log -r "::@ & ~::main" -T 'change_id.short() ++ " " ++ description.first_line() ++ "\n"' --no-graph)
-
-# Get the diff
-diff=$(jj diff -r 'main..@' --stat)
-
-# Generate PR description using claude
-description=$(claude -p "You are a PR description writer. Write a concise, technical PR description.
-
-Keep the language technical and straightforward, avoiding unnecessary adjectives.
-
-Format:
-## Summary
-<1-2 sentence summary>
-
-## Changes
-<bullet points of key changes>
-
----
-
-Commits:
-$commits
-
-Changes:
-$diff" 2>/dev/null)
-
-# Check if PR already exists
-if gh pr view "$bookmark" &>/dev/null; then
-  echo "Updating existing PR..."
-  gh pr edit "$bookmark" --body "$description"
-else
-  echo "Creating new draft PR..."
-  gh pr create --draft --head "$bookmark" --body "$description"
-fi
-""",
-]
 sync = ["git", "fetch", "--all-remotes"]
 stack = ["log", "-r", "stack()"]
 c = ["commit"]
@@ -204,17 +152,6 @@ private-commits = "description(glob:'wip:*') | description(glob:'private:*')"
 'format_short_change_id(id)' = 'id.shortest()'
 
 [templates]
-draft_commit_description = '''
-  concat(
-    coalesce(description, default_commit_description, "\n"),
-    surround(
-      "\nJJ: This commit contains the following changes:\n", "",
-      indent("JJ:     ", diff.stat(72)),
-    ),
-    "\nJJ: ignore-rest\n",
-    diff.git(),
-  )
-'''
 # log_node = '''
 # if(self && !current_working_copy && !immutable && !conflict && in_branch(self),
 #   "◇",
