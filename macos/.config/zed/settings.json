@@ -1,5 +1,9 @@
 {
-	"ui_font_family": ".SystemUIFont",
+	"disable_ai": true,
+ "edit_predictions": {
+  "provider": "copilot"
+ },
+ "ui_font_family": ".SystemUIFont",
 	"redact_private_values": true,
 	"ssh_connections": [
 		{
@@ -29,7 +33,7 @@
 	"outline_panel": {
 		"dock": "right"
 	},
-	"restore_on_startup": "none",
+	"restore_on_startup": "launchpad",
 	"hard_tabs": true,
 	"base_keymap": "Atom",
 	"buffer_font_size": 14.0,
@@ -91,10 +95,6 @@
 	"agent": {
 		"message_editor_min_lines": 3,
 		"play_sound_when_agent_done": true,
-		"inline_assistant_model": {
-			"provider": "zed.dev",
-			"model": "claude-3-7-sonnet-latest"
-		},
 		"profiles": {
 			"write": {
 				"name": "Write",
@@ -127,9 +127,6 @@
 		"default_profile": "write",
 		"always_allow_tool_actions": true,
 		"dock": "left"
-	},
-	"features": {
-		"edit_prediction_provider": "zed"
 	},
 	"theme": "Alabaster",
 	"inlay_hints": {
