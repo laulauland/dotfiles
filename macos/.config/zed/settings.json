@@ -58,7 +58,7 @@
 	"scrollbar": {
 		"show": "never"
 	},
-	"relative_line_numbers": true,
+	"relative_line_numbers": "enabled",
 	"enable_language_server": true,
 	"autosave": "off",
 	"tab_bar": {
@@ -79,7 +79,7 @@
 	"show_whitespaces": "selection",
 	"vim_mode": true,
 	"preview_tabs": {
-		"enable_preview_from_code_navigation": true
+		"enable_keep_preview_on_code_navigation": true
 	},
 	"git": {
 		"git_gutter": "tracked_files",
@@ -131,7 +131,7 @@
 	"features": {
 		"edit_prediction_provider": "zed"
 	},
-	"theme": "Zedokai (Filter Octagon)",
+	"theme": "Alabaster",
 	"inlay_hints": {
 		"enabled": false
 	},
