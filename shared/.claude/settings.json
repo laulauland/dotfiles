@@ -114,5 +114,6 @@
     "playground@claude-plugins-official": true,
     "fp@fiberplane-claude-code-plugins": true
   },
-  "alwaysThinkingEnabled": true
+  "alwaysThinkingEnabled": true,
+  "skipDangerousModePermissionPrompt": true
 }

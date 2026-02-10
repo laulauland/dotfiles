@@ -124,6 +124,7 @@ end
 # bun
 set --export BUN_INSTALL "$HOME/.bun"
 set --export PATH $BUN_INSTALL/bin $PATH
+set --export DFT_BACKGROUND light
 
 # cargo
 fish_add_path "$HOME/.cargo/bin"
@@ -139,6 +140,8 @@ source ~/.orbstack/shell/init2.fish 2>/dev/null || :
 set -gx PATH $PATH "$HOME/.cache/lm-studio/bin"
 # End of LM Studio CLI section
 
+#claude code env vars
+export CLAUDE_CODE_DISABLE_TERMINAL_TITLE=1
 
 # opencode
 fish_add_path "$HOME/.opencode/bin"

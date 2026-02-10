@@ -13,9 +13,9 @@ fi
 OPERATING_SYSTEM=$(uname)
 
 if [ "$OPERATING_SYSTEM" == "Darwin" ]; then 
-	stow --verbose --restow --target ~ --dotfiles shared macos
+	stow --verbose --restow --adopt --target ~ --dotfiles shared macos
 elif [ "$OPERATING_SYSTEM" == "Linux" ]; then
-	stow --verbose --restow --target ~ --dotfiles shared linux
+	stow --verbose --restow --adopt --target ~ --dotfiles shared linux
 else
 	echo "Your operating system is not supported."
 fi

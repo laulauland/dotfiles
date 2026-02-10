@@ -1,0 +1,8 @@
+#!/bin/bash
+LOGFILE="/tmp/tap-$(date +%s).log"
+export TAP="$LOGFILE"
+trap "rm -f $LOGFILE" EXIT
+printf '\033]0;📝 %s\007' "$LOGFILE"
+echo "📝 $LOGFILE" >&2
+echo "$LOGFILE" | pbcopy
+script -q >(ansifilter >> "$LOGFILE")
