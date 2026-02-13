@@ -67,6 +67,18 @@ test("complete sets status and completedAt", () => {
 	assert.ok(record.completedAt);
 });
 
+test("complete preserves failed status from summary", () => {
+	const reg = new RunRegistry();
+	reg.register("r1", makeSummary("r1"), new Promise(() => {}), new AbortController());
+	reg.complete("r1", { ...makeSummary("r1"), status: "failed", error: { code: "RUNTIME", message: "boom", recoverable: false } });
+
+	const record = reg.get("r1");
+	assert.ok(record);
+	assert.equal(record.status, "failed");
+	assert.equal(record.summary.status, "failed");
+	assert.equal(record.summary.error?.message, "boom");
+});
+
 test("cancel aborts controller", () => {
 	const reg = new RunRegistry();
 	const abort = new AbortController();

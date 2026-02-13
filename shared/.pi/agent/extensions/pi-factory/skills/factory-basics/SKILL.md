@@ -250,19 +250,41 @@ const review = await rt.join(rt.spawn({
 
 ## Error Handling
 
-Check `exitCode` and handle errors:
+Check `exitCode`/`stopReason`/`errorMessage` and escalate:
 
 ```typescript
 const result = await rt.join(handle);
 
-if (result.exitCode !== 0) {
+const failed =
+  result.exitCode !== 0 ||
+  result.stopReason === "error" ||
+  Boolean(result.errorMessage);
+
+if (failed) {
   rt.observe.log("error", "Task failed", {
     taskId: result.taskId,
+    exitCode: result.exitCode,
+    stopReason: result.stopReason,
     error: result.errorMessage,
     stderr: result.stderr
   });
-  throw new Error(`Task ${result.taskId} failed: ${result.errorMessage}`);
+  throw new Error(`Task ${result.taskId} failed: ${result.errorMessage || "unknown error"}`);
 }
+```
+
+Spawn/join usage:
+
+```typescript
+// ✅ preferred
+const h = rt.spawn({...});
+const r = await rt.join(h);
+
+// ✅ also valid
+const r2 = await rt.spawn({...});
+
+// ❌ invalid (ExecutionResult passed to join)
+const wrong = await rt.spawn({...});
+await rt.join(wrong);
 ```
 
 Use try/catch for program-level errors:
@@ -329,7 +351,7 @@ export async function run(input, rt) {
 1. **Programs coordinate, subagents execute** — Programs focus on workflow logic, subagents do the work
 2. **Use text for quick results** — `result.text` gives you the final answer
 3. **Use sessionPath for deep context** — Pass to subsequent agents for full exploration
-4. **Check exitCode** — 0 = success, non-zero = failure
+4. **Check failure signals** — `exitCode`, `stopReason`, and `errorMessage`
 5. **Log progress** — Use `rt.observe.log()` for visibility
 6. **Handle errors gracefully** — Check exitCode, catch exceptions, provide fallbacks
 

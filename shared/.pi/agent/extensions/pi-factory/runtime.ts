@@ -270,17 +270,41 @@ export function createProgramRuntime(
 	const runtimeAbort = new AbortController();
 	const activeTasks = new Map<string, { controller: AbortController; promise: Promise<ExecutionResult> }>();
 
+	function isSpawnHandle(value: unknown): value is SpawnHandle {
+		return typeof value === "object" && value !== null && typeof (value as SpawnHandle).join === "function";
+	}
+
+	function joinInputError(received: unknown): FactoryError {
+		const isLikelyExecutionResult =
+			typeof received === "object" &&
+			received !== null &&
+			typeof (received as { taskId?: unknown }).taskId === "string" &&
+			typeof (received as { text?: unknown }).text === "string";
+		const hint = isLikelyExecutionResult
+			? " It looks like you awaited rt.spawn() and passed an ExecutionResult to rt.join(). Use: const h = rt.spawn(...); const r = await rt.join(h)."
+			: "";
+		return new FactoryError({
+			code: "INVALID_INPUT",
+			message: `rt.join() expects a SpawnHandle or SpawnHandle[].${hint}`,
+			recoverable: true,
+		});
+	}
+
 	// Overloaded join — defined separately so TypeScript resolves the overloads
 	function join(handle: SpawnHandle): Promise<ExecutionResult>;
 	function join(handles: SpawnHandle[]): Promise<ExecutionResult[]>;
 	function join(input: SpawnHandle | SpawnHandle[]): Promise<ExecutionResult | ExecutionResult[]> {
 		if (Array.isArray(input)) {
+			for (const handle of input) {
+				if (!isSpawnHandle(handle)) throw joinInputError(handle);
+			}
 			return Promise.all(input.map(async (h) => {
 				const result = await h.join();
 				options?.onTaskUpdate?.(result);
 				return result;
 			}));
 		}
+		if (!isSpawnHandle(input)) throw joinInputError(input);
 		return input.join().then((result) => {
 			options?.onTaskUpdate?.(result);
 			return result;

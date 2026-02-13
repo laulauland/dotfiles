@@ -25,6 +25,8 @@ The tool returns immediately:
 The orchestrator continues working. When subagents finish, a notification wakes the LLM:
 > Subagent 'security-audit' done (18s). Use /factory to inspect.
 
+Because completion notifications use `triggerTurn`, each completion can trigger another assistant turn. If the parent task is open-ended (for example “continue slice-by-slice”), the orchestrator may choose to spawn additional subagent programs automatically.
+
 ## Schema
 
 Three fields — `task` and `code` are required, `await` is optional:
@@ -109,6 +111,34 @@ The `skills/` directory contains pi skills that are automatically registered via
 | `factory-patterns` | Spawning subagents, writing program code, multi-agent architectures |
 
 Add new skills by creating a `skills/<name>/SKILL.md` with YAML frontmatter (`name`, `description`) and markdown content.
+
+## Failure contract (important)
+
+For robust orchestration and recovery:
+
+- A run should be treated as failed if `run.json.error` is present.
+- For child-level checks, treat a child result as failed when any of these are true:
+  - `exitCode !== 0`
+  - `stopReason === "error"`
+  - `errorMessage` is non-empty
+- If your program observes failed children, explicitly escalate (usually `throw new Error(...)`) so the parent run status becomes `failed`.
+
+Spawn/join footgun to avoid:
+
+```ts
+// ✅ Correct
+const h = rt.spawn({...});
+const r = await rt.join(h);
+
+// ✅ Also valid (no join needed)
+const r = await rt.spawn({...});
+
+// ❌ Wrong: awaiting spawn returns ExecutionResult, not SpawnHandle
+const h = await rt.spawn({...});
+await rt.join(h);
+```
+
+`rt.join()` now validates input and returns a recoverable `INVALID_INPUT` error with a corrective hint for this misuse.
 
 ## Error codes
 

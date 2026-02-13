@@ -56,9 +56,8 @@ export class RunRegistry {
 	complete(runId: string, summary: RunSummary): void {
 		const record = this.runs.get(runId);
 		if (!record) return;
-		record.status = "done";
 		record.summary = summary;
-		record.summary.status = "done";
+		record.status = summary.status === "running" ? "done" : summary.status;
 		record.completedAt = Date.now();
 	}
 
