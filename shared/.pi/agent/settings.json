@@ -1,0 +1,33 @@
+{
+  "defaultProvider": "anthropic",
+  "defaultModel": "claude-opus-4-6",
+  "defaultThinkingLevel": "high",
+  "lastChangelogVersion": "0.53.0",
+  "theme": "light",
+  "enabledModels": [
+    "google-gemini-cli/gemini-3-flash-preview",
+    "anthropic/claude-haiku-4-5",
+    "anthropic/claude-opus-4-6",
+    "openai-codex/gpt-5.3-codex",
+    "anthropic/claude-sonnet-4-6"
+  ],
+  "followUpMode": "one-at-a-time",
+  "skills": [
+    "~/.claude/skills"
+  ],
+  "packages": [],
+  "prompts": [
+    "-prompts/web-interface-guidelines.md",
+    "-prompts/review.md",
+    "+prompts/pr.md",
+    "-prompts/deslop.md",
+    "-prompts/commit.md"
+  ],
+  "extensions": [
+    "-extensions/jj-session-binding.ts",
+    "-extensions/file-picker.ts"
+  ],
+  "compaction": {
+    "enabled": false
+  }
+}

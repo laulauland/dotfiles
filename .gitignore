@@ -1,3 +1,5 @@
+shared/.pi/agent/sessions
+shared/.pi/agent/auth.json
 shared/.config/nvim/lazy-lock.json
 shared/.config/tmux/plugins
 node_modules
@@ -6,3 +8,4 @@ node_modules
 .fp/
 .ragrep/
 opensrc/
+

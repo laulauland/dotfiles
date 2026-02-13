@@ -1,3 +1,8 @@
+# zerobrew
+# set -gx ZEROBREW_ROOT /opt/zb
+# set -gx ZEROBREW_PREFIX /opt/zb
+# fish_add_path /opt/zb/bin
+
 set -x EDITOR nvim
 set -x VISUAL nvim
 
