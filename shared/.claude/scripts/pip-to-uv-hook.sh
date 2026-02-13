@@ -38,6 +38,10 @@ if [[ "$command" =~ (^|[[:space:]]&&[[:space:]]|[[:space:]]\|\|[[:space:]]|;[[:s
                 reason="python -m venv is disabled. Use uv instead:\n  Create a virtual environment: uv venv"
                 ;;
         esac
+    elif [[ "$command" =~ -c[[:space:]] ]]; then
+        reason="python -c is disabled. Use uv run python -c instead"
+    fi
+    if [[ -n "$reason" ]]; then
         jq -n \
             --arg reason "$reason" \
             '{

@@ -17,24 +17,24 @@ return {
 	-- },
 
 
-	{
-		dir = "~/Code/laulauland/ne.nvim",
-		build = "build.lua", -- downloads model on install/update
-		config = function()
-			require("ne").setup({
-				keymaps = {
-					accept_suggestion = "<C-y>",
-					clear_suggestion = "<C-e>",
-					accept_word = "<C-Right>",
-					trigger_suggestion = "<C-Space>",
-				},
-				server = {
-					auto_start = true,
-				},
-				debug = {
-					enabled = true,
-				},
-			})
-		end,
-	},
+-- 	{
+-- 		dir = "~/Code/laulauland/ne.nvim",
+-- 		build = "build.lua", -- downloads model on install/update
+-- 		config = function()
+-- 			require("ne").setup({
+-- 				keymaps = {
+-- 					accept_suggestion = "<C-y>",
+-- 					clear_suggestion = "<C-e>",
+-- 					accept_word = "<C-Right>",
+-- 					trigger_suggestion = "<C-Space>",
+-- 				},
+-- 				server = {
+-- 					auto_start = true,
+-- 				},
+-- 				debug = {
+-- 					enabled = true,
+-- 				},
+-- 			})
+-- 		end,
+-- 	},
 }
