@@ -129,8 +129,9 @@ async function runSubagentProcess(input: SpawnInput): Promise<ExecutionResult> {
 		args.push(input.task);
 
 		let aborted = false;
+		const childDepth = parseInt(process.env.PI_FACTORY_DEPTH || "0", 10) + 1;
 		const code = await new Promise<number>((resolve) => {
-			const proc = spawn("pi", args, { cwd: input.cwd, stdio: ["ignore", "pipe", "pipe"], shell: false });
+			const proc = spawn("pi", args, { cwd: input.cwd, stdio: ["ignore", "pipe", "pipe"], shell: false, env: { ...process.env, PI_FACTORY_DEPTH: String(childDepth) } });
 			let buffer = "";
 
 			interface PiJsonLine {

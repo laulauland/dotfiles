@@ -11,7 +11,7 @@ import { ObservabilityStore } from "./observability.js";
 import { RunRegistry } from "./registry.js";
 import { confirmExecution, executeProgram } from "./executors/program-executor.js";
 import { FactoryWidget } from "./widget.js";
-import { FactoryOverlay } from "./overlay.js";
+import { FactoryMonitor } from "./monitor.js";
 import { registerMessageRenderer, notifyCompletion } from "./notify.js";
 import type { RunSummary } from "./types.js";
 
@@ -33,6 +33,20 @@ function writeRunJson(summary: RunSummary): void {
 			error: summary.error,
 		};
 		fs.writeFileSync(path.join(dir, "run.json"), JSON.stringify(data, null, 2));
+	} catch {}
+}
+
+/** Write a partial run.json so external monitors (pi --factory) can see active runs. */
+function writeRunningMarker(runId: string, task: string, artifactsDir: string): void {
+	try {
+		const data = {
+			runId,
+			status: "running",
+			task,
+			startedAt: Date.now(),
+			results: [],
+		};
+		fs.writeFileSync(path.join(artifactsDir, "run.json"), JSON.stringify(data, null, 2));
 	} catch {}
 }
 
@@ -168,6 +182,8 @@ function loadHistoricalRuns(ctx: ExtensionContext, registry: RunRegistry): void 
 // alongside the extension code.
 
 export const config = {
+	/** Maximum nesting depth for subagent spawning. 1 = orchestrator can spawn subagents, but those subagents cannot spawn their own. 0 = no subagents at all. */
+	maxDepth: 1,
 	/** Extra text appended to the tool description. Use for model selection hints, project conventions, etc. */
 	prompt: "Use opus for most subagent operations, especially if they entail making changes across multiple files. If you need to search you can use faster models like glm-4.7 (cerebras one). If you need to use look at and reason over images (a screenshot is referenced) use gemini flash to see the changes.",
 };
@@ -193,6 +209,13 @@ export default function (pi: ExtensionAPI) {
 	// Keep a reference to the current context for widget/notification updates
 	let currentCtx: ExtensionContext | undefined;
 	let pollTimer: ReturnType<typeof setInterval> | undefined;
+
+	// Register --factory flag for standalone monitoring
+	pi.registerFlag("factory", {
+		description: "Monitor subagent runs",
+		type: "boolean",
+		default: false,
+	});
 
 	// Register the message renderer for completion notifications
 	registerMessageRenderer(pi);
@@ -222,6 +245,28 @@ export default function (pi: ExtensionAPI) {
 	pi.on("session_start", async (_event, ctx) => {
 		currentCtx = ctx;
 		loadHistoricalRuns(ctx, registry);
+
+		// --factory flag: show full-screen monitor and exit when done.
+		// We must defer ctx.ui.custom() because session_start fires during
+		// initExtensions(), BEFORE ui.start() sets up terminal keyboard input.
+		// Awaiting ctx.ui.custom() here would deadlock: the component needs
+		// keyboard input to call done(), but ui.start() can't run until this
+		// handler returns.  setTimeout(0) schedules after init() completes.
+		if (pi.getFlag("factory") === true) {
+			setTimeout(async () => {
+				await ctx.ui.custom<void>(
+					(tui, theme, _kb, done) =>
+						new FactoryMonitor({
+							tui,
+							theme,
+							done,
+							registry,
+							sessionDir: ctx.cwd,
+						}),
+				);
+				ctx.shutdown();
+			}, 0);
+		}
 	});
 
 	pi.on("session_switch", async (_event, ctx) => {
@@ -246,7 +291,7 @@ export default function (pi: ExtensionAPI) {
 		description: "Show subagent run status",
 		handler: async (_args, ctx) => {
 			await ctx.ui.custom<void>(
-				(tui, theme, _kb, done) => new FactoryOverlay(tui, theme, registry, done),
+				(tui, theme, _kb, done) => new FactoryMonitor({ tui, theme, done, registry }),
 				{
 					overlay: true,
 					overlayOptions: {
@@ -260,6 +305,13 @@ export default function (pi: ExtensionAPI) {
 		},
 	});
 
+	// Depth guard: skip subagent tool registration if we're already at max depth.
+	// PI_FACTORY_DEPTH is set by runtime.ts when spawning child pi processes.
+	const currentDepth = parseInt(process.env.PI_FACTORY_DEPTH || "0", 10);
+	if (currentDepth >= config.maxDepth) {
+		return;
+	}
+
 	pi.registerTool({
 		name: "subagent",
 		label: "Subagent",
@@ -269,6 +321,7 @@ export default function (pi: ExtensionAPI) {
 			"Runs TypeScript with rt.spawn/join/parallel/sequence for multi-agent orchestration.",
 			"Code must export async run(input, rt). Requires user confirmation before execution.",
 			"Each rt.spawn() needs: agent, systemPrompt, task, cwd, model. Use process.cwd() for cwd.",
+			"systemPrompt defines WHO the agent is (behavior, principles, methodology). task defines WHAT it should do now (specific files, specific work). Don't put task details in systemPrompt.",
 			"Context flow: each subagent gets the parent session path and can use search_thread to explore it. Each subagent's session is persisted and available via result.sessionPath. Result text is auto-populated on result.text.",
 			"Async by default: returns immediately with a runId. Results are delivered via notification when complete.",
 			"Model selection: match model capability to task complexity. Use smaller/faster models for simple tasks, stronger models for complex reasoning. Vary your choices across the enabled models \u2014 don't default to one.",
@@ -334,6 +387,10 @@ export default function (pi: ExtensionAPI) {
 			// Register in the registry
 			const initialSummary: RunSummary = { runId, status: "running", results: [], observability: observability.toSummary(runId) };
 			registry.register(runId, initialSummary, promise, abort, { task: params.task });
+
+			// Write running marker so external monitors (pi --factory) see active runs
+			const runArtifactsDir = observability.get(runId)?.artifactsDir;
+			if (runArtifactsDir) writeRunningMarker(runId, params.task, runArtifactsDir);
 
 			// Wire completion: update observability, widget, and notify
 			promise.then(

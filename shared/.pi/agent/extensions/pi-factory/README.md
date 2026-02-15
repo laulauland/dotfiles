@@ -12,8 +12,8 @@ The orchestrator writes a program:
 ```ts
 export async function run(input, rt) {
   const results = await rt.parallel("review", [
-    { agent: "security", systemPrompt: "Find vulnerabilities.", task: "Review src/auth/ for security issues", cwd: process.cwd(), step: 0 },
-    { agent: "coverage", systemPrompt: "Analyze test coverage.", task: "Check test coverage for src/auth/", cwd: process.cwd(), step: 1 },
+    { agent: "security", systemPrompt: "You are a security reviewer. You look for OWASP Top 10 vulnerabilities, injection flaws, and auth bypasses. Report findings with severity ratings.", task: "Review src/auth/ for security issues, focusing on the login flow and session management.", cwd: process.cwd(), step: 0 },
+    { agent: "coverage", systemPrompt: "You analyze test coverage. You identify untested code paths and suggest what tests to add.", task: "Check test coverage for src/auth/ and list any untested functions.", cwd: process.cwd(), step: 1 },
   ]);
   return { results };
 }
@@ -63,18 +63,18 @@ Programs run with a runtime object providing orchestration primitives:
 export async function run(input, rt) {
   // Parallel fan-out
   const results = await rt.parallel("review", [
-    { agent: "linter", systemPrompt: "Lint.", task: "lint src/", cwd: process.cwd(), step: 0 },
-    { agent: "tester", systemPrompt: "Test.", task: "run tests", cwd: process.cwd(), step: 1 },
+    { agent: "linter", systemPrompt: "You run linters and report issues with file paths and rule IDs.", task: "Lint src/ and report all warnings and errors.", cwd: process.cwd(), step: 0 },
+    { agent: "tester", systemPrompt: "You run tests and report failures with clear reproduction steps.", task: "Run the test suite and report any failures.", cwd: process.cwd(), step: 1 },
   ]);
 
   // Sequential pipeline
   const deployed = await rt.sequence("deploy", [
-    { agent: "builder", systemPrompt: "Build.", task: "build", cwd: process.cwd(), step: 0 },
-    { agent: "deployer", systemPrompt: "Deploy.", task: "deploy", cwd: process.cwd(), step: 1 },
+    { agent: "builder", systemPrompt: "You build projects and diagnose build errors clearly.", task: "Run the build and fix any compilation errors.", cwd: process.cwd(), step: 0 },
+    { agent: "deployer", systemPrompt: "You handle deployments carefully, verifying each step.", task: "Deploy to production using the standard deploy script.", cwd: process.cwd(), step: 1 },
   ]);
 
   // Low-level spawn/join (overloaded: single handle or array)
-  const handle = rt.spawn({ agent: "scout", systemPrompt: "Scout.", task: "find issues", cwd: process.cwd() });
+  const handle = rt.spawn({ agent: "scout", systemPrompt: "You scan codebases for issues and report findings concisely.", task: "Find any TODO/FIXME comments and potential bugs in src/.", cwd: process.cwd() });
   const result = await rt.join(handle);           // single
   const batch = await rt.join([handle1, handle2]); // array
 
@@ -96,11 +96,15 @@ Edit the `config` object at the top of `index.ts`:
 
 ```ts
 export const config = {
+  maxDepth: 1,
   prompt: "Prefer cerebras for simple tasks. Use sonnet for code review.",
 };
 ```
 
-`config.prompt` is appended to the tool description, so the LLM sees it when deciding how to use the tool.
+| Key | Default | Description |
+|-----|---------|-------------|
+| `maxDepth` | `1` | Maximum nesting depth for subagent spawning. `1` means the orchestrator can spawn subagents, but those subagents cannot spawn their own (preventing recursive factory runs). Set to `0` to disable subagent spawning entirely, or `2+` to allow deeper nesting. Controlled via the `PI_FACTORY_DEPTH` environment variable passed to child processes. |
+| `prompt` | *(see source)* | Extra text appended to the tool description. The LLM sees it when deciding how to use the tool. |
 
 ## Bundled skills
 
@@ -161,9 +165,7 @@ await rt.join(h);
 | `registry.ts` | RunRegistry — tracks active/completed runs with acknowledge lifecycle |
 | `widget.ts` | Persistent status bar via `setWidget` |
 | `notify.ts` | Batched completion notifications + message renderer |
-| `overlay.ts` | `/factory` command overlay — bordered run inspector |
-| `model-resolver.ts` | Model string → provider/id, splits for CLI flags |
-| `tool-resolver.ts` | Normalize + dedupe tool names |
+
 | `observability.ts` | Event timeline + artifact tracking |
 | `errors.ts` | 5-code error model |
 | `types.ts` | ExecutionResult, RunSummary, UsageStats |

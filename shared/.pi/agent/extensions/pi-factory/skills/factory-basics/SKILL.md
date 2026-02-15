@@ -7,6 +7,27 @@ description: "Write pi-factory programs to orchestrate multi-agent workflows. Us
 
 Pi-factory enables writing programs that orchestrate multiple AI agents. Programs spawn subagents, coordinate their work, and compose results.
 
+## systemPrompt vs task
+
+These two fields have distinct roles — don't mix them:
+
+- **systemPrompt**: Defines WHO the agent is and HOW it should behave. Personality, methodology, principles, output format, tool usage conventions. Never contains references to specific files, specific bugs, or the immediate work.
+- **task**: Defines WHAT the agent should do right now. The concrete assignment — specific files to read, bugs to fix, features to implement, commands to run.
+
+```typescript
+// ❌ BAD: task details leaked into systemPrompt
+{ systemPrompt: "Review src/auth/ for security issues", task: "Do the review" }
+
+// ❌ BAD: systemPrompt is just a single-word echo of the role
+{ systemPrompt: "Lint.", task: "lint src/" }
+
+// ✅ GOOD: clean separation
+{
+  systemPrompt: "You are a security-focused code reviewer. Look for OWASP Top 10 vulnerabilities, injection flaws, and auth bypasses. Report findings with severity ratings.",
+  task: "Review src/auth/ for security issues. Focus on the login flow and session management."
+}
+```
+
 ## Program Structure
 
 Every factory program exports `async function run(input, rt)`:
@@ -16,8 +37,8 @@ export async function run(input, rt) {
   // Spawn subagents, coordinate work, return results
   const handle = rt.spawn({
     agent: "researcher",
-    systemPrompt: "You are a research assistant.",
-    task: "Find information about TypeScript 5.0",
+    systemPrompt: "You are a research assistant. You find accurate, up-to-date information and cite sources. You present findings in a structured format.",
+    task: "Find information about TypeScript 5.0 — new features, breaking changes, and migration notes.",
     cwd: process.cwd()
   });
   
@@ -40,9 +61,9 @@ Create a subagent task:
 
 ```typescript
 const handle = rt.spawn({
-  agent: "code-reviewer",           // Role label (for logging)
-  systemPrompt: "Review code...",   // Instructions for the agent
-  task: "Review main.ts",           // The task request
+  agent: "code-reviewer",           // Role label (for logging/display)
+  systemPrompt: "You review code...",// WHO: behavior, principles, methodology
+  task: "Review main.ts for...",    // WHAT: the specific work to do now
   cwd: "/path/to/project",          // Working directory
   step?: 1,                         // Optional step number
   signal?: abortSignal              // Optional cancellation
@@ -85,9 +106,9 @@ Spawn subagents one at a time, waiting for each before starting the next:
 
 ```typescript
 const results = await rt.sequence("deployment-pipeline", [
-  { agent: "tester", systemPrompt: "Run tests", task: "npm test", cwd: "." },
-  { agent: "builder", systemPrompt: "Build app", task: "npm build", cwd: "." },
-  { agent: "deployer", systemPrompt: "Deploy", task: "deploy to prod", cwd: "." }
+  { agent: "tester", systemPrompt: "You run tests and report failures with file paths and line numbers.", task: "Run `npm test` and report any failures", cwd: "." },
+  { agent: "builder", systemPrompt: "You build projects and diagnose build errors clearly.", task: "Run `npm run build` and fix any compilation errors", cwd: "." },
+  { agent: "deployer", systemPrompt: "You handle deployments carefully, verifying each step before proceeding.", task: "Deploy to production using the standard deploy script", cwd: "." }
 ]);
 ```
 
@@ -103,8 +124,8 @@ const workDir = rt.workspace.create("analysis");
 
 const handle = rt.spawn({
   agent: "worker",
-  systemPrompt: "Process files",
-  task: "Analyze data",
+  systemPrompt: "You process and analyze data files. You produce structured summaries.",
+  task: "Analyze the data files in this directory and produce a summary report.",
   cwd: workDir
 });
 
@@ -186,8 +207,8 @@ const result = await rt.join(handle);
 
 const reviewer = rt.spawn({
   agent: "reviewer",
-  systemPrompt: "Review the analysis session",
-  task: `Review session at ${result.sessionPath} and identify key findings`,
+  systemPrompt: "You are an analytical reviewer. You identify key findings, gaps, and actionable next steps.",
+  task: `Review the analysis session at ${result.sessionPath} and identify key findings.`,
   cwd: "."
 });
 ```
@@ -212,8 +233,8 @@ console.log(`Result: ${result.text}`);
 // Deep: Pass session to next agent
 const nextHandle = rt.spawn({
   agent: "reviewer",
-  systemPrompt: "Review previous work",
-  task: `Analyze session at ${result.sessionPath}`,
+  systemPrompt: "You review previous work for completeness and correctness. You flag gaps and suggest improvements.",
+  task: `Analyze the session at ${result.sessionPath} and identify any issues or missing coverage.`,
   cwd: "."
 });
 ```
@@ -226,24 +247,24 @@ Pass results between subagents:
 // Step 1: Research
 const research = await rt.join(rt.spawn({
   agent: "researcher",
-  systemPrompt: "Research the topic",
-  task: "Find information about Rust async",
+  systemPrompt: "You are a thorough technical researcher. You find accurate information, cite sources, and distinguish between stable and experimental features.",
+  task: "Find information about Rust async — current state, key patterns, and common pitfalls.",
   cwd: "."
 }));
 
 // Step 2: Summarize using text
 const summary = await rt.join(rt.spawn({
   agent: "summarizer",
-  systemPrompt: "Create executive summary",
-  task: `Summarize this research:\n\n${research.text}`,
+  systemPrompt: "You write concise executive summaries. You distill key points and highlight actionable takeaways.",
+  task: `Summarize this research into an executive summary:\n\n${research.text}`,
   cwd: "."
 }));
 
 // Step 3: Deep review using session
 const review = await rt.join(rt.spawn({
   agent: "reviewer",
-  systemPrompt: "Technical reviewer",
-  task: `Review research session at ${research.sessionPath} for technical accuracy`,
+  systemPrompt: "You are a technical reviewer. You verify claims, check for inaccuracies, and flag unsupported assertions.",
+  task: `Review research session at ${research.sessionPath} for technical accuracy. Flag any incorrect or outdated claims.`,
   cwd: "."
 }));
 ```
