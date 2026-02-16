@@ -46,7 +46,7 @@ M.update_status_bar = function(window, pane)
 	window:set_right_status("")
 	window:set_left_status(
 		 "     " ..
-		fmt({ { Text = " " .. window:active_workspace() } })
+		fmt({ { Foreground = { Color = "#666666" } }, { Text = " " .. window:active_workspace() .. "@" .. wezterm.hostname() } })
 	)
 end
 

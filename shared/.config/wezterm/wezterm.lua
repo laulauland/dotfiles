@@ -77,12 +77,39 @@ return {
 		bottom = 0,
 	},
 	enable_scroll_bar = false,
-	color_scheme = "Tomorrow Night (Gogh)",
+	color_scheme = "Alabaster",
+	-- color_scheme = "Tomorrow Night (Gogh)",
 	-- color_scheme = "Paper (Gogh)",
 	-- color_scheme = "XCode Dusk (base16)",
-	-- window_frame=theme.window_frame(),
-	-- command_palette_fg_color = theme.foreground,
-	-- command_palette_bg_color = theme.background,
+	window_frame = {
+		active_titlebar_bg = "#f7f7f7",
+		inactive_titlebar_bg = "#f7f7f7",
+	},
+	colors = {
+		tab_bar = {
+			background = "#f7f7f7",
+			active_tab = {
+				bg_color = "#f7f7f7",
+				fg_color = "#000000",
+			},
+			inactive_tab = {
+				bg_color = "#e8e8e8",
+				fg_color = "#666666",
+			},
+			inactive_tab_hover = {
+				bg_color = "#efefef",
+				fg_color = "#333333",
+			},
+			new_tab = {
+				bg_color = "#f7f7f7",
+				fg_color = "#666666",
+			},
+			new_tab_hover = {
+				bg_color = "#efefef",
+				fg_color = "#333333",
+			},
+		},
+	},
 	ui_key_cap_rendering = "AppleSymbols",
 	command_palette_font_size = 14.0,
 	use_fancy_tab_bar = true,
@@ -119,6 +146,6 @@ return {
 		},
 	},
 
-	leader = { key = "x", mods = "CTRL", timeout_milliseconds = 1000 },
+	leader = { key = "Space", mods = "CTRL", timeout_milliseconds = 1000 },
 	keys = keys,
 }

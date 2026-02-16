@@ -43,6 +43,8 @@ local keys = {
 	{ key = "t", mods = "LEADER", action = act.ShowTabNavigator },
 	{ key = "y", mods = "LEADER", action = act.ActivateCopyMode },
 	{ key = "f", mods = "LEADER", action = wezterm.action_callback(sessionizer.toggle), },
+	{ key = "o", mods = "SUPER", action = wezterm.action_callback(sessionizer.toggle), },
+	{ key = "r", mods = "LEADER", action = wezterm.action_callback(sessionizer.rename), },
 }
 
 return keys
