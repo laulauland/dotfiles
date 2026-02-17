@@ -379,6 +379,18 @@ export function createProgramRuntime(
 			if (!Array.isArray(inputs) || inputs.length === 0) {
 				throw new FactoryError({ code: "INVALID_INPUT", message: `parallel('${label}'): inputs must be a non-empty array.`, recoverable: true });
 			}
+			// If LLM passed rt.spawn() handles instead of config objects, just join them
+			if (inputs.every((i) => isSpawnHandle(i))) {
+				obs.push(runId, "info", "parallel:start", { label, count: inputs.length, note: "joining pre-spawned handles" });
+				const results = await Promise.all((inputs as unknown as SpawnHandle[]).map(async (handle, i) => {
+					const result = await handle.join();
+					obs.push(runId, "info", "parallel:result", { label, index: i, taskId: result.taskId, exitCode: result.exitCode });
+					options?.onTaskUpdate?.(result);
+					return result;
+				}));
+				obs.push(runId, "info", "parallel:done", { label, count: results.length, success: results.filter((r) => r.exitCode === 0).length });
+				return results;
+			}
 			obs.push(runId, "info", "parallel:start", { label, count: inputs.length });
 			const handles = inputs.map((input, i) => {
 				obs.push(runId, "info", "parallel:spawn", { label, index: i, step: input.step });
@@ -401,6 +413,19 @@ export function createProgramRuntime(
 			}
 			if (!Array.isArray(inputs) || inputs.length === 0) {
 				throw new FactoryError({ code: "INVALID_INPUT", message: `sequence('${label}'): inputs must be a non-empty array.`, recoverable: true });
+			}
+			// If LLM passed rt.spawn() handles instead of config objects, just join them sequentially
+			if (inputs.every((i) => isSpawnHandle(i))) {
+				obs.push(runId, "info", "sequence:start", { label, count: inputs.length, note: "joining pre-spawned handles" });
+				const results: ExecutionResult[] = [];
+				for (let i = 0; i < inputs.length; i++) {
+					const result = await (inputs[i] as unknown as SpawnHandle).join();
+					obs.push(runId, "info", "sequence:result", { label, index: i, taskId: result.taskId, exitCode: result.exitCode });
+					options?.onTaskUpdate?.(result);
+					results.push(result);
+				}
+				obs.push(runId, "info", "sequence:done", { label, count: results.length, success: results.filter((r) => r.exitCode === 0).length });
+				return results;
 			}
 			obs.push(runId, "info", "sequence:start", { label, count: inputs.length });
 			const results: ExecutionResult[] = [];
