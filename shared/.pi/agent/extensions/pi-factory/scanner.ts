@@ -114,6 +114,43 @@ export function scanRuns(sessionsBase: string, sessionDirName?: string): Omit<Ru
 	return records;
 }
 
+/**
+ * Cancel a subagent by reading its PID file and sending SIGTERM (then SIGKILL after 3s).
+ * Returns true if the signal was sent, false if the PID file was missing or the process was already gone.
+ */
+export function cancelByPidFile(outputDir: string, taskId: string): boolean {
+	const pidPath = path.join(outputDir, `${taskId}.pid`);
+	try {
+		const pid = parseInt(fs.readFileSync(pidPath, "utf-8").trim(), 10);
+		if (isNaN(pid)) return false;
+		process.kill(pid, "SIGTERM");
+		setTimeout(() => {
+			try { process.kill(pid, "SIGKILL"); } catch {}
+		}, 3000);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Cancel all running subagents for a run by scanning for PID files in the run's sessions directory.
+ * Returns the number of processes signalled.
+ */
+export function cancelRunByPidFiles(artifactsDir: string): number {
+	const sessionsDir = path.join(artifactsDir, "sessions");
+	let cancelled = 0;
+	try {
+		if (!fs.existsSync(sessionsDir)) return 0;
+		for (const entry of fs.readdirSync(sessionsDir)) {
+			if (!entry.endsWith(".pid")) continue;
+			const taskId = entry.replace(/\.pid$/, "");
+			if (cancelByPidFile(sessionsDir, taskId)) cancelled++;
+		}
+	} catch {}
+	return cancelled;
+}
+
 /** List all session directory names under the sessions base. */
 function listSessionDirs(sessionsBase: string): string[] {
 	try {

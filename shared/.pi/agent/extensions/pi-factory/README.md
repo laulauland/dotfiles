@@ -49,11 +49,23 @@ Three fields — `task` and `code` are required, `await` is optional:
 
 All subagent calls return immediately. Results arrive via notification (`pi.sendMessage` with `triggerTurn`). Set `await: true` only when you need the result inline before continuing.
 
+### Detached processes
+
+Subagent processes are **detached** — they survive if the parent pi session is interrupted or closed:
+
+- Child `pi` processes run independently (`detached: true`, `proc.unref()`)
+- Stdout is written to file (`.stdout.jsonl`), not piped — no SIGPIPE on parent exit
+- PID files (`.pid`) enable external cancel support
+- Session shutdown does **not** cancel running subagents
+- Turn cancellation (escape/ctrl+c) does **not** propagate to subagents
+- Explicit cancel via `/factory` or `pi --factory` monitor ("c" key) sends SIGTERM
+
 ### TUI integration
 
 - **Widget** — persistent status bar shows active runs with live elapsed time
 - **Notifications** — completions delivered as expandable custom messages (batched within 500ms)
 - **`/factory` command** — bordered overlay with run list, detail pane, scroll, cancel
+- **`pi --factory`** — standalone full-screen monitor for any project directory, reads from filesystem
 
 ## Program mode
 
@@ -154,18 +166,28 @@ await rt.join(h);
 | `RUNTIME` | Execution failure |
 | `CONFIRMATION_REJECTED` | User rejected program execution |
 
+## Standalone monitor
+
+Run `pi --factory` to open a full-screen monitor for any project directory. It reads `run.json` files from the filesystem and supports:
+
+- Live refresh (1s polling)
+- 3-level drill-down: runs → agents → agent detail
+- Cancel running agents via PID files ("c" key)
+- Works independently of any active pi session
+
 ## Files
 
 | File | Purpose |
 |------|---------|
 | `index.ts` | Tool registration, async/blocking dispatch, TUI rendering, lifecycle hooks |
 | `contract.ts` | TypeBox schema + validation |
-| `runtime.ts` | spawn/join/parallel/sequence + program module loader |
+| `runtime.ts` | spawn/join/parallel/sequence + detached process spawning with file-based output |
 | `executors/program-executor.ts` | Confirmation UI + program execution |
 | `registry.ts` | RunRegistry — tracks active/completed runs with acknowledge lifecycle |
+| `scanner.ts` | Filesystem scanner — reads run.json files, PID-based cancel utilities |
+| `monitor.ts` | 3-level TUI monitor component (runs → agents → detail) |
 | `widget.ts` | Persistent status bar via `setWidget` |
 | `notify.ts` | Batched completion notifications + message renderer |
-
 | `observability.ts` | Event timeline + artifact tracking |
 | `errors.ts` | 5-code error model |
 | `types.ts` | ExecutionResult, RunSummary, UsageStats |

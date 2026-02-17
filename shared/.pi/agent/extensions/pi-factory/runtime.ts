@@ -101,6 +101,12 @@ async function runSubagentProcess(input: SpawnInput): Promise<ExecutionResult> {
 	let tmpDir: string | null = null;
 	let tmpPromptPath: string | null = null;
 
+	// Determine the directory for stdout and pid files
+	const outputDir = input.sessionDir ?? path.join(os.tmpdir(), "pi-factory-output");
+	fs.mkdirSync(outputDir, { recursive: true });
+	const stdoutPath = path.join(outputDir, `${input.taskId}.stdout.jsonl`);
+	const pidPath = path.join(outputDir, `${input.taskId}.pid`);
+
 	const result: ExecutionResult = {
 		taskId: input.taskId,
 		agent: input.agent,
@@ -113,6 +119,46 @@ async function runSubagentProcess(input: SpawnInput): Promise<ExecutionResult> {
 		step: input.step,
 		text: "",
 		sessionPath: undefined, // populated after process exits and file confirmed
+	};
+
+	interface PiJsonLine {
+		type?: string;
+		message?: Message & { usage?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number; totalTokens?: number; cost?: { total?: number } } };
+	}
+
+	const processLine = (line: string) => {
+		if (!line.trim()) return;
+		let parsed: PiJsonLine;
+		try {
+			parsed = JSON.parse(line);
+		} catch {
+			return;
+		}
+		if (parsed.type === "message_end" && parsed.message) {
+			const msg = parsed.message;
+			result.messages.push(msg);
+			if (msg.role === "assistant") {
+				result.usage.turns += 1;
+				const usage = msg.usage;
+				if (usage) {
+					result.usage.input += usage.input || 0;
+					result.usage.output += usage.output || 0;
+					result.usage.cacheRead += usage.cacheRead || 0;
+					result.usage.cacheWrite += usage.cacheWrite || 0;
+					result.usage.cost += usage.cost?.total || 0;
+					result.usage.contextTokens = usage.totalTokens || 0;
+				}
+				if (msg.stopReason) result.stopReason = msg.stopReason;
+				if (msg.errorMessage) result.errorMessage = msg.errorMessage;
+				// Update text on every assistant message so progress shows output
+				result.text = extractFinalText(result.messages);
+			}
+			input.onProgress?.({ ...result, messages: [...result.messages] });
+		}
+		if (parsed.type === "tool_result_end" && parsed.message) {
+			result.messages.push(parsed.message);
+			input.onProgress?.({ ...result, messages: [...result.messages] });
+		}
 	};
 
 	try {
@@ -131,64 +177,67 @@ async function runSubagentProcess(input: SpawnInput): Promise<ExecutionResult> {
 		let aborted = false;
 		const childDepth = parseInt(process.env.PI_FACTORY_DEPTH || "0", 10) + 1;
 		const code = await new Promise<number>((resolve) => {
-			const proc = spawn("pi", args, { cwd: input.cwd, stdio: ["ignore", "pipe", "pipe"], shell: false, env: { ...process.env, PI_FACTORY_DEPTH: String(childDepth) } });
-			let buffer = "";
+			// Open file descriptor for stdout — child writes directly to file
+			const stdoutFd = fs.openSync(stdoutPath, "w");
+			const proc = spawn("pi", args, {
+				cwd: input.cwd,
+				detached: true,
+				stdio: ["ignore", stdoutFd, stdoutFd],  // both stdout+stderr to file
+				shell: false,
+				env: { ...process.env, PI_FACTORY_DEPTH: String(childDepth) },
+			});
+			proc.unref();  // allow parent to exit without waiting for child
+			fs.closeSync(stdoutFd);  // parent doesn't need the fd anymore
 
-			interface PiJsonLine {
-				type?: string;
-				message?: Message & { usage?: { input?: number; output?: number; cacheRead?: number; cacheWrite?: number; totalTokens?: number; cost?: { total?: number } } };
+			// Write PID file for external cancel support
+			if (proc.pid != null) {
+				fs.writeFileSync(pidPath, String(proc.pid), "utf-8");
 			}
 
-			const processLine = (line: string) => {
-				if (!line.trim()) return;
-				let parsed: PiJsonLine;
+			// Poll the stdout file for new content instead of reading from pipes
+			let fileOffset = 0;
+			let lineBuffer = "";
+			const pollInterval = setInterval(() => {
 				try {
-					parsed = JSON.parse(line);
-				} catch {
-					return;
-				}
-				if (parsed.type === "message_end" && parsed.message) {
-					const msg = parsed.message;
-					result.messages.push(msg);
-					if (msg.role === "assistant") {
-						result.usage.turns += 1;
-						const usage = msg.usage;
-						if (usage) {
-							result.usage.input += usage.input || 0;
-							result.usage.output += usage.output || 0;
-							result.usage.cacheRead += usage.cacheRead || 0;
-							result.usage.cacheWrite += usage.cacheWrite || 0;
-							result.usage.cost += usage.cost?.total || 0;
-							result.usage.contextTokens = usage.totalTokens || 0;
-						}
-						if (msg.stopReason) result.stopReason = msg.stopReason;
-						if (msg.errorMessage) result.errorMessage = msg.errorMessage;
-						// Update text on every assistant message so progress shows output
-						result.text = extractFinalText(result.messages);
+					const fd = fs.openSync(stdoutPath, "r");
+					const stat = fs.fstatSync(fd);
+					if (stat.size > fileOffset) {
+						const buf = Buffer.alloc(stat.size - fileOffset);
+						fs.readSync(fd, buf, 0, buf.length, fileOffset);
+						fileOffset = stat.size;
+						lineBuffer += buf.toString("utf-8");
+						const lines = lineBuffer.split("\n");
+						lineBuffer = lines.pop() || "";
+						for (const line of lines) processLine(line);
 					}
-					input.onProgress?.({ ...result, messages: [...result.messages] });
+					fs.closeSync(fd);
+				} catch {
+					// File may not exist yet or be temporarily locked — skip
 				}
-				if (parsed.type === "tool_result_end" && parsed.message) {
-					result.messages.push(parsed.message);
-					input.onProgress?.({ ...result, messages: [...result.messages] });
-				}
-			};
+			}, 250);
 
-			proc.stdout.on("data", (chunk: Buffer) => {
-				buffer += chunk.toString();
-				const lines = buffer.split("\n");
-				buffer = lines.pop() || "";
-				for (const line of lines) processLine(line);
-			});
-			proc.stderr.on("data", (chunk: Buffer) => {
-				result.stderr += chunk.toString();
-			});
 			proc.on("close", (exitCode) => {
+				clearInterval(pollInterval);
 				if (killTimer) clearTimeout(killTimer);
-				if (buffer.trim()) processLine(buffer);
+				// Final read to catch any remaining content
+				try {
+					const content = fs.readFileSync(stdoutPath, "utf-8");
+					const remaining = content.slice(fileOffset > content.length ? 0 : fileOffset);
+					if (remaining) {
+						lineBuffer += remaining;
+					}
+					if (lineBuffer.trim()) processLine(lineBuffer);
+				} catch {}
+				// Clean up PID file
+				try { fs.unlinkSync(pidPath); } catch {}
 				resolve(exitCode ?? 0);
 			});
-			proc.on("error", () => resolve(1));
+			proc.on("error", () => {
+				clearInterval(pollInterval);
+				// Clean up PID file
+				try { fs.unlinkSync(pidPath); } catch {}
+				resolve(1);
+			});
 
 			let killTimer: ReturnType<typeof setTimeout> | undefined;
 			const kill = () => {

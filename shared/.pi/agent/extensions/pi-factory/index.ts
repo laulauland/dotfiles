@@ -279,10 +279,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	pi.on("session_shutdown", async () => {
-		// Cancel all active runs
-		for (const run of registry.getActive()) {
-			registry.cancel(run.runId);
-		}
+		// Don't cancel active runs — children are detached and will continue
 		stopPolling();
 	});
 
@@ -364,11 +361,9 @@ export default function (pi: ExtensionAPI) {
 
 			const abort = new AbortController();
 
-			// Wire parent signal to our abort controller
-			if (signal) {
-				if (signal.aborted) abort.abort();
-				else signal.addEventListener("abort", () => abort.abort(), { once: true });
-			}
+			// Don't wire the parent tool signal — subagent runs are detached and
+			// should survive turn cancellation. Use "c" in /factory or pi --factory
+			// to explicitly cancel a run.
 
 			const promise = executeProgram({
 				ctx,

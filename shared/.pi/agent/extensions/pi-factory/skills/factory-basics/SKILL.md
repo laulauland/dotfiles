@@ -367,6 +367,17 @@ export async function run(input, rt) {
 }
 ```
 
+## Detached Processes
+
+Subagent processes are **detached** — they survive parent pi exit:
+
+- Closing pi or cancelling a turn does NOT kill running subagents
+- Output is written to `.stdout.jsonl` files (file-based, not piped)
+- PID files enable cancel via `/factory` monitor or `pi --factory`
+- Use the "c" key in the monitor to explicitly cancel a run
+
+This means you can fire off a long-running program and safely close pi — the work continues.
+
 ## Key Principles
 
 1. **Programs coordinate, subagents execute** — Programs focus on workflow logic, subagents do the work

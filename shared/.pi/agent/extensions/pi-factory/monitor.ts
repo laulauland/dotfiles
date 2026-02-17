@@ -3,7 +3,7 @@ import { matchesKey, truncateToWidth, visibleWidth, wrapTextWithAnsi } from "@ma
 import type { Theme } from "@mariozechner/pi-coding-agent";
 import type { RunRegistry, RunRecord } from "./registry.js";
 import { formatElapsed, statusIcon, agentLabel } from "./format.js";
-import { scanRuns, cwdToSessionDir, getSessionsBase } from "./scanner.js";
+import { scanRuns, cwdToSessionDir, getSessionsBase, cancelRunByPidFiles } from "./scanner.js";
 import type { ExecutionResult } from "./types.js";
 
 /**
@@ -495,8 +495,17 @@ export class FactoryMonitor implements Component {
 		}
 		if (matchesKey(data, "c")) {
 			const run = runs[this.selectedRunIndex];
-			if (run && run.status === "running" && this.registry) {
-				this.registry.cancel(run.runId);
+			if (run && run.status === "running") {
+				if (this.registry) {
+					// In-session: use abort controller via registry
+					this.registry.cancel(run.runId);
+				} else {
+					// Standalone mode: kill by PID files
+					const artifactsDir = run.summary.observability?.artifactsDir;
+					if (artifactsDir) {
+						cancelRunByPidFiles(artifactsDir);
+					}
+				}
 			}
 			return;
 		}
