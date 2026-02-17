@@ -316,7 +316,7 @@ export default function (pi: ExtensionAPI) {
 			"Spawn subagents for delegated or orchestrated work.",
 			`Enabled models: ${modelsText}`,
 			"Runs TypeScript with rt.spawn/join/parallel/sequence for multi-agent orchestration.",
-			"Code must export async run(input, rt). Requires user confirmation before execution.",
+			"Code must export async run(input, rt). Requires user confirmation before execution. Code is typechecked before execution — use proper types: `export async function run(input: any, rt: ProgramRuntime)`. Available types: ProgramRuntime, SpawnHandle, ExecutionResult, RuntimeSpawnInput, UsageStats.",
 			"Each rt.spawn() needs: agent, systemPrompt, task, cwd, model. Use process.cwd() for cwd.",
 			"systemPrompt defines WHO the agent is (behavior, principles, methodology). task defines WHAT it should do now (specific files, specific work). Don't put task details in systemPrompt.",
 			"Context flow: each subagent gets the parent session path and can use search_thread to explore it. Each subagent's session is persisted and available via result.sessionPath. Result text is auto-populated on result.text.",

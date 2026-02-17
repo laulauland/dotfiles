@@ -524,6 +524,61 @@ export function createProgramRuntime(
 	return rt;
 }
 
+// ── Preflight typecheck ────────────────────────────────────────────────
+
+const PROGRAM_ENV_PATH = path.join(import.meta.dirname ?? path.dirname(new URL(import.meta.url).pathname), "program-env.d.ts");
+
+
+
+/**
+ * Run a preflight typecheck on program code using tsgo (native TypeScript compiler).
+ * Returns null if clean, or an error message string if there are type errors.
+ * Falls back silently (returns null) if tsgo is not available.
+ */
+export async function preflightTypecheck(code: string): Promise<string | null> {
+	const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), "pi-factory-typecheck-"));
+	try {
+		const wrapped = code.includes("export") ? code : `export default async function(input, rt) {\n${code}\n}`;
+		fs.writeFileSync(path.join(tmpDir, "program.ts"), `/// <reference path="env.d.ts" />\n${wrapped}`, "utf-8");
+		fs.copyFileSync(PROGRAM_ENV_PATH, path.join(tmpDir, "env.d.ts"));
+		fs.writeFileSync(path.join(tmpDir, "tsconfig.json"), JSON.stringify({
+			compilerOptions: {
+				target: "ES2022",
+				module: "ES2022",
+				moduleResolution: "bundler",
+				strict: true,
+				noEmit: true,
+				skipLibCheck: true,
+			},
+			include: ["program.ts", "env.d.ts"],
+		}));
+
+		const result = await new Promise<{ code: number; stderr: string }>((resolve) => {
+			let stderr = "";
+			const proc = spawn("tsgo", ["--noEmit", "-p", path.join(tmpDir, "tsconfig.json")], { stdio: ["ignore", "pipe", "pipe"] });
+			proc.stdout.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+			proc.stderr.on("data", (chunk: Buffer) => { stderr += chunk.toString(); });
+			proc.on("close", (exitCode) => resolve({ code: exitCode ?? 1, stderr }));
+			proc.on("error", () => resolve({ code: -1, stderr: "" })); // tsgo not found — skip
+		});
+
+		if (result.code === -1) return null; // tsgo not available, skip
+		if (result.code === 0) return null; // clean
+
+		// Strip temp dir paths from error messages for readability
+		const errors = result.stderr
+			.split("\n")
+			.filter((l) => l.includes("error TS"))
+			.map((l) => l.replace(/.*program\.ts/, "program.ts"))
+			.join("\n");
+		return errors || result.stderr.trim();
+	} catch {
+		return null; // don't block on typecheck failures
+	} finally {
+		try { fs.rmSync(tmpDir, { recursive: true }); } catch {}
+	}
+}
+
 // ── Program module loader ──────────────────────────────────────────────
 
 export async function loadProgramModule(code: string): Promise<{ run: (input: any, rt: ProgramRuntime) => Promise<any>; modulePath: string }> {

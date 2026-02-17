@@ -2,7 +2,7 @@ import { highlightCode, type ExtensionContext } from "@mariozechner/pi-coding-ag
 import { matchesKey, truncateToWidth, wrapTextWithAnsi } from "@mariozechner/pi-tui";
 import { FactoryError, toErrorDetails } from "../errors.js";
 import type { ObservabilityStore } from "../observability.js";
-import { createProgramRuntime, loadProgramModule } from "../runtime.js";
+import { createProgramRuntime, loadProgramModule, preflightTypecheck } from "../runtime.js";
 import type { ExecutionResult, RunSummary } from "../types.js";
 
 function isRecord(v: unknown): v is Record<string, unknown> {
@@ -128,6 +128,16 @@ export async function executeProgram(input: {
 
 	let runtime: ReturnType<typeof createProgramRuntime> | null = null;
 	try {
+		// Preflight typecheck — catch type errors before showing confirmation dialog
+		const typeErrors = await preflightTypecheck(code);
+		if (typeErrors) {
+			throw new FactoryError({
+				code: "INVALID_INPUT",
+				message: `Type errors in program code:\n${typeErrors}`,
+				recoverable: true,
+			});
+		}
+
 		if (!input.skipConfirmation) {
 			const confirmation = await confirmExecution(ctx, code);
 			if (!confirmation.approved) {
