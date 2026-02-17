@@ -320,7 +320,7 @@ export default function (pi: ExtensionAPI) {
 			"Each rt.spawn() needs: agent, systemPrompt, task, cwd, model. Use process.cwd() for cwd.",
 			"systemPrompt defines WHO the agent is (behavior, principles, methodology). task defines WHAT it should do now (specific files, specific work). Don't put task details in systemPrompt.",
 			"Context flow: each subagent gets the parent session path and can use search_thread to explore it. Each subagent's session is persisted and available via result.sessionPath. Result text is auto-populated on result.text.",
-			"Async by default: returns immediately with a runId. Results are delivered via notification when complete.",
+			"Async by default: returns immediately with a runId. Results are delivered via notification when complete. Do NOT poll or check for results — just continue with other work and the notification will arrive automatically.",
 			"Model selection: match model capability to task complexity. Use smaller/faster models for simple tasks, stronger models for complex reasoning. Vary your choices across the enabled models \u2014 don't default to one.",
 			...(config.prompt ? [config.prompt] : []),
 		].join(" "),
