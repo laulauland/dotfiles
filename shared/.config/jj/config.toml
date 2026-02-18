@@ -162,7 +162,7 @@ private-commits = "description(glob:'wip:*') | description(glob:'private:*')"
 
 # Work configuration - conditional on repository location
 [[--scope]]
---when.repositories = ["~/Code/work"]
+--when.repositories = ["~/Code/work", "~/code/work"]
 [--scope.user]
 email = "laurynas@fiberplane.com"
 

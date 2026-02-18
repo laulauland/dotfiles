@@ -6,6 +6,9 @@
 set -x EDITOR nvim
 set -x VISUAL nvim
 
+# Default terminal background fallback for auto_theme (light|dark)
+set --export DFT_BACKGROUND light
+
 if test (uname) = "Linux"
 	set XDG_SESSION_TYPE "wayland"
 	set -x XDG_SESSION_DESKTOP "sway"
@@ -129,8 +132,6 @@ end
 # bun
 set --export BUN_INSTALL "$HOME/.bun"
 set --export PATH $BUN_INSTALL/bin $PATH
-set --export DFT_BACKGROUND light
-
 # cargo
 fish_add_path "$HOME/.cargo/bin"
 

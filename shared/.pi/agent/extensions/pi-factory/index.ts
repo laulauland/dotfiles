@@ -185,7 +185,7 @@ export const config = {
 	/** Maximum nesting depth for subagent spawning. 1 = orchestrator can spawn subagents, but those subagents cannot spawn their own. 0 = no subagents at all. */
 	maxDepth: 1,
 	/** Extra text appended to the tool description. Use for model selection hints, project conventions, etc. */
-	prompt: "Use anthropic/claude-opus-4-6 for most subagent operations, especially if they entail making changes across multiple files. If you need to search you can use faster models like cerebras/zai-glm-4.7. If you need to look at and reason over images (a screenshot is referenced) use google-gemini-cli/gemini-3-flash-preview to see the changes.",
+	prompt: "Use openai-codex/gpt-5.3-codex for most subagent operations, especially if they entail making changes across multiple files. If you need to search you can use faster models like cerebras/zai-glm-4.7. If you need to look at and reason over images (a screenshot is referenced) use google-gemini-cli/gemini-3-flash-preview.",
 };
 
 // ────────────────────────────────────────────────────────────────────────
