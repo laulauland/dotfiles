@@ -35,109 +35,104 @@ rm -rf /tmp/worktree-auth
 ### Basic Pattern
 
 ```typescript
-import { spawnSync } from "child_process";
-import fs from "fs";
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
 
-export async function run(input, rt) {
-  const baseCwd = input.cwd || process.cwd();
-  const tasks = input.tasks; // [{ name: "auth", task: "Implement auth module" }, ...]
-  const worktrees: string[] = [];
+const baseCwd = process.cwd();
+const tasks = [
+  { name: "auth", task: "Implement auth module", prompt: "You are a software engineer. Implement the requested changes. Run tests to verify your work." },
+  { name: "api", task: "Implement API endpoints", prompt: "You are a software engineer. Implement the requested changes. Run tests to verify your work." },
+];
+const worktrees: string[] = [];
 
-  try {
-    // 1. Create worktrees
-    for (const t of tasks) {
-      const wtPath = `/tmp/pi-worktree-${t.name}-${Date.now()}`;
-      worktrees.push(wtPath);
+try {
+  // 1. Create worktrees
+  for (const t of tasks) {
+    const wtPath = `/tmp/pi-worktree-${t.name}-${Date.now()}`;
+    worktrees.push(wtPath);
 
-      const result = spawnSync("jj", ["workspace", "add", wtPath], {
-        cwd: baseCwd,
-        encoding: "utf-8",
-      });
+    const result = spawnSync("jj", ["workspace", "add", wtPath], {
+      cwd: baseCwd,
+      encoding: "utf-8",
+    });
 
-      if (result.status !== 0) {
-        throw new Error(`Failed to create workspace ${t.name}: ${result.stderr}`);
-      }
-
-      rt.observe.log("info", `Created workspace: ${t.name}`, { path: wtPath });
+    if (result.status !== 0) {
+      throw new Error(`Failed to create workspace ${t.name}: ${result.stderr}`);
     }
 
-    // 2. Install dependencies in each worktree
-    await rt.parallel(
-      "install-deps",
-      worktrees.map((wt, i) => ({
+    factory.observe.log("info", `Created workspace: ${t.name}`, { path: wtPath });
+  }
+
+  // 2. Install dependencies in each worktree
+  await Promise.all(
+    worktrees.map((wt, i) =>
+      factory.spawn({
         agent: "installer",
-        systemPrompt: "Install project dependencies. Run the appropriate install command (npm install, pnpm install, bun install, etc.) and verify it succeeds.",
+        prompt: "Install project dependencies. Run the appropriate install command (npm install, pnpm install, bun install, etc.) and verify it succeeds.",
         task: "Install dependencies in this workspace.",
+        model: "sonnet",
         cwd: wt,
         step: i,
-      }))
-    );
+      })
+    )
+  );
 
-    // 3. Dispatch parallel agents
-    const results = await rt.parallel(
-      "worktree-agents",
-      tasks.map((t, i) => ({
+  // 3. Dispatch parallel agents
+  const results = await Promise.all(
+    tasks.map((t, i) =>
+      factory.spawn({
         agent: t.name,
-        systemPrompt: t.systemPrompt || "You are a software engineer. Implement the requested changes. Run tests to verify your work.",
+        prompt: t.prompt,
         task: t.task,
+        model: "opus",
         cwd: worktrees[i],
         step: i,
-      }))
-    );
+      })
+    )
+  );
 
-    // 4. Check results
-    const failed = results.filter((r) => r.exitCode !== 0);
-    if (failed.length > 0) {
-      rt.observe.log("warning", "Some agents failed", {
-        failed: failed.map((r) => r.agent),
-      });
-    }
+  // 4. Check results
+  const failed = results.filter((r) => r.exitCode !== 0);
+  if (failed.length > 0) {
+    factory.observe.log("warning", "Some agents failed", {
+      failed: failed.map((r) => r.agent),
+    });
+  }
 
-    // 5. Merge results back
-    // Each workspace created its own jj change. Merge them.
-    const mergeAgent = await rt.join(
-      rt.spawn({
-        agent: "merger",
-        systemPrompt: `You merge parallel workstream results using jj.
+  // 5. Merge results back
+  const mergeResult = await factory.spawn({
+    agent: "merger",
+    prompt: `You merge parallel workstream results using jj.
 Use 'jj log' to see all changes across workspaces.
 Create a merge commit that combines all successful changes.
 Resolve any conflicts if they arise.
 The main workspace is at: ${baseCwd}`,
-        task: `Merge changes from ${worktrees.length} parallel workstreams.
+    task: `Merge changes from ${worktrees.length} parallel workstreams.
 Workspaces: ${worktrees.join(", ")}
 Failed agents: ${failed.map((r) => r.agent).join(", ") || "none"}
 Use jj to combine the changes into the main workspace.`,
-        cwd: baseCwd,
-        step: tasks.length,
-      })
-    );
+    model: "opus",
+    cwd: baseCwd,
+    step: tasks.length,
+  });
 
-    // 6. Write summary
-    const summaryContent = results
-      .map((r) => `## ${r.agent}\n**Status:** ${r.exitCode === 0 ? "✓" : "✗"}\n\n${r.text}`)
-      .join("\n\n---\n\n");
-    const reportPath = rt.observe.artifact("worktree-report.md", summaryContent);
-
-    return {
-      status: failed.length === 0 ? "success" : "partial",
-      completed: results.filter((r) => r.exitCode === 0).length,
-      failed: failed.length,
-      reportPath,
-      totalCost: results.reduce((sum, r) => sum + r.usage.cost, 0),
-    };
-  } finally {
-    // 7. Cleanup — always runs
-    for (const wt of worktrees) {
-      const name = wt.split("/").pop() || "";
-      spawnSync("jj", ["workspace", "forget", name], {
-        cwd: baseCwd,
-        encoding: "utf-8",
-      });
-      if (fs.existsSync(wt)) {
-        fs.rmSync(wt, { recursive: true, force: true });
-      }
-      rt.observe.log("info", `Cleaned up workspace`, { path: wt });
+  // 6. Write summary
+  const summaryContent = results
+    .map((r) => `## ${r.agent}\n**Status:** ${r.exitCode === 0 ? "pass" : "fail"}\n\n${r.text}`)
+    .join("\n\n---\n\n");
+  factory.observe.artifact("worktree-report.md", summaryContent);
+} finally {
+  // 7. Cleanup — always runs
+  for (const wt of worktrees) {
+    const name = wt.split("/").pop() || "";
+    spawnSync("jj", ["workspace", "forget", name], {
+      cwd: baseCwd,
+      encoding: "utf-8",
+    });
+    if (fs.existsSync(wt)) {
+      fs.rmSync(wt, { recursive: true, force: true });
     }
+    factory.observe.log("info", `Cleaned up workspace`, { path: wt });
   }
 }
 ```
@@ -189,98 +184,94 @@ git worktree remove --force /tmp/worktree-auth
 ### Basic Pattern
 
 ```typescript
-import { spawnSync } from "child_process";
-import fs from "fs";
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
 
-export async function run(input, rt) {
-  const baseCwd = input.cwd || process.cwd();
-  const baseBranch = input.baseBranch || "main";
-  const tasks = input.tasks;
-  const worktrees: Array<{ path: string; branch: string }> = [];
+const baseCwd = process.cwd();
+const baseBranch = "main";
+const tasks = [
+  { name: "auth", task: "Implement auth module", prompt: "Implement the requested changes. Commit your work when done." },
+  { name: "payments", task: "Implement payments", prompt: "Implement the requested changes. Commit your work when done." },
+];
+const worktrees: Array<{ path: string; branch: string }> = [];
 
-  try {
-    // 1. Create worktrees with dedicated branches
-    for (const t of tasks) {
-      const branch = `worktree/${t.name}-${Date.now()}`;
-      const wtPath = `/tmp/pi-worktree-${t.name}-${Date.now()}`;
-      worktrees.push({ path: wtPath, branch });
+try {
+  // 1. Create worktrees with dedicated branches
+  for (const t of tasks) {
+    const branch = `worktree/${t.name}-${Date.now()}`;
+    const wtPath = `/tmp/pi-worktree-${t.name}-${Date.now()}`;
+    worktrees.push({ path: wtPath, branch });
 
-      const result = spawnSync(
-        "git",
-        ["worktree", "add", wtPath, "-b", branch, baseBranch],
-        { cwd: baseCwd, encoding: "utf-8" }
-      );
+    const result = spawnSync(
+      "git",
+      ["worktree", "add", wtPath, "-b", branch, baseBranch],
+      { cwd: baseCwd, encoding: "utf-8" }
+    );
 
-      if (result.status !== 0) {
-        throw new Error(`Failed to create worktree ${t.name}: ${result.stderr}`);
-      }
-
-      rt.observe.log("info", `Created worktree: ${t.name}`, { path: wtPath, branch });
+    if (result.status !== 0) {
+      throw new Error(`Failed to create worktree ${t.name}: ${result.stderr}`);
     }
 
-    // 2. Install dependencies
-    await rt.parallel(
-      "install-deps",
-      worktrees.map((wt, i) => ({
+    factory.observe.log("info", `Created worktree: ${t.name}`, { path: wtPath, branch });
+  }
+
+  // 2. Install dependencies
+  await Promise.all(
+    worktrees.map((wt, i) =>
+      factory.spawn({
         agent: "installer",
-        systemPrompt: "Install project dependencies.",
+        prompt: "Install project dependencies.",
         task: "Run the install command for this project (npm install, etc.)",
+        model: "sonnet",
         cwd: wt.path,
         step: i,
-      }))
-    );
+      })
+    )
+  );
 
-    // 3. Dispatch agents
-    const results = await rt.parallel(
-      "worktree-agents",
-      tasks.map((t, i) => ({
+  // 3. Dispatch agents
+  const results = await Promise.all(
+    tasks.map((t, i) =>
+      factory.spawn({
         agent: t.name,
-        systemPrompt: t.systemPrompt || "Implement the requested changes. Commit your work when done.",
+        prompt: t.prompt,
         task: `${t.task}\n\nCommit your changes to the current branch when complete.`,
+        model: "opus",
         cwd: worktrees[i].path,
         step: i,
-      }))
-    );
+      })
+    )
+  );
 
-    // 4. Merge branches back
-    const successful = results
-      .map((r, i) => ({ result: r, worktree: worktrees[i] }))
-      .filter(({ result }) => result.exitCode === 0);
+  // 4. Merge branches back
+  const successful = results
+    .map((r, i) => ({ result: r, worktree: worktrees[i] }))
+    .filter(({ result }) => result.exitCode === 0);
 
-    const mergeAgent = await rt.join(
-      rt.spawn({
-        agent: "merger",
-        systemPrompt: `You merge git branches from parallel workstreams.
+  await factory.spawn({
+    agent: "merger",
+    prompt: `You merge git branches from parallel workstreams.
 Merge each feature branch into ${baseBranch}.
 Handle conflicts if they arise. Prefer keeping both changes when possible.`,
-        task: `Merge these branches into ${baseBranch}:
+    task: `Merge these branches into ${baseBranch}:
 ${successful.map(({ worktree }) => `- ${worktree.branch}`).join("\n")}`,
-        cwd: baseCwd,
-        step: tasks.length,
-      })
-    );
-
-    return {
-      status: "complete",
-      completed: successful.length,
-      failed: results.filter((r) => r.exitCode !== 0).length,
-    };
-  } finally {
-    // 5. Cleanup
-    for (const wt of worktrees) {
-      spawnSync("git", ["worktree", "remove", "--force", wt.path], {
-        cwd: baseCwd,
-        encoding: "utf-8",
-      });
-      // Delete branch
-      spawnSync("git", ["branch", "-D", wt.branch], {
-        cwd: baseCwd,
-        encoding: "utf-8",
-      });
-      // Fallback: remove directory if worktree remove didn't
-      if (fs.existsSync(wt.path)) {
-        fs.rmSync(wt.path, { recursive: true, force: true });
-      }
+    model: "opus",
+    cwd: baseCwd,
+    step: tasks.length,
+  });
+} finally {
+  // 5. Cleanup
+  for (const wt of worktrees) {
+    spawnSync("git", ["worktree", "remove", "--force", wt.path], {
+      cwd: baseCwd,
+      encoding: "utf-8",
+    });
+    spawnSync("git", ["branch", "-D", wt.branch], {
+      cwd: baseCwd,
+      encoding: "utf-8",
+    });
+    if (fs.existsSync(wt.path)) {
+      fs.rmSync(wt.path, { recursive: true, force: true });
     }
   }
 }
@@ -305,74 +296,67 @@ function installDeps(cwd: string): { status: number; stderr: string } {
 }
 ```
 
-Or let each agent handle it—the installer agent in the examples above will figure out the right command.
+Or let each agent handle it — the installer agent in the examples above will figure out the right command.
 
 ## Advanced: Fan-Out with Worktrees + Synthesize
 
 Combine the worktree pattern with fan-out-then-synthesize:
 
 ```typescript
-export async function run(input, rt) {
-  const baseCwd = input.cwd || process.cwd();
-  const worktrees: string[] = [];
+import { spawnSync } from "node:child_process";
+import fs from "node:fs";
 
-  const tasks = [
-    { name: "api", task: "Add pagination to /api/users endpoint", systemPrompt: "You are a backend engineer." },
-    { name: "ui", task: "Add pagination controls to the users table", systemPrompt: "You are a frontend engineer." },
-    { name: "tests", task: "Write integration tests for paginated user listing", systemPrompt: "You are a QA engineer." },
-  ];
+const baseCwd = process.cwd();
+const worktrees: string[] = [];
 
-  try {
-    // Setup worktrees
-    for (const t of tasks) {
-      const wt = `/tmp/pi-wt-${t.name}-${Date.now()}`;
-      worktrees.push(wt);
-      spawnSync("jj", ["workspace", "add", wt], { cwd: baseCwd, encoding: "utf-8" });
-    }
+const tasks = [
+  { name: "api", task: "Add pagination to /api/users endpoint", prompt: "You are a backend engineer." },
+  { name: "ui", task: "Add pagination controls to the users table", prompt: "You are a frontend engineer." },
+  { name: "tests", task: "Write integration tests for paginated user listing", prompt: "You are a QA engineer." },
+];
 
-    // Install deps in parallel
-    await rt.parallel("deps", worktrees.map((wt, i) => ({
-      agent: "installer",
-      systemPrompt: "Install deps.",
-      task: "npm install",
-      cwd: wt,
-      step: i,
-    })));
+try {
+  // Setup worktrees
+  for (const t of tasks) {
+    const wt = `/tmp/pi-wt-${t.name}-${Date.now()}`;
+    worktrees.push(wt);
+    spawnSync("jj", ["workspace", "add", wt], { cwd: baseCwd, encoding: "utf-8" });
+  }
 
-    // Parallel implementation
-    const results = await rt.parallel("implement", tasks.map((t, i) => ({
-      agent: t.name,
-      systemPrompt: t.systemPrompt,
-      task: t.task,
-      cwd: worktrees[i],
-      step: i,
-    })));
+  // Install deps in parallel
+  await Promise.all(
+    worktrees.map((wt, i) =>
+      factory.spawn({ agent: "installer", prompt: "Install deps.", task: "npm install", model: "sonnet", cwd: wt, step: i })
+    )
+  );
 
-    // Synthesize — merge and verify
-    const context = results.map(r => `[${r.agent}]\n${r.text}`).join("\n\n");
-    const synthesis = await rt.join(rt.spawn({
-      agent: "integrator",
-      systemPrompt: `You integrate parallel workstreams.
+  // Parallel implementation
+  const results = await Promise.all(
+    tasks.map((t, i) =>
+      factory.spawn({ agent: t.name, prompt: t.prompt, task: t.task, model: "opus", cwd: worktrees[i], step: i })
+    )
+  );
+
+  // Synthesize — merge and verify
+  const context = results.map(r => `[${r.agent}]\n${r.text}`).join("\n\n");
+  const synthesis = await factory.spawn({
+    agent: "integrator",
+    prompt: `You integrate parallel workstreams.
 1. Use jj to merge all workspace changes into the main workspace.
 2. Resolve any conflicts.
 3. Run the full test suite to verify integration.
 4. Fix any integration issues.
 Main workspace: ${baseCwd}`,
-      task: `Integrate these parallel changes:\n\n${context}`,
-      cwd: baseCwd,
-      step: tasks.length,
-    }));
-
-    return {
-      status: synthesis.exitCode === 0 ? "success" : "integration_failed",
-      report: synthesis.text,
-    };
-  } finally {
-    for (const wt of worktrees) {
-      const name = wt.split("/").pop() || "";
-      spawnSync("jj", ["workspace", "forget", name], { cwd: baseCwd, encoding: "utf-8" });
-      if (fs.existsSync(wt)) fs.rmSync(wt, { recursive: true, force: true });
-    }
+    task: `Integrate these parallel changes:\n\n${context}`,
+    model: "opus",
+    cwd: baseCwd,
+    step: tasks.length,
+  });
+} finally {
+  for (const wt of worktrees) {
+    const name = wt.split("/").pop() || "";
+    spawnSync("jj", ["workspace", "forget", name], { cwd: baseCwd, encoding: "utf-8" });
+    if (fs.existsSync(wt)) fs.rmSync(wt, { recursive: true, force: true });
   }
 }
 ```
@@ -413,20 +397,18 @@ Agents shouldn't waste tokens figuring out dependency installation. Do it as a s
 
 ```typescript
 // Dedicated install step
-await rt.parallel("install-deps", worktrees.map(wt => ({
-  agent: "installer",
-  systemPrompt: "Install dependencies.",
-  task: "npm install",
-  cwd: wt,
-})));
+await Promise.all(
+  worktrees.map(wt =>
+    factory.spawn({ agent: "installer", prompt: "Install dependencies.", task: "npm install", model: "sonnet", cwd: wt })
+  )
+);
 
 // Then dispatch real work
-await rt.parallel("work", tasks.map((t, i) => ({
-  agent: t.name,
-  systemPrompt: t.systemPrompt,
-  task: t.task,
-  cwd: worktrees[i],
-})));
+await Promise.all(
+  tasks.map((t, i) =>
+    factory.spawn({ agent: t.name, prompt: t.prompt, task: t.task, model: "opus", cwd: worktrees[i] })
+  )
+);
 ```
 
 ### 5. **Scope agent work narrowly**
@@ -434,9 +416,9 @@ await rt.parallel("work", tasks.map((t, i) => ({
 Each agent should work on a well-defined, non-overlapping area. If two agents edit the same files, merging becomes painful:
 
 ```
-✅ Agent A: "Implement auth module in src/auth/"
-✅ Agent B: "Implement payments in src/payments/"
-❌ Agent A: "Refactor the app" — too broad, will conflict
+Agent A: "Implement auth module in src/auth/"
+Agent B: "Implement payments in src/payments/"
+NOT: "Refactor the app" — too broad, will conflict
 ```
 
 ### 6. **Verify after merge**
@@ -452,19 +434,19 @@ if (verify.status !== 0) {
 
 ### 7. **Track worktree count**
 
-Each worktree is a full working copy. On large repos, 5+ simultaneous worktrees can use significant disk space. Start with 2–3 parallel agents and scale up.
+Each worktree is a full working copy. On large repos, 5+ simultaneous worktrees can use significant disk space. Start with 2-3 parallel agents and scale up.
 
 ## When to Use Worktrees
 
-✅ **Good for:**
+Good for:
 - Implementing multiple independent features in parallel
 - Parallel refactoring of separate modules
 - Running different test suites simultaneously
 - Any task where agents would otherwise conflict on files
 
-❌ **Not ideal for:**
+Not ideal for:
 - Tasks that heavily overlap in the same files
-- Read-only analysis (just use `rt.parallel` with same `cwd`)
+- Read-only analysis (just use `Promise.all` with `factory.spawn` and same `cwd`)
 - Very small changes (worktree overhead isn't worth it)
 - Repos with huge `node_modules` or build artifacts (disk cost)
 
@@ -473,8 +455,8 @@ Each worktree is a full working copy. On large repos, 5+ simultaneous worktrees 
 The worktree pattern gives each agent full isolation:
 1. **Create** — `jj workspace add` or `git worktree add`
 2. **Install** — Dependencies in each worktree
-3. **Dispatch** — Parallel agents, each with own `cwd`
+3. **Dispatch** — Parallel agents via `Promise.all`, each with own `cwd`
 4. **Merge** — Combine changes with jj/git
 5. **Cleanup** — Forget workspaces, delete directories
 
-Agents never step on each other's toes. The merge step is where conflicts surface—and by scoping work to non-overlapping areas, you minimize that pain.
+Agents never step on each other's toes. The merge step is where conflicts surface — and by scoping work to non-overlapping areas, you minimize that pain.

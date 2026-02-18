@@ -5,7 +5,7 @@ import { validateParams } from "../contract.js";
 test("accepts valid params with task and code", () => {
 	const params = validateParams({
 		task: "run pipeline",
-		code: "export async function run(input, rt) { return { results: [] }; }",
+		code: "await factory.spawn({ agent: 'worker', prompt: 'test', task: 'do work', model: 'opus' });",
 	});
 	assert.equal(params.task, "run pipeline");
 	assert.equal(typeof params.code, "string");
@@ -14,21 +14,21 @@ test("accepts valid params with task and code", () => {
 test("accepts valid minimal params", () => {
 	const params = validateParams({
 		task: "some task",
-		code: "export async function run(input, rt) {}",
+		code: "factory.observe.log('info', 'hello');",
 	});
 	assert.equal(params.task, "some task");
 });
 
 test("rejects missing task", () => {
 	assert.throws(
-		() => validateParams({ task: "", code: "export async function run() {}" }),
+		() => validateParams({ task: "", code: "factory.observe.log('info', 'test');" }),
 		(err: any) => err.details.code === "INVALID_INPUT",
 	);
 });
 
 test("rejects whitespace-only task", () => {
 	assert.throws(
-		() => validateParams({ task: "   ", code: "export async function run() {}" }),
+		() => validateParams({ task: "   ", code: "factory.observe.log('info', 'test');" }),
 		(err: any) => err.details.code === "INVALID_INPUT",
 	);
 });

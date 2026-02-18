@@ -1,17 +1,10 @@
+import { pathToFileURL } from "node:url";
 import { highlightCode, type ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { matchesKey, truncateToWidth, wrapTextWithAnsi } from "@mariozechner/pi-tui";
 import { FactoryError, toErrorDetails } from "../errors.js";
 import type { ObservabilityStore } from "../observability.js";
-import { createProgramRuntime, loadProgramModule, preflightTypecheck } from "../runtime.js";
+import { createFactory, patchConsole, patchPromiseAll, prepareProgramModule, preflightTypecheck } from "../runtime.js";
 import type { ExecutionResult, RunSummary } from "../types.js";
-
-function isRecord(v: unknown): v is Record<string, unknown> {
-	return typeof v === "object" && v !== null;
-}
-
-function isExecutionResult(v: unknown): v is ExecutionResult {
-	return isRecord(v) && typeof v.taskId === "string" && typeof v.agent === "string";
-}
 
 // ── Confirmation UI ────────────────────────────────────────────────────
 
@@ -126,8 +119,12 @@ export async function executeProgram(input: {
 		input.onUpdate?.({ runId, status, results: [...results], observability: obs.toSummary(runId), error });
 	};
 
-	let runtime: ReturnType<typeof createProgramRuntime> | null = null;
+	let runtime: ReturnType<typeof createFactory> | null = null;
 	try {
+		// Write program source as early as possible so failed preflight/confirmation runs
+		// still keep a legible copy of the attempted program.
+		obs.writeArtifact(runId, "program.ts", code);
+
 		// Preflight typecheck — catch type errors before showing confirmation dialog
 		const typeErrors = await preflightTypecheck(code);
 		if (typeErrors) {
@@ -152,10 +149,7 @@ export async function executeProgram(input: {
 		emit("running");
 		obs.push(runId, "info", "program:start", { codeBytes: code.length });
 
-		// Write program source to artifacts for later inspection
-		obs.writeArtifact(runId, "program.ts", code);
-
-		runtime = createProgramRuntime(ctx, runId, obs, {
+		runtime = createFactory(ctx, runId, obs, {
 			defaultSignal: input.signal,
 			onTaskUpdate: (result) => {
 				resultsByTask.set(result.taskId, result);
@@ -165,15 +159,34 @@ export async function executeProgram(input: {
 			sessionDir: input.sessionDir,
 		});
 
-		const module = await loadProgramModule(code);
+		const { modulePath } = prepareProgramModule(code);
+		const restorePromise = patchPromiseAll(obs, runId);
+		const restoreConsole = patchConsole(obs, runId);
 
-		let programResult: unknown;
-		const runPromise = module.run({ task: input.task }, runtime!);
-		// Prevent unhandled rejection if runPromise rejects before being awaited
-		runPromise.catch(() => {});
+		// Inject the factory global
+		const prev = (globalThis as any).factory;
+		(globalThis as any).factory = runtime;
+
+		let importPromise: Promise<unknown>;
+		try {
+			importPromise = import(pathToFileURL(modulePath).toString());
+			// Prevent unhandled rejection if importPromise rejects before being awaited
+			importPromise.catch(() => {});
+		} catch (e) {
+			// Restore immediately on synchronous throw
+			if (prev === undefined) delete (globalThis as any).factory;
+			else (globalThis as any).factory = prev;
+			restorePromise();
+			restoreConsole();
+			throw e;
+		}
 
 		if (input.signal) {
 			if (input.signal.aborted) {
+				if (prev === undefined) delete (globalThis as any).factory;
+				else (globalThis as any).factory = prev;
+				restorePromise();
+				restoreConsole();
 				throw new FactoryError({ code: "CANCELLED", message: "Cancelled before execution.", recoverable: true });
 			}
 			let onAbort: (() => void) | undefined;
@@ -182,23 +195,27 @@ export async function executeProgram(input: {
 				input.signal?.addEventListener("abort", onAbort, { once: true });
 			});
 			try {
-				programResult = await Promise.race([runPromise, cancelled]);
+				await Promise.race([importPromise, cancelled]);
 			} finally {
 				if (onAbort) input.signal?.removeEventListener("abort", onAbort);
+				if (prev === undefined) delete (globalThis as any).factory;
+				else (globalThis as any).factory = prev;
+				restorePromise();
+				restoreConsole();
 			}
 		} else {
-			programResult = await runPromise;
-		}
-
-		if (isRecord(programResult) && Array.isArray(programResult.results)) {
-			for (const r of programResult.results) {
-				if (!isExecutionResult(r)) continue;
-				resultsByTask.set(r.taskId, r);
+			try {
+				await importPromise;
+			} finally {
+				if (prev === undefined) delete (globalThis as any).factory;
+				else (globalThis as any).factory = prev;
+				restorePromise();
+				restoreConsole();
 			}
 		}
 
 		emit("done");
-		return { runId, status: "done", results, observability: obs.toSummary(runId), metadata: { modulePath: module.modulePath } };
+		return { runId, status: "done", results, observability: obs.toSummary(runId), metadata: { modulePath } };
 	} catch (error) {
 		const details = toErrorDetails(error);
 		obs.push(runId, "error", details.message, { code: details.code });

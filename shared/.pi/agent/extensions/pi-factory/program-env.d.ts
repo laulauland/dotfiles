@@ -1,6 +1,6 @@
 /**
  * Ambient type declarations for pi-factory programs.
- * Injected automatically during preflight typecheck — not imported by user code.
+ * Available as globals — do not import.
  */
 
 interface UsageStats {
@@ -29,40 +29,27 @@ interface ExecutionResult {
 	sessionPath?: string;
 }
 
-interface SpawnHandle {
-	taskId: string;
-	join: () => Promise<ExecutionResult>;
-	then: <TResult1 = ExecutionResult, TResult2 = never>(
-		onfulfilled?: ((value: ExecutionResult) => TResult1 | PromiseLike<TResult1>) | null,
-		onrejected?: ((reason: unknown) => TResult2 | PromiseLike<TResult2>) | null,
-	) => Promise<TResult1 | TResult2>;
-}
-
-interface RuntimeSpawnInput {
+interface SpawnInput {
 	agent: string;
-	systemPrompt: string;
+	prompt: string;
 	task: string;
-	cwd: string;
 	model: string;
+	cwd?: string;
 	tools?: string[];
 	step?: number;
 	signal?: AbortSignal;
 }
 
-interface ProgramRuntime {
+interface Factory {
 	runId: string;
-	spawn(input: RuntimeSpawnInput): SpawnHandle;
-	join(handle: SpawnHandle): Promise<ExecutionResult>;
-	join(handles: SpawnHandle[]): Promise<ExecutionResult[]>;
-	parallel(label: string, inputs: RuntimeSpawnInput[]): Promise<ExecutionResult[]>;
-	sequence(label: string, inputs: RuntimeSpawnInput[]): Promise<ExecutionResult[]>;
+	spawn(input: SpawnInput): Promise<ExecutionResult>;
 	shutdown(cancelRunning?: boolean): Promise<void>;
-	workspace: { create(name?: string): string; cleanup(path: string): void };
 	observe: {
 		log(type: "info" | "warning" | "error", message: string, data?: Record<string, unknown>): void;
 		artifact(relativePath: string, content: string): string | null;
 	};
 }
 
+declare const factory: Factory;
 declare const process: { cwd(): string; env: Record<string, string | undefined>; [key: string]: unknown };
 declare const console: { log(...args: unknown[]): void; error(...args: unknown[]): void; warn(...args: unknown[]): void };

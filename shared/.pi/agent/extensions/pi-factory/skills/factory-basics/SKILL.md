@@ -5,131 +5,83 @@ description: "Write pi-factory programs to orchestrate multi-agent workflows. Us
 
 # Factory Basics
 
-Pi-factory enables writing programs that orchestrate multiple AI agents. Programs spawn subagents, coordinate their work, and compose results.
+Pi-factory enables writing scripts that orchestrate multiple AI agents. Scripts use the `factory` global to spawn subagents, coordinate their work, and compose results.
 
-## systemPrompt vs task
+## prompt vs task
 
 These two fields have distinct roles — don't mix them:
 
-- **systemPrompt**: Defines WHO the agent is and HOW it should behave. Personality, methodology, principles, output format, tool usage conventions. Never contains references to specific files, specific bugs, or the immediate work.
+- **prompt**: Defines WHO the agent is and HOW it should behave. Personality, methodology, principles, output format, tool usage conventions. Never contains references to specific files, specific bugs, or the immediate work.
 - **task**: Defines WHAT the agent should do right now. The concrete assignment — specific files to read, bugs to fix, features to implement, commands to run.
 
 ```typescript
-// ❌ BAD: task details leaked into systemPrompt
-{ systemPrompt: "Review src/auth/ for security issues", task: "Do the review" }
+// BAD: task details leaked into prompt
+{ prompt: "Review src/auth/ for security issues", task: "Do the review" }
 
-// ❌ BAD: systemPrompt is just a single-word echo of the role
-{ systemPrompt: "Lint.", task: "lint src/" }
+// BAD: prompt is just a single-word echo of the role
+{ prompt: "Lint.", task: "lint src/" }
 
-// ✅ GOOD: clean separation
+// GOOD: clean separation
 {
-  systemPrompt: "You are a security-focused code reviewer. Look for OWASP Top 10 vulnerabilities, injection flaws, and auth bypasses. Report findings with severity ratings.",
+  prompt: "You are a security-focused code reviewer. Look for OWASP Top 10 vulnerabilities, injection flaws, and auth bypasses. Report findings with severity ratings.",
   task: "Review src/auth/ for security issues. Focus on the login flow and session management."
 }
 ```
 
 ## Program Structure
 
-Every factory program exports `async function run(input, rt)`:
+Factory programs are top-level TypeScript scripts. The `factory` global is available — no imports or exports needed:
 
 ```typescript
-export async function run(input, rt) {
-  // Spawn subagents, coordinate work, return results
-  const handle = rt.spawn({
-    agent: "researcher",
-    systemPrompt: "You are a research assistant. You find accurate, up-to-date information and cite sources. You present findings in a structured format.",
-    task: "Find information about TypeScript 5.0 — new features, breaking changes, and migration notes.",
-    cwd: process.cwd()
-  });
-  
-  const result = await rt.join(handle);
-  return { summary: result.text, tokens: result.usage.input + result.usage.output };
-}
+const result = await factory.spawn({
+  agent: "researcher",
+  prompt: "You are a research assistant. You find accurate, up-to-date information and cite sources. You present findings in a structured format.",
+  task: "Find information about TypeScript 5.0 — new features, breaking changes, and migration notes.",
+  model: "opus",
+});
+
+console.log(result.text);
 ```
 
-**Parameters:**
-- `input`: JSON data passed from the caller
-- `rt`: ProgramRuntime — the orchestration API
+The script runs as a module — use `await` at the top level, `Promise.all` for parallelism, and standard imports.
 
-**Return value:** Any JSON-serializable data
+## Factory API
 
-## Runtime API
-
-### Spawn
+### spawn
 
 Create a subagent task:
 
 ```typescript
-const handle = rt.spawn({
+const result = await factory.spawn({
   agent: "code-reviewer",           // Role label (for logging/display)
-  systemPrompt: "You review code...",// WHO: behavior, principles, methodology
+  prompt: "You review code...",     // WHO: behavior, principles, methodology
   task: "Review main.ts for...",    // WHAT: the specific work to do now
-  cwd: "/path/to/project",          // Working directory
-  step?: 1,                         // Optional step number
-  signal?: abortSignal              // Optional cancellation
+  model: "opus",                    // Model to use
+  cwd: "/path/to/project",         // Working directory (defaults to process.cwd())
+  step: 1,                         // Optional step number
+  signal: abortSignal,             // Optional cancellation
 });
 ```
 
-Returns `SpawnHandle` with:
-- `taskId`: Unique identifier
-- `join()`: Promise that resolves to `ExecutionResult`
+Returns `Promise<ExecutionResult>`. Use `await` to wait for a single agent, `Promise.all` for parallel execution.
 
-### Join
-
-Wait for one or multiple subagents to complete:
+### Parallel execution
 
 ```typescript
-// Single subagent
-const result = await rt.join(handle);
-
-// Multiple subagents (waits for all)
-const results = await rt.join([handle1, handle2, handle3]);
-```
-
-### Parallel
-
-Spawn multiple subagents and wait for all to complete:
-
-```typescript
-const results = await rt.parallel("analyze-modules", [
-  { agent: "analyzer", systemPrompt: "...", task: "Analyze auth.ts", cwd: "." },
-  { agent: "analyzer", systemPrompt: "...", task: "Analyze db.ts", cwd: "." },
-  { agent: "analyzer", systemPrompt: "...", task: "Analyze api.ts", cwd: "." }
+const [security, coverage] = await Promise.all([
+  factory.spawn({
+    agent: "security",
+    prompt: "You are a security reviewer...",
+    task: "Review src/auth/",
+    model: "opus",
+  }),
+  factory.spawn({
+    agent: "coverage",
+    prompt: "You analyze test coverage...",
+    task: "Check coverage for src/auth/",
+    model: "sonnet",
+  }),
 ]);
-```
-
-All tasks run concurrently. Returns array of results in input order.
-
-### Sequence
-
-Spawn subagents one at a time, waiting for each before starting the next:
-
-```typescript
-const results = await rt.sequence("deployment-pipeline", [
-  { agent: "tester", systemPrompt: "You run tests and report failures with file paths and line numbers.", task: "Run `npm test` and report any failures", cwd: "." },
-  { agent: "builder", systemPrompt: "You build projects and diagnose build errors clearly.", task: "Run `npm run build` and fix any compilation errors", cwd: "." },
-  { agent: "deployer", systemPrompt: "You handle deployments carefully, verifying each step before proceeding.", task: "Deploy to production using the standard deploy script", cwd: "." }
-]);
-```
-
-Tasks run sequentially. Useful for workflows where each step depends on the previous.
-
-### Workspace
-
-Create temporary directories for subagents:
-
-```typescript
-const workDir = rt.workspace.create("analysis");
-// workDir = "/tmp/pi-factory-analysis-abc123"
-
-const handle = rt.spawn({
-  agent: "worker",
-  systemPrompt: "You process and analyze data files. You produce structured summaries.",
-  task: "Analyze the data files in this directory and produce a summary report.",
-  cwd: workDir
-});
-
-rt.workspace.cleanup(workDir);
 ```
 
 ### Observe
@@ -138,19 +90,19 @@ Log events and write artifacts:
 
 ```typescript
 // Log structured events
-rt.observe.log("info", "Starting analysis", { fileCount: 42 });
-rt.observe.log("warning", "Slow response", { duration: 5000 });
-rt.observe.log("error", "Task failed", { taskId: "task-3" });
+factory.observe.log("info", "Starting analysis", { fileCount: 42 });
+factory.observe.log("warning", "Slow response", { duration: 5000 });
+factory.observe.log("error", "Task failed", { taskId: "task-3" });
 
 // Write artifacts (reports, outputs)
-const artifactPath = rt.observe.artifact("summary.md", reportContent);
+const artifactPath = factory.observe.artifact("summary.md", reportContent);
 ```
 
 ### Shutdown
 
 ```typescript
-await rt.shutdown(true);   // Cancel all running tasks
-await rt.shutdown(false);  // Wait for running tasks to complete naturally
+await factory.shutdown(true);   // Cancel all running tasks
+await factory.shutdown(false);  // Wait for running tasks to complete naturally
 ```
 
 ## Execution Results
@@ -163,29 +115,23 @@ interface ExecutionResult {
   agent: string;               // Agent role label
   task: string;                // Original task string
   exitCode: number;            // 0 = success, non-zero = failure
-  
+
   // Output
   text: string;                // Final assistant text (auto-populated)
   sessionPath?: string;        // Path to .jsonl session file
-  
+
   // Conversation
-  messages: Message[];         // Full message history
-  
+  messages: unknown[];         // Full message history
+
   // Metadata
   usage: UsageStats;           // Token counts and costs
   model?: string;              // Model used
-  tools?: string[];            // Tools available
   stopReason?: string;         // "end_turn", "max_tokens", etc.
   errorMessage?: string;       // Error details if failed
   stderr: string;              // Process stderr output
-  
+
   // Context
   step?: number;               // Step number if provided
-  threadRef: {                 // For traceability
-    runId: string;
-    taskId: string;
-    step?: number;
-  };
 }
 ```
 
@@ -194,7 +140,7 @@ interface ExecutionResult {
 The `text` field contains the final assistant response, auto-extracted from the last assistant message:
 
 ```typescript
-const result = await rt.join(handle);
+const result = await factory.spawn({ ... });
 console.log(result.text);  // "The project is a CLI tool for..."
 ```
 
@@ -203,13 +149,13 @@ console.log(result.text);  // "The project is a CLI tool for..."
 The `sessionPath` points to a `.jsonl` file containing the full conversation. Use `search_thread` to explore it, or pass it to subsequent subagents:
 
 ```typescript
-const result = await rt.join(handle);
+const result = await factory.spawn({ ... });
 
-const reviewer = rt.spawn({
+const review = await factory.spawn({
   agent: "reviewer",
-  systemPrompt: "You are an analytical reviewer. You identify key findings, gaps, and actionable next steps.",
+  prompt: "You are an analytical reviewer. You identify key findings, gaps, and actionable next steps.",
   task: `Review the analysis session at ${result.sessionPath} and identify key findings.`,
-  cwd: "."
+  model: "opus",
 });
 ```
 
@@ -225,17 +171,17 @@ The parent session path is automatically appended to the subagent's system promp
 2. **Deep access**: `result.sessionPath` points to full session
 
 ```typescript
-const result = await rt.join(handle);
+const result = await factory.spawn({ ... });
 
 // Quick: Use text directly
 console.log(`Result: ${result.text}`);
 
 // Deep: Pass session to next agent
-const nextHandle = rt.spawn({
+const next = await factory.spawn({
   agent: "reviewer",
-  systemPrompt: "You review previous work for completeness and correctness. You flag gaps and suggest improvements.",
+  prompt: "You review previous work for completeness and correctness. You flag gaps and suggest improvements.",
   task: `Analyze the session at ${result.sessionPath} and identify any issues or missing coverage.`,
-  cwd: "."
+  model: "opus",
 });
 ```
 
@@ -245,28 +191,28 @@ Pass results between subagents:
 
 ```typescript
 // Step 1: Research
-const research = await rt.join(rt.spawn({
+const research = await factory.spawn({
   agent: "researcher",
-  systemPrompt: "You are a thorough technical researcher. You find accurate information, cite sources, and distinguish between stable and experimental features.",
+  prompt: "You are a thorough technical researcher. You find accurate information, cite sources, and distinguish between stable and experimental features.",
   task: "Find information about Rust async — current state, key patterns, and common pitfalls.",
-  cwd: "."
-}));
+  model: "opus",
+});
 
 // Step 2: Summarize using text
-const summary = await rt.join(rt.spawn({
+const summary = await factory.spawn({
   agent: "summarizer",
-  systemPrompt: "You write concise executive summaries. You distill key points and highlight actionable takeaways.",
+  prompt: "You write concise executive summaries. You distill key points and highlight actionable takeaways.",
   task: `Summarize this research into an executive summary:\n\n${research.text}`,
-  cwd: "."
-}));
+  model: "sonnet",
+});
 
 // Step 3: Deep review using session
-const review = await rt.join(rt.spawn({
+const review = await factory.spawn({
   agent: "reviewer",
-  systemPrompt: "You are a technical reviewer. You verify claims, check for inaccuracies, and flag unsupported assertions.",
+  prompt: "You are a technical reviewer. You verify claims, check for inaccuracies, and flag unsupported assertions.",
   task: `Review research session at ${research.sessionPath} for technical accuracy. Flag any incorrect or outdated claims.`,
-  cwd: "."
-}));
+  model: "opus",
+});
 ```
 
 ## Error Handling
@@ -274,7 +220,7 @@ const review = await rt.join(rt.spawn({
 Check `exitCode`/`stopReason`/`errorMessage` and escalate:
 
 ```typescript
-const result = await rt.join(handle);
+const result = await factory.spawn({ ... });
 
 const failed =
   result.exitCode !== 0 ||
@@ -282,7 +228,7 @@ const failed =
   Boolean(result.errorMessage);
 
 if (failed) {
-  rt.observe.log("error", "Task failed", {
+  factory.observe.log("error", "Task failed", {
     taskId: result.taskId,
     exitCode: result.exitCode,
     stopReason: result.stopReason,
@@ -293,41 +239,21 @@ if (failed) {
 }
 ```
 
-Spawn/join usage:
-
-```typescript
-// ✅ preferred
-const h = rt.spawn({...});
-const r = await rt.join(h);
-
-// ✅ also valid
-const r2 = await rt.spawn({...});
-
-// ❌ invalid (ExecutionResult passed to join)
-const wrong = await rt.spawn({...});
-await rt.join(wrong);
-```
-
 Use try/catch for program-level errors:
 
 ```typescript
-export async function run(input, rt) {
-  try {
-    const results = await rt.parallel("risky-tasks", [
-      { agent: "a1", systemPrompt: "...", task: "task 1", cwd: "." },
-      { agent: "a2", systemPrompt: "...", task: "task 2", cwd: "." }
-    ]);
-    
-    const failed = results.filter(r => r.exitCode !== 0);
-    if (failed.length > 0) {
-      return { status: "partial", failed: failed.length };
-    }
-    
-    return { status: "success", results };
-  } catch (error) {
-    rt.observe.log("error", "Program failed", { error: error.message });
-    return { status: "error", message: error.message };
+try {
+  const results = await Promise.all([
+    factory.spawn({ agent: "a1", prompt: "...", task: "task 1", model: "opus" }),
+    factory.spawn({ agent: "a2", prompt: "...", task: "task 2", model: "opus" }),
+  ]);
+
+  const failed = results.filter(r => r.exitCode !== 0);
+  if (failed.length > 0) {
+    factory.observe.log("warning", "Some tasks failed", { count: failed.length });
   }
+} catch (error) {
+  factory.observe.log("error", "Program failed", { error: error.message });
 }
 ```
 
@@ -336,7 +262,7 @@ export async function run(input, rt) {
 Track token usage and costs:
 
 ```typescript
-const result = await rt.join(handle);
+const result = await factory.spawn({ ... });
 
 console.log({
   turns: result.usage.turns,
@@ -348,7 +274,7 @@ console.log({
 });
 
 // Aggregate across multiple subagents
-const results = await rt.parallel("batch", tasks);
+const results = await Promise.all(tasks.map(t => factory.spawn(t)));
 const totalCost = results.reduce((sum, r) => sum + r.usage.cost, 0);
 ```
 
@@ -356,15 +282,14 @@ const totalCost = results.reduce((sum, r) => sum + r.usage.cost, 0);
 
 Programs run asynchronously by default. When invoked via the pi CLI, they return immediately with a `runId`, and results arrive via notification when complete.
 
-Inside your program, use `await` to wait for subagents:
+Inside your program, use `await` and `Promise.all`:
 
 ```typescript
-export async function run(input, rt) {
-  const h1 = rt.spawn({...});
-  const h2 = rt.spawn({...});
-  const [r1, r2] = await rt.join([h1, h2]);
-  return { combined: r1.text + r2.text };
-}
+const [r1, r2] = await Promise.all([
+  factory.spawn({ agent: "a", prompt: "...", task: "...", model: "opus" }),
+  factory.spawn({ agent: "b", prompt: "...", task: "...", model: "sonnet" }),
+]);
+console.log(r1.text, r2.text);
 ```
 
 ## Detached Processes
@@ -384,7 +309,7 @@ This means you can fire off a long-running program and safely close pi — the w
 2. **Use text for quick results** — `result.text` gives you the final answer
 3. **Use sessionPath for deep context** — Pass to subsequent agents for full exploration
 4. **Check failure signals** — `exitCode`, `stopReason`, and `errorMessage`
-5. **Log progress** — Use `rt.observe.log()` for visibility
+5. **Log progress** — Use `factory.observe.log()` for visibility
 6. **Handle errors gracefully** — Check exitCode, catch exceptions, provide fallbacks
 
 See [patterns.md](patterns.md) in this directory for common orchestration patterns.

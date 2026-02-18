@@ -7,47 +7,42 @@ A pi extension that registers a `subagent` tool for spawning child agents. Async
 User prompt:
 > Review the auth module for security issues and check test coverage in parallel.
 
-The orchestrator writes a program:
+The orchestrator writes a script:
 
 ```ts
-export async function run(input, rt) {
-  const results = await rt.parallel("review", [
-    { agent: "security", systemPrompt: "You are a security reviewer. You look for OWASP Top 10 vulnerabilities, injection flaws, and auth bypasses. Report findings with severity ratings.", task: "Review src/auth/ for security issues, focusing on the login flow and session management.", cwd: process.cwd(), step: 0 },
-    { agent: "coverage", systemPrompt: "You analyze test coverage. You identify untested code paths and suggest what tests to add.", task: "Check test coverage for src/auth/ and list any untested functions.", cwd: process.cwd(), step: 1 },
-  ]);
-  return { results };
-}
+const [security, coverage] = await Promise.all([
+  factory.spawn({ agent: "security", prompt: "You are a security reviewer. You look for OWASP Top 10 vulnerabilities, injection flaws, and auth bypasses. Report findings with severity ratings.", task: "Review src/auth/ for security issues, focusing on the login flow and session management.", model: "opus" }),
+  factory.spawn({ agent: "coverage", prompt: "You analyze test coverage. You identify untested code paths and suggest what tests to add.", task: "Check test coverage for src/auth/ and list any untested functions.", model: "sonnet" }),
+]);
 ```
 
 The tool returns immediately:
-> Spawned 'security-audit' → factory-abc123. Running async — results will be delivered when complete.
+> Spawned 'security-audit' -> factory-abc123. Running async — results will be delivered when complete.
 
 The orchestrator continues working. When subagents finish, a notification wakes the LLM:
 > Subagent 'security-audit' done (18s). Use /factory to inspect.
 
-Because completion notifications use `triggerTurn`, each completion can trigger another assistant turn. If the parent task is open-ended (for example “continue slice-by-slice”), the orchestrator may choose to spawn additional subagent programs automatically.
+Because completion notifications use `triggerTurn`, each completion can trigger another assistant turn. If the parent task is open-ended (for example "continue slice-by-slice"), the orchestrator may choose to spawn additional subagent programs automatically.
 
 ## Schema
 
-Three fields — `task` and `code` are required, `await` is optional:
+Two fields — `task` and `code` are required:
 
 ```json
 {
   "task": "Review the auth module in parallel",
-  "code": "export async function run(input, rt) { ... }",
-  "await": false
+  "code": "const results = await Promise.all([factory.spawn({...}), factory.spawn({...})]);"
 }
 ```
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| `task` | ✅ | Label/description for this program run. |
-| `code` | ✅ | TypeScript program. Must export `async run(input, rt)`. |
-| `await` | ❌ | Block until complete (default: false). |
+| `task` | yes | Label/description for this program run. |
+| `code` | yes | TypeScript script using the `factory` global. Runs as a top-level module. |
 
 ## Async by default
 
-All subagent calls return immediately. Results arrive via notification (`pi.sendMessage` with `triggerTurn`). Set `await: true` only when you need the result inline before continuing.
+All subagent calls return immediately. Results arrive via notification (`pi.sendMessage` with `triggerTurn`).
 
 ### Detached processes
 
@@ -69,29 +64,27 @@ Subagent processes are **detached** — they survive if the parent pi session is
 
 ## Program mode
 
-Programs run with a runtime object providing orchestration primitives:
+Scripts use the `factory` global for orchestration. No exports needed — the script runs as a top-level module:
 
 ```ts
-export async function run(input, rt) {
-  // Parallel fan-out
-  const results = await rt.parallel("review", [
-    { agent: "linter", systemPrompt: "You run linters and report issues with file paths and rule IDs.", task: "Lint src/ and report all warnings and errors.", cwd: process.cwd(), step: 0 },
-    { agent: "tester", systemPrompt: "You run tests and report failures with clear reproduction steps.", task: "Run the test suite and report any failures.", cwd: process.cwd(), step: 1 },
-  ]);
+// Parallel fan-out
+const results = await Promise.all([
+  factory.spawn({ agent: "linter", prompt: "You run linters and report issues with file paths and rule IDs.", task: "Lint src/ and report all warnings and errors.", model: "opus" }),
+  factory.spawn({ agent: "tester", prompt: "You run tests and report failures with clear reproduction steps.", task: "Run the test suite and report any failures.", model: "opus" }),
+]);
 
-  // Sequential pipeline
-  const deployed = await rt.sequence("deploy", [
-    { agent: "builder", systemPrompt: "You build projects and diagnose build errors clearly.", task: "Run the build and fix any compilation errors.", cwd: process.cwd(), step: 0 },
-    { agent: "deployer", systemPrompt: "You handle deployments carefully, verifying each step.", task: "Deploy to production using the standard deploy script.", cwd: process.cwd(), step: 1 },
-  ]);
+// Sequential pipeline
+const analysis = await factory.spawn({
+  agent: "analyzer", prompt: "You analyze codebases.", task: "Map all API endpoints.", model: "opus",
+});
+const plan = await factory.spawn({
+  agent: "planner", prompt: "You design test plans.", task: `Design tests for:\n${analysis.text}`, model: "opus",
+});
 
-  // Low-level spawn/join (overloaded: single handle or array)
-  const handle = rt.spawn({ agent: "scout", systemPrompt: "You scan codebases for issues and report findings concisely.", task: "Find any TODO/FIXME comments and potential bugs in src/.", cwd: process.cwd() });
-  const result = await rt.join(handle);           // single
-  const batch = await rt.join([handle1, handle2]); // array
-
-  return { results: [...results, ...deployed, result] };
-}
+// Simple single spawn
+const result = await factory.spawn({
+  agent: "scout", prompt: "You scan codebases for issues.", task: "Find TODO/FIXME comments in src/.", model: "sonnet",
+});
 ```
 
 Program mode requires user confirmation before execution.
@@ -124,11 +117,13 @@ The `skills/` directory contains pi skills that are automatically registered via
 
 | Skill | Trigger |
 |-------|---------|
-| `factory-patterns` | Spawning subagents, writing program code, multi-agent architectures |
+| `factory-basics` | Spawning subagents, writing program code, multi-agent architectures |
+| `factory-ralph-loop` | Iterative loops until condition met (lint, tests, PRD) |
+| `factory-worktree` | Parallel development with jj/git worktrees |
 
 Add new skills by creating a `skills/<name>/SKILL.md` with YAML frontmatter (`name`, `description`) and markdown content.
 
-## Failure contract (important)
+## Failure contract
 
 For robust orchestration and recovery:
 
@@ -138,23 +133,6 @@ For robust orchestration and recovery:
   - `stopReason === "error"`
   - `errorMessage` is non-empty
 - If your program observes failed children, explicitly escalate (usually `throw new Error(...)`) so the parent run status becomes `failed`.
-
-Spawn/join footgun to avoid:
-
-```ts
-// ✅ Correct
-const h = rt.spawn({...});
-const r = await rt.join(h);
-
-// ✅ Also valid (no join needed)
-const r = await rt.spawn({...});
-
-// ❌ Wrong: awaiting spawn returns ExecutionResult, not SpawnHandle
-const h = await rt.spawn({...});
-await rt.join(h);
-```
-
-`rt.join()` now validates input and returns a recoverable `INVALID_INPUT` error with a corrective hint for this misuse.
 
 ## Error codes
 
@@ -171,7 +149,7 @@ await rt.join(h);
 Run `pi --factory` to open a full-screen monitor for any project directory. It reads `run.json` files from the filesystem and supports:
 
 - Live refresh (1s polling)
-- 3-level drill-down: runs → agents → agent detail
+- 3-level drill-down: runs -> agents -> agent detail
 - Cancel running agents via PID files ("c" key)
 - Works independently of any active pi session
 
@@ -179,13 +157,13 @@ Run `pi --factory` to open a full-screen monitor for any project directory. It r
 
 | File | Purpose |
 |------|---------|
-| `index.ts` | Tool registration, async/blocking dispatch, TUI rendering, lifecycle hooks |
+| `index.ts` | Tool registration, async dispatch, TUI rendering, lifecycle hooks |
 | `contract.ts` | TypeBox schema + validation |
-| `runtime.ts` | spawn/join/parallel/sequence + detached process spawning with file-based output |
-| `executors/program-executor.ts` | Confirmation UI + program execution |
+| `runtime.ts` | Factory (spawn + branded promises), detached process spawning, Promise.all patching, preflight typecheck |
+| `executors/program-executor.ts` | Confirmation UI + program execution via globalThis.factory injection |
 | `registry.ts` | RunRegistry — tracks active/completed runs with acknowledge lifecycle |
 | `scanner.ts` | Filesystem scanner — reads run.json files, PID-based cancel utilities |
-| `monitor.ts` | 3-level TUI monitor component (runs → agents → detail) |
+| `monitor.ts` | 3-level TUI monitor component (runs -> agents -> detail) |
 | `widget.ts` | Persistent status bar via `setWidget` |
 | `notify.ts` | Batched completion notifications + message renderer |
 | `observability.ts` | Event timeline + artifact tracking |

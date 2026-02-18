@@ -9,3 +9,5 @@ node_modules
 .ragrep/
 opensrc/
 
+# witness — database, WAL files, and config (all runtime artifacts)
+.witness
