@@ -49,7 +49,8 @@
       "Bash(FP_DEBUG=1 ./apps/fp/dist/aarch64-apple-darwin/fp view create:*)"
     ],
     "deny": [
-      "EnterPlanMode"
+      "EnterPlanMode",
+      "ExitPlanMode"
     ],
     "defaultMode": "acceptEdits"
   },
@@ -112,7 +113,8 @@
     "plugin-dev@claude-code-plugins": true,
     "frontend-design@claude-plugins-official": true,
     "playground@claude-plugins-official": true,
-    "witness@laulauland-plugins": true
+    "witness@laulauland-plugins": true,
+    "fp@fiberplane-claude-code-plugins": true
   },
   "alwaysThinkingEnabled": true,
   "skipDangerousModePermissionPrompt": true

@@ -1,5 +1,8 @@
 {
-	"ui_font_size": 14.0,
+	"title_bar": {
+  "show_menus": true
+ },
+ "ui_font_size": 14.0,
  "session": {
   "trust_all_worktrees": true
  },
@@ -10,19 +13,25 @@
  "ui_font_family": ".SystemUIFont",
 	"redact_private_values": true,
 	"ssh_connections": [
-		{
-			"host": "rohan",
-			"username": "lau",
-			"args": [],
-			"projects": []
-		},
-		{
-			"host": "rivendell",
-			"username": "lau",
-			"args": [],
-			"projects": []
-		}
-	],
+  {
+   "host": "rohan",
+   "username": "lau",
+   "args": [],
+   "projects": []
+  },
+  {
+   "host": "rivendell",
+   "username": "lau",
+   "args": [],
+   "projects": [
+    {
+     "paths": [
+      "/Users/lau/code/work/nocturne"
+     ]
+    }
+   ]
+  }
+ ],
 	"agent_servers": {
 		"claude": {
 			"default_mode": "plan"
@@ -57,7 +66,7 @@
 		"font_family": "Berkeley Mono",
 		"option_as_meta": true,
 		"line_height": "standard",
-		"dock": "bottom",
+		"dock": "left",
 		"copy_on_select": true,
 		"env": {
 			"EDITOR": "zed --wait",
@@ -93,7 +102,8 @@
 	"show_whitespaces": "selection",
 	"vim_mode": true,
 	"preview_tabs": {
-		"enable_keep_preview_on_code_navigation": true
+		"enable_preview_from_file_finder": true,
+  "enable_keep_preview_on_code_navigation": true
 	},
 	"git": {
 		"git_gutter": "tracked_files",

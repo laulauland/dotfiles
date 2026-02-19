@@ -8,7 +8,6 @@
 			"shift-alt-t": "task::Rerun",
 			"shift-cmd-c": "git::Branch",
 			"cmd-i": "agent::ToggleFocus",
-			"shift-escape": "workspace::ToggleBottomDock",
 			"ctrl-tab": "tab_switcher::Toggle",
 			"ctrl-x enter": "workspace::ToggleZoom",
 			"ctrl-enter": "editor::OpenExcerpts",
@@ -31,12 +30,6 @@
 			"ctrl-l": "workspace::ActivatePaneRight",
 			"ctrl-k": "workspace::ActivatePaneUp",
 			"ctrl-j": "workspace::ActivatePaneDown"
-		}
-	},
-	{
-		"context": "Editor && mode == full",
-		"bindings": {
-			"cmd-l": "assistant::QuoteSelection"
 		}
 	},
 	{
@@ -108,6 +101,7 @@
 		"context": "Terminal",
 		"bindings": {
 			"cmd-k": "assistant::InlineAssist",
+			"cmd-t": "workspace::NewTerminal",
 			"cmd-d": "pane::SplitRight",
 			"shift-cmd-d": "pane::SplitDown"
 		}
@@ -133,5 +127,16 @@
 			"cmd-.": "agent::ToggleProfileSelector",
 			"cmd-/": "agent::ToggleModelSelector"
 		}
-	}
+	},
+ {
+  "bindings": {
+   "shift-escape": null
+  }
+ },
+ {
+  "context": "CommitEditor > Editor",
+  "bindings": {
+   "shift-escape": null
+  }
+ }
 ]

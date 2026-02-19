@@ -2,7 +2,7 @@
   "defaultProvider": "anthropic",
   "defaultModel": "claude-opus-4-6",
   "defaultThinkingLevel": "high",
-  "lastChangelogVersion": "0.53.0",
+  "lastChangelogVersion": "0.54.0",
   "theme": "alabaster",
   "enabledModels": [
     "cerebras/zai-glm-4.7",
