@@ -1,4 +1,12 @@
 function term_background -d "Detect terminal background: light or dark"
+    # Only send OSC 11 query to terminal emulators known to support it.
+    # Over SSH (e.g. Zed remote dev), the response leaks into the PTY and
+    # corrupts OS-detection output. Whitelist real local terminals only.
+    if not contains -- "$TERM_PROGRAM" ghostty iTerm.app Apple_Terminal kitty alacritty WezTerm
+        echo dark
+        return
+    end
+
     # Use stty to read raw terminal response without echo
     set -l old_settings (command stty -g </dev/tty 2>/dev/null)
     command stty raw -echo min 0 time 5 </dev/tty 2>/dev/null

@@ -19,4 +19,4 @@ keybind = alt+arrow_up=jump_to_prompt:-1
 
 theme = Alabaster
 
-config-file = mode/tmux
+config-file = mode/normal
