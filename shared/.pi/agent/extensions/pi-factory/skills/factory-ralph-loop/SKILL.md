@@ -30,7 +30,7 @@ while (!done && iteration < maxIterations) {
     agent: "worker",
     prompt: "You are fixing issues iteratively",
     task: "Fix the next issue",
-    model: "opus",
+    model: "anthropic/claude-sonnet-4-6",
     step: iteration,
   });
 
@@ -79,7 +79,7 @@ Run 'npm run lint' to see current errors.
 Fix one or more errors, focusing on the most common patterns.
 Make minimal, focused changes.`,
     task: `Fix lint errors. Current output:\n\n${lintResult.stdout}\n${lintResult.stderr}`,
-    model: "opus",
+    model: "mistral/devstral-2512",
     step: iteration,
   });
 
@@ -158,7 +158,7 @@ Track your progress and avoid repeating unsuccessful approaches.
 Previous fixes: ${progress.fixedIssues.join(", ") || "none yet"}
 Error count: ${errorCount} (was ${progress.lastErrorCount === Infinity ? "unknown" : progress.lastErrorCount})`,
     task: `Fix lint errors:\n\n${lintResult.stdout}\n${lintResult.stderr}`,
-    model: "opus",
+    model: "anthropic/claude-sonnet-4-6",
     step: iteration,
   });
 
@@ -214,7 +214,7 @@ Analyze test output, identify the root cause, and make minimal fixes.
 Run the tests again to verify your changes.
 Focus on one failure at a time if there are multiple.`,
     task: `Fix failing tests. Output from '${testCommand}':\n\n${failureOutput}`,
-    model: "opus",
+    model: "anthropic/claude-opus-4-6",
     step: iteration,
   });
 
@@ -275,7 +275,7 @@ Mark tasks complete by updating ${tasksPath}.`,
     task: `Implement: ${nextTask.id} - ${nextTask.description}\n\nCompleted so far:\n${
       tasks.filter(t => t.completed).map(t => `+ ${t.id}`).join("\n")
     }`,
-    model: "opus",
+    model: "openai-codex/gpt-5.3-codex",
     step: iteration,
   });
 
@@ -364,7 +364,7 @@ while (iteration < maxIterations) {
     agent: "worker",
     prompt: "You are fixing issues iteratively",
     task: "Continue fixing issues",
-    model: "opus",
+    model: "anthropic/claude-sonnet-4-6",
     step: iteration,
   });
 
@@ -485,7 +485,7 @@ for (const module of modules) {
       agent: "module-fixer",
       prompt: `Fix issues in ${module}`,
       task: "Run checks and fix issues",
-      model: "opus",
+      model: "mistral/devstral-2512",
       step: iteration,
     });
 

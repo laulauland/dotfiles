@@ -11,8 +11,8 @@ The orchestrator writes a script:
 
 ```ts
 const [security, coverage] = await Promise.all([
-  factory.spawn({ agent: "security", prompt: "You are a security reviewer. You look for OWASP Top 10 vulnerabilities, injection flaws, and auth bypasses. Report findings with severity ratings.", task: "Review src/auth/ for security issues, focusing on the login flow and session management.", model: "opus" }),
-  factory.spawn({ agent: "coverage", prompt: "You analyze test coverage. You identify untested code paths and suggest what tests to add.", task: "Check test coverage for src/auth/ and list any untested functions.", model: "sonnet" }),
+  factory.spawn({ agent: "security", prompt: "You are a security reviewer. You look for OWASP Top 10 vulnerabilities, injection flaws, and auth bypasses. Report findings with severity ratings.", task: "Review src/auth/ for security issues, focusing on the login flow and session management.", model: "anthropic/claude-opus-4-6" }),
+  factory.spawn({ agent: "coverage", prompt: "You analyze test coverage. You identify untested code paths and suggest what tests to add.", task: "Check test coverage for src/auth/ and list any untested functions.", model: "anthropic/claude-sonnet-4-6" }),
 ]);
 ```
 
@@ -69,21 +69,21 @@ Scripts use the `factory` global for orchestration. No exports needed — the sc
 ```ts
 // Parallel fan-out
 const results = await Promise.all([
-  factory.spawn({ agent: "linter", prompt: "You run linters and report issues with file paths and rule IDs.", task: "Lint src/ and report all warnings and errors.", model: "opus" }),
-  factory.spawn({ agent: "tester", prompt: "You run tests and report failures with clear reproduction steps.", task: "Run the test suite and report any failures.", model: "opus" }),
+  factory.spawn({ agent: "linter", prompt: "You run linters and report issues with file paths and rule IDs.", task: "Lint src/ and report all warnings and errors.", model: "anthropic/claude-sonnet-4-6" }),
+  factory.spawn({ agent: "tester", prompt: "You run tests and report failures with clear reproduction steps.", task: "Run the test suite and report any failures.", model: "mistral/devstral-2512" }),
 ]);
 
 // Sequential pipeline
 const analysis = await factory.spawn({
-  agent: "analyzer", prompt: "You analyze codebases.", task: "Map all API endpoints.", model: "opus",
+  agent: "analyzer", prompt: "You analyze codebases.", task: "Map all API endpoints.", model: "anthropic/claude-opus-4-6",
 });
 const plan = await factory.spawn({
-  agent: "planner", prompt: "You design test plans.", task: `Design tests for:\n${analysis.text}`, model: "opus",
+  agent: "planner", prompt: "You design test plans.", task: `Design tests for:\n${analysis.text}`, model: "anthropic/claude-sonnet-4-6",
 });
 
 // Simple single spawn
 const result = await factory.spawn({
-  agent: "scout", prompt: "You scan codebases for issues.", task: "Find TODO/FIXME comments in src/.", model: "sonnet",
+  agent: "scout", prompt: "You scan codebases for issues.", task: "Find TODO/FIXME comments in src/.", model: "cerebras/zai-glm-4.7",
 });
 ```
 
@@ -102,7 +102,7 @@ Edit the `config` object at the top of `index.ts`:
 ```ts
 export const config = {
   maxDepth: 1,
-  prompt: "Prefer cerebras for simple tasks. Use sonnet for code review.",
+  prompt: "Prefer cerebras/zai-glm-4.7 for simple tasks. Use anthropic/claude-sonnet-4-6 for code review.",
 };
 ```
 

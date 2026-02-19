@@ -33,6 +33,7 @@ interface SpawnInput {
 	agent: string;
 	prompt: string;
 	task: string;
+	/** Model identifier in provider/model-id format (e.g. "anthropic/claude-opus-4-6", "cerebras/zai-glm-4.7") */
 	model: string;
 	cwd?: string;
 	tools?: string[];

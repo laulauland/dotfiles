@@ -37,7 +37,7 @@ const result = await factory.spawn({
   agent: "researcher",
   prompt: "You are a research assistant. You find accurate, up-to-date information and cite sources. You present findings in a structured format.",
   task: "Find information about TypeScript 5.0 — new features, breaking changes, and migration notes.",
-  model: "opus",
+  model: "anthropic/claude-opus-4-6",
 });
 
 console.log(result.text);
@@ -56,7 +56,7 @@ const result = await factory.spawn({
   agent: "code-reviewer",           // Role label (for logging/display)
   prompt: "You review code...",     // WHO: behavior, principles, methodology
   task: "Review main.ts for...",    // WHAT: the specific work to do now
-  model: "opus",                    // Model to use
+  model: "anthropic/claude-opus-4-6", // Model in provider/model-id format
   cwd: "/path/to/project",         // Working directory (defaults to process.cwd())
   step: 1,                         // Optional step number
   signal: abortSignal,             // Optional cancellation
@@ -73,13 +73,13 @@ const [security, coverage] = await Promise.all([
     agent: "security",
     prompt: "You are a security reviewer...",
     task: "Review src/auth/",
-    model: "opus",
+    model: "anthropic/claude-opus-4-6",
   }),
   factory.spawn({
     agent: "coverage",
     prompt: "You analyze test coverage...",
     task: "Check coverage for src/auth/",
-    model: "sonnet",
+    model: "anthropic/claude-sonnet-4-6",
   }),
 ]);
 ```
@@ -155,7 +155,7 @@ const review = await factory.spawn({
   agent: "reviewer",
   prompt: "You are an analytical reviewer. You identify key findings, gaps, and actionable next steps.",
   task: `Review the analysis session at ${result.sessionPath} and identify key findings.`,
-  model: "opus",
+  model: "anthropic/claude-sonnet-4-6",
 });
 ```
 
@@ -181,7 +181,7 @@ const next = await factory.spawn({
   agent: "reviewer",
   prompt: "You review previous work for completeness and correctness. You flag gaps and suggest improvements.",
   task: `Analyze the session at ${result.sessionPath} and identify any issues or missing coverage.`,
-  model: "opus",
+  model: "anthropic/claude-opus-4-6",
 });
 ```
 
@@ -195,7 +195,7 @@ const research = await factory.spawn({
   agent: "researcher",
   prompt: "You are a thorough technical researcher. You find accurate information, cite sources, and distinguish between stable and experimental features.",
   task: "Find information about Rust async — current state, key patterns, and common pitfalls.",
-  model: "opus",
+  model: "anthropic/claude-opus-4-6",
 });
 
 // Step 2: Summarize using text
@@ -203,7 +203,7 @@ const summary = await factory.spawn({
   agent: "summarizer",
   prompt: "You write concise executive summaries. You distill key points and highlight actionable takeaways.",
   task: `Summarize this research into an executive summary:\n\n${research.text}`,
-  model: "sonnet",
+  model: "anthropic/claude-haiku-4-5",
 });
 
 // Step 3: Deep review using session
@@ -211,7 +211,7 @@ const review = await factory.spawn({
   agent: "reviewer",
   prompt: "You are a technical reviewer. You verify claims, check for inaccuracies, and flag unsupported assertions.",
   task: `Review research session at ${research.sessionPath} for technical accuracy. Flag any incorrect or outdated claims.`,
-  model: "opus",
+  model: "anthropic/claude-opus-4-6",
 });
 ```
 
@@ -244,8 +244,8 @@ Use try/catch for program-level errors:
 ```typescript
 try {
   const results = await Promise.all([
-    factory.spawn({ agent: "a1", prompt: "...", task: "task 1", model: "opus" }),
-    factory.spawn({ agent: "a2", prompt: "...", task: "task 2", model: "opus" }),
+    factory.spawn({ agent: "a1", prompt: "...", task: "task 1", model: "anthropic/claude-sonnet-4-6" }),
+    factory.spawn({ agent: "a2", prompt: "...", task: "task 2", model: "mistral/devstral-2512" }),
   ]);
 
   const failed = results.filter(r => r.exitCode !== 0);
@@ -286,8 +286,8 @@ Inside your program, use `await` and `Promise.all`:
 
 ```typescript
 const [r1, r2] = await Promise.all([
-  factory.spawn({ agent: "a", prompt: "...", task: "...", model: "opus" }),
-  factory.spawn({ agent: "b", prompt: "...", task: "...", model: "sonnet" }),
+  factory.spawn({ agent: "a", prompt: "...", task: "...", model: "anthropic/claude-opus-4-6" }),
+  factory.spawn({ agent: "b", prompt: "...", task: "...", model: "cerebras/zai-glm-4.7" }),
 ]);
 console.log(r1.text, r2.text);
 ```

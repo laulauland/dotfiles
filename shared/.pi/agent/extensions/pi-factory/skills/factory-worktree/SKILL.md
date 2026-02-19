@@ -70,7 +70,7 @@ try {
         agent: "installer",
         prompt: "Install project dependencies. Run the appropriate install command (npm install, pnpm install, bun install, etc.) and verify it succeeds.",
         task: "Install dependencies in this workspace.",
-        model: "sonnet",
+        model: "cerebras/zai-glm-4.7",
         cwd: wt,
         step: i,
       })
@@ -84,7 +84,7 @@ try {
         agent: t.name,
         prompt: t.prompt,
         task: t.task,
-        model: "opus",
+        model: "anthropic/claude-opus-4-6",
         cwd: worktrees[i],
         step: i,
       })
@@ -111,7 +111,7 @@ The main workspace is at: ${baseCwd}`,
 Workspaces: ${worktrees.join(", ")}
 Failed agents: ${failed.map((r) => r.agent).join(", ") || "none"}
 Use jj to combine the changes into the main workspace.`,
-    model: "opus",
+    model: "anthropic/claude-sonnet-4-6",
     cwd: baseCwd,
     step: tasks.length,
   });
@@ -222,7 +222,7 @@ try {
         agent: "installer",
         prompt: "Install project dependencies.",
         task: "Run the install command for this project (npm install, etc.)",
-        model: "sonnet",
+        model: "cerebras/zai-glm-4.7",
         cwd: wt.path,
         step: i,
       })
@@ -236,7 +236,7 @@ try {
         agent: t.name,
         prompt: t.prompt,
         task: `${t.task}\n\nCommit your changes to the current branch when complete.`,
-        model: "opus",
+        model: "openai-codex/gpt-5.3-codex",
         cwd: worktrees[i].path,
         step: i,
       })
@@ -255,7 +255,7 @@ Merge each feature branch into ${baseBranch}.
 Handle conflicts if they arise. Prefer keeping both changes when possible.`,
     task: `Merge these branches into ${baseBranch}:
 ${successful.map(({ worktree }) => `- ${worktree.branch}`).join("\n")}`,
-    model: "opus",
+    model: "anthropic/claude-sonnet-4-6",
     cwd: baseCwd,
     step: tasks.length,
   });
@@ -326,14 +326,14 @@ try {
   // Install deps in parallel
   await Promise.all(
     worktrees.map((wt, i) =>
-      factory.spawn({ agent: "installer", prompt: "Install deps.", task: "npm install", model: "sonnet", cwd: wt, step: i })
+      factory.spawn({ agent: "installer", prompt: "Install deps.", task: "npm install", model: "cerebras/zai-glm-4.7", cwd: wt, step: i })
     )
   );
 
   // Parallel implementation
   const results = await Promise.all(
     tasks.map((t, i) =>
-      factory.spawn({ agent: t.name, prompt: t.prompt, task: t.task, model: "opus", cwd: worktrees[i], step: i })
+      factory.spawn({ agent: t.name, prompt: t.prompt, task: t.task, model: "anthropic/claude-opus-4-6", cwd: worktrees[i], step: i })
     )
   );
 
@@ -348,7 +348,7 @@ try {
 4. Fix any integration issues.
 Main workspace: ${baseCwd}`,
     task: `Integrate these parallel changes:\n\n${context}`,
-    model: "opus",
+    model: "anthropic/claude-opus-4-6",
     cwd: baseCwd,
     step: tasks.length,
   });
@@ -399,14 +399,14 @@ Agents shouldn't waste tokens figuring out dependency installation. Do it as a s
 // Dedicated install step
 await Promise.all(
   worktrees.map(wt =>
-    factory.spawn({ agent: "installer", prompt: "Install dependencies.", task: "npm install", model: "sonnet", cwd: wt })
+    factory.spawn({ agent: "installer", prompt: "Install dependencies.", task: "npm install", model: "cerebras/zai-glm-4.7", cwd: wt })
   )
 );
 
 // Then dispatch real work
 await Promise.all(
   tasks.map((t, i) =>
-    factory.spawn({ agent: t.name, prompt: t.prompt, task: t.task, model: "opus", cwd: worktrees[i] })
+    factory.spawn({ agent: t.name, prompt: t.prompt, task: t.task, model: "anthropic/claude-opus-4-6", cwd: worktrees[i] })
   )
 );
 ```
