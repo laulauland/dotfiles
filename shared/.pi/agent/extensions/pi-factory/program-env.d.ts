@@ -31,8 +31,10 @@ interface ExecutionResult {
 
 interface SpawnInput {
 	agent: string;
+	/** WHO the subagent is and how it should work (behavior, principles, methodology). */
+	systemPrompt: string;
+	/** WHAT the subagent should do right now (specific files, commands, and goals). */
 	prompt: string;
-	task: string;
 	/** Model identifier in provider/model-id format (e.g. "anthropic/claude-opus-4-6", "cerebras/zai-glm-4.7") */
 	model: string;
 	cwd?: string;

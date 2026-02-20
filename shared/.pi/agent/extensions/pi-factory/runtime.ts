@@ -98,8 +98,8 @@ interface SpawnInput {
 	runId: string;
 	taskId: string;
 	agent: string;
+	systemPrompt: string;
 	prompt: string;
-	task: string;
 	cwd: string;
 	modelId: string;
 	tools: string[];
@@ -177,7 +177,7 @@ async function runSubagentProcess(input: SpawnInput): Promise<ExecutionResult> {
 	const result: ExecutionResult = {
 		taskId: input.taskId,
 		agent: input.agent,
-		task: input.task,
+		task: input.prompt,
 		exitCode: -1,
 		messages: [],
 		stderr: "",
@@ -229,17 +229,17 @@ async function runSubagentProcess(input: SpawnInput): Promise<ExecutionResult> {
 	};
 
 	try {
-		let prompt = input.prompt.trim();
+		let systemPrompt = input.systemPrompt.trim();
 		if (input.parentSessionPath && fs.existsSync(input.parentSessionPath)) {
-			prompt += `\n\nParent conversation session: ${input.parentSessionPath}\nUse search_thread to explore parent context if you need background on what led to this task.`;
+			systemPrompt += `\n\nParent conversation session: ${input.parentSessionPath}\nUse search_thread to explore parent context if you need background on what led to this task.`;
 		}
-		if (prompt) {
-			const temp = writePromptToTempFile(input.agent, prompt);
+		if (systemPrompt) {
+			const temp = writePromptToTempFile(input.agent, systemPrompt);
 			tmpDir = temp.dir;
 			tmpPromptPath = temp.filePath;
 			args.push("--append-system-prompt", tmpPromptPath);
 		}
-		args.push(input.task);
+		args.push(input.prompt);
 
 		let aborted = false;
 		const childDepth = parseInt(process.env.PI_FACTORY_DEPTH || "0", 10) + 1;
@@ -337,8 +337,8 @@ async function runSubagentProcess(input: SpawnInput): Promise<ExecutionResult> {
 
 export interface RuntimeSpawnInput {
 	agent: string;
+	systemPrompt: string;
 	prompt: string;
-	task: string;
 	cwd?: string;
 	model: string;
 	tools?: string[];
@@ -385,7 +385,14 @@ export function createFactory(
 	const factory: Factory = {
 		runId,
 
-		spawn({ agent, prompt, task, cwd, model, tools, step, signal }) {
+		spawn({ agent, systemPrompt, prompt, cwd, model, tools, step, signal }) {
+			if (!systemPrompt?.trim()) {
+				throw new FactoryError({
+					code: "INVALID_INPUT",
+					message: `Spawn for '${agent}' requires non-empty systemPrompt.`,
+					recoverable: true,
+				});
+			}
 			if (!prompt?.trim()) {
 				throw new FactoryError({
 					code: "INVALID_INPUT",
@@ -413,8 +420,8 @@ export function createFactory(
 				runId,
 				taskId,
 				agent,
+				systemPrompt,
 				prompt,
-				task,
 				cwd: cwd ?? process.cwd(),
 				modelId,
 				tools: tools ?? [],

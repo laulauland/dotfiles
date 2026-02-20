@@ -9,7 +9,7 @@ The Ralph Loop (named after Ralph Wiggum) is an agentic pattern where you run an
 
 ## Core Characteristics
 
-1. **Same prompt repeated** — The agent receives consistent instructions each iteration
+1. **Same systemPrompt repeated** — The agent receives consistent instructions each iteration
 2. **Filesystem as memory** — Code changes persist on disk between iterations
 3. **Fresh context** — Each iteration reduces context pollution vs. single long conversation
 4. **Exit condition** — Loop ends when tests pass, lint is clean, or work is exhausted
@@ -28,8 +28,8 @@ while (!done && iteration < maxIterations) {
 
   const result = await factory.spawn({
     agent: "worker",
-    prompt: "You are fixing issues iteratively",
-    task: "Fix the next issue",
+    systemPrompt: "You are fixing issues iteratively",
+    prompt: "Fix the next issue",
     model: "anthropic/claude-sonnet-4-6",
     step: iteration,
   });
@@ -74,11 +74,11 @@ while (iteration < maxIterations) {
 
   const result = await factory.spawn({
     agent: "linter",
-    prompt: `You fix lint errors iteratively.
+    systemPrompt: `You fix lint errors iteratively.
 Run 'npm run lint' to see current errors.
 Fix one or more errors, focusing on the most common patterns.
 Make minimal, focused changes.`,
-    task: `Fix lint errors. Current output:\n\n${lintResult.stdout}\n${lintResult.stderr}`,
+    prompt: `Fix lint errors. Current output:\n\n${lintResult.stdout}\n${lintResult.stderr}`,
     model: "mistral/devstral-2512",
     step: iteration,
   });
@@ -153,11 +153,11 @@ while (iteration < maxIterations) {
 
   const result = await factory.spawn({
     agent: "fixer",
-    prompt: `You fix lint errors iteratively.
+    systemPrompt: `You fix lint errors iteratively.
 Track your progress and avoid repeating unsuccessful approaches.
 Previous fixes: ${progress.fixedIssues.join(", ") || "none yet"}
 Error count: ${errorCount} (was ${progress.lastErrorCount === Infinity ? "unknown" : progress.lastErrorCount})`,
-    task: `Fix lint errors:\n\n${lintResult.stdout}\n${lintResult.stderr}`,
+    prompt: `Fix lint errors:\n\n${lintResult.stdout}\n${lintResult.stderr}`,
     model: "anthropic/claude-sonnet-4-6",
     step: iteration,
   });
@@ -205,15 +205,15 @@ while (iteration < maxIterations) {
   const failureOutput = [testResult.stdout, testResult.stderr]
     .filter(Boolean)
     .join("\n")
-    .slice(-5000); // Last 5KB to avoid huge prompts
+    .slice(-5000); // Last 5KB to avoid huge prompt payloads
 
   const result = await factory.spawn({
     agent: "test-fixer",
-    prompt: `You fix failing tests iteratively.
+    systemPrompt: `You fix failing tests iteratively.
 Analyze test output, identify the root cause, and make minimal fixes.
 Run the tests again to verify your changes.
 Focus on one failure at a time if there are multiple.`,
-    task: `Fix failing tests. Output from '${testCommand}':\n\n${failureOutput}`,
+    prompt: `Fix failing tests. Output from '${testCommand}':\n\n${failureOutput}`,
     model: "anthropic/claude-opus-4-6",
     step: iteration,
   });
@@ -268,11 +268,11 @@ while (iteration < maxIterations) {
 
   const result = await factory.spawn({
     agent: "implementer",
-    prompt: `You implement PRD tasks iteratively.
+    systemPrompt: `You implement PRD tasks iteratively.
 Read the PRD at ${prdPath}.
 Complete tasks one at a time.
 Mark tasks complete by updating ${tasksPath}.`,
-    task: `Implement: ${nextTask.id} - ${nextTask.description}\n\nCompleted so far:\n${
+    prompt: `Implement: ${nextTask.id} - ${nextTask.description}\n\nCompleted so far:\n${
       tasks.filter(t => t.completed).map(t => `+ ${t.id}`).join("\n")
     }`,
     model: "openai-codex/gpt-5.3-codex",
@@ -362,8 +362,8 @@ while (iteration < maxIterations) {
 
   const result = await factory.spawn({
     agent: "worker",
-    prompt: "You are fixing issues iteratively",
-    task: "Continue fixing issues",
+    systemPrompt: "You are fixing issues iteratively",
+    prompt: "Continue fixing issues",
     model: "anthropic/claude-sonnet-4-6",
     step: iteration,
   });
@@ -417,7 +417,7 @@ if (result.status === 0) break;
 Include iteration number, progress, previous attempts:
 
 ```typescript
-task: `Iteration ${iteration}/${maxIterations}
+prompt: `Iteration ${iteration}/${maxIterations}
 Fixed so far: ${fixed.join(", ")}
 Current errors: ${errorCount}
 ...`
@@ -483,8 +483,8 @@ for (const module of modules) {
 
     const result = await factory.spawn({
       agent: "module-fixer",
-      prompt: `Fix issues in ${module}`,
-      task: "Run checks and fix issues",
+      systemPrompt: `Fix issues in ${module}`,
+      prompt: "Run checks and fix issues",
       model: "mistral/devstral-2512",
       step: iteration,
     });

@@ -5,7 +5,7 @@ import { validateParams } from "../contract.js";
 test("accepts valid params with task and code", () => {
 	const params = validateParams({
 		task: "run pipeline",
-		code: "await factory.spawn({ agent: 'worker', prompt: 'test', task: 'do work', model: 'opus' });",
+		code: "await factory.spawn({ agent: 'worker', systemPrompt: 'You are a worker.', prompt: 'do work', model: 'opus' });",
 	});
 	assert.equal(params.task, "run pipeline");
 	assert.equal(typeof params.code, "string");

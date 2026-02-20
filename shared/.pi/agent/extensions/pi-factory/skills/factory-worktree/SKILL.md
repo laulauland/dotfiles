@@ -40,8 +40,8 @@ import fs from "node:fs";
 
 const baseCwd = process.cwd();
 const tasks = [
-  { name: "auth", task: "Implement auth module", prompt: "You are a software engineer. Implement the requested changes. Run tests to verify your work." },
-  { name: "api", task: "Implement API endpoints", prompt: "You are a software engineer. Implement the requested changes. Run tests to verify your work." },
+  { name: "auth", prompt: "Implement auth module", systemPrompt: "You are a software engineer. Implement the requested changes. Run tests to verify your work." },
+  { name: "api", prompt: "Implement API endpoints", systemPrompt: "You are a software engineer. Implement the requested changes. Run tests to verify your work." },
 ];
 const worktrees: string[] = [];
 
@@ -68,8 +68,8 @@ try {
     worktrees.map((wt, i) =>
       factory.spawn({
         agent: "installer",
-        prompt: "Install project dependencies. Run the appropriate install command (npm install, pnpm install, bun install, etc.) and verify it succeeds.",
-        task: "Install dependencies in this workspace.",
+        systemPrompt: "Install project dependencies. Run the appropriate install command (npm install, pnpm install, bun install, etc.) and verify it succeeds.",
+        prompt: "Install dependencies in this workspace.",
         model: "cerebras/zai-glm-4.7",
         cwd: wt,
         step: i,
@@ -82,8 +82,8 @@ try {
     tasks.map((t, i) =>
       factory.spawn({
         agent: t.name,
+        systemPrompt: t.systemPrompt,
         prompt: t.prompt,
-        task: t.task,
         model: "anthropic/claude-opus-4-6",
         cwd: worktrees[i],
         step: i,
@@ -102,12 +102,12 @@ try {
   // 5. Merge results back
   const mergeResult = await factory.spawn({
     agent: "merger",
-    prompt: `You merge parallel workstream results using jj.
+    systemPrompt: `You merge parallel workstream results using jj.
 Use 'jj log' to see all changes across workspaces.
 Create a merge commit that combines all successful changes.
 Resolve any conflicts if they arise.
 The main workspace is at: ${baseCwd}`,
-    task: `Merge changes from ${worktrees.length} parallel workstreams.
+    prompt: `Merge changes from ${worktrees.length} parallel workstreams.
 Workspaces: ${worktrees.join(", ")}
 Failed agents: ${failed.map((r) => r.agent).join(", ") || "none"}
 Use jj to combine the changes into the main workspace.`,
@@ -190,8 +190,8 @@ import fs from "node:fs";
 const baseCwd = process.cwd();
 const baseBranch = "main";
 const tasks = [
-  { name: "auth", task: "Implement auth module", prompt: "Implement the requested changes. Commit your work when done." },
-  { name: "payments", task: "Implement payments", prompt: "Implement the requested changes. Commit your work when done." },
+  { name: "auth", prompt: "Implement auth module", systemPrompt: "Implement the requested changes. Commit your work when done." },
+  { name: "payments", prompt: "Implement payments", systemPrompt: "Implement the requested changes. Commit your work when done." },
 ];
 const worktrees: Array<{ path: string; branch: string }> = [];
 
@@ -220,8 +220,8 @@ try {
     worktrees.map((wt, i) =>
       factory.spawn({
         agent: "installer",
-        prompt: "Install project dependencies.",
-        task: "Run the install command for this project (npm install, etc.)",
+        systemPrompt: "Install project dependencies.",
+        prompt: "Run the install command for this project (npm install, etc.)",
         model: "cerebras/zai-glm-4.7",
         cwd: wt.path,
         step: i,
@@ -234,8 +234,8 @@ try {
     tasks.map((t, i) =>
       factory.spawn({
         agent: t.name,
-        prompt: t.prompt,
-        task: `${t.task}\n\nCommit your changes to the current branch when complete.`,
+        systemPrompt: t.systemPrompt,
+        prompt: `${t.prompt}\n\nCommit your changes to the current branch when complete.`,
         model: "openai-codex/gpt-5.3-codex",
         cwd: worktrees[i].path,
         step: i,
@@ -250,10 +250,10 @@ try {
 
   await factory.spawn({
     agent: "merger",
-    prompt: `You merge git branches from parallel workstreams.
+    systemPrompt: `You merge git branches from parallel workstreams.
 Merge each feature branch into ${baseBranch}.
 Handle conflicts if they arise. Prefer keeping both changes when possible.`,
-    task: `Merge these branches into ${baseBranch}:
+    prompt: `Merge these branches into ${baseBranch}:
 ${successful.map(({ worktree }) => `- ${worktree.branch}`).join("\n")}`,
     model: "anthropic/claude-sonnet-4-6",
     cwd: baseCwd,
@@ -310,9 +310,9 @@ const baseCwd = process.cwd();
 const worktrees: string[] = [];
 
 const tasks = [
-  { name: "api", task: "Add pagination to /api/users endpoint", prompt: "You are a backend engineer." },
-  { name: "ui", task: "Add pagination controls to the users table", prompt: "You are a frontend engineer." },
-  { name: "tests", task: "Write integration tests for paginated user listing", prompt: "You are a QA engineer." },
+  { name: "api", prompt: "Add pagination to /api/users endpoint", systemPrompt: "You are a backend engineer." },
+  { name: "ui", prompt: "Add pagination controls to the users table", systemPrompt: "You are a frontend engineer." },
+  { name: "tests", prompt: "Write integration tests for paginated user listing", systemPrompt: "You are a QA engineer." },
 ];
 
 try {
@@ -326,14 +326,14 @@ try {
   // Install deps in parallel
   await Promise.all(
     worktrees.map((wt, i) =>
-      factory.spawn({ agent: "installer", prompt: "Install deps.", task: "npm install", model: "cerebras/zai-glm-4.7", cwd: wt, step: i })
+      factory.spawn({ agent: "installer", systemPrompt: "Install deps.", prompt: "npm install", model: "cerebras/zai-glm-4.7", cwd: wt, step: i })
     )
   );
 
   // Parallel implementation
   const results = await Promise.all(
     tasks.map((t, i) =>
-      factory.spawn({ agent: t.name, prompt: t.prompt, task: t.task, model: "anthropic/claude-opus-4-6", cwd: worktrees[i], step: i })
+      factory.spawn({ agent: t.name, systemPrompt: t.systemPrompt, prompt: t.prompt, model: "anthropic/claude-opus-4-6", cwd: worktrees[i], step: i })
     )
   );
 
@@ -341,13 +341,13 @@ try {
   const context = results.map(r => `[${r.agent}]\n${r.text}`).join("\n\n");
   const synthesis = await factory.spawn({
     agent: "integrator",
-    prompt: `You integrate parallel workstreams.
+    systemPrompt: `You integrate parallel workstreams.
 1. Use jj to merge all workspace changes into the main workspace.
 2. Resolve any conflicts.
 3. Run the full test suite to verify integration.
 4. Fix any integration issues.
 Main workspace: ${baseCwd}`,
-    task: `Integrate these parallel changes:\n\n${context}`,
+    prompt: `Integrate these parallel changes:\n\n${context}`,
     model: "anthropic/claude-opus-4-6",
     cwd: baseCwd,
     step: tasks.length,
@@ -399,14 +399,14 @@ Agents shouldn't waste tokens figuring out dependency installation. Do it as a s
 // Dedicated install step
 await Promise.all(
   worktrees.map(wt =>
-    factory.spawn({ agent: "installer", prompt: "Install dependencies.", task: "npm install", model: "cerebras/zai-glm-4.7", cwd: wt })
+    factory.spawn({ agent: "installer", systemPrompt: "Install dependencies.", prompt: "npm install", model: "cerebras/zai-glm-4.7", cwd: wt })
   )
 );
 
 // Then dispatch real work
 await Promise.all(
   tasks.map((t, i) =>
-    factory.spawn({ agent: t.name, prompt: t.prompt, task: t.task, model: "anthropic/claude-opus-4-6", cwd: worktrees[i] })
+    factory.spawn({ agent: t.name, systemPrompt: t.systemPrompt, prompt: t.prompt, model: "anthropic/claude-opus-4-6", cwd: worktrees[i] })
   )
 );
 ```

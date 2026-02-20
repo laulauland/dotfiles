@@ -5,26 +5,26 @@ description: "Write pi-factory programs to orchestrate multi-agent workflows. Us
 
 # Factory Basics
 
-Pi-factory enables writing scripts that orchestrate multiple AI agents. Scripts use the `factory` global to spawn subagents, coordinate their work, and compose results.
+Pi-factory enables writing scripts that orchestrate multiple AI agents. Scripts use the `factory` global to spawn subagents, coordinate work, and compose results.
 
-## prompt vs task
+## systemPrompt vs prompt
 
 These two fields have distinct roles — don't mix them:
 
-- **prompt**: Defines WHO the agent is and HOW it should behave. Personality, methodology, principles, output format, tool usage conventions. Never contains references to specific files, specific bugs, or the immediate work.
-- **task**: Defines WHAT the agent should do right now. The concrete assignment — specific files to read, bugs to fix, features to implement, commands to run.
+- **systemPrompt**: Defines WHO the agent is and HOW it should behave. Personality, methodology, principles, output format, tool usage conventions.
+- **prompt**: Defines WHAT the agent should do right now. The concrete assignment — specific files to read, bugs to fix, features to implement, commands to run.
 
 ```typescript
-// BAD: task details leaked into prompt
-{ prompt: "Review src/auth/ for security issues", task: "Do the review" }
+// BAD: work leaked into systemPrompt
+{ systemPrompt: "Review src/auth/ for security issues", prompt: "Do the review" }
 
-// BAD: prompt is just a single-word echo of the role
-{ prompt: "Lint.", task: "lint src/" }
+// BAD: systemPrompt is too weak
+{ systemPrompt: "Lint.", prompt: "Run lint on src/ and fix errors" }
 
 // GOOD: clean separation
 {
-  prompt: "You are a security-focused code reviewer. Look for OWASP Top 10 vulnerabilities, injection flaws, and auth bypasses. Report findings with severity ratings.",
-  task: "Review src/auth/ for security issues. Focus on the login flow and session management."
+  systemPrompt: "You are a security-focused code reviewer. Look for OWASP Top 10 vulnerabilities, injection flaws, and auth bypasses. Report findings with severity ratings.",
+  prompt: "Review src/auth/ for security issues. Focus on the login flow and session management."
 }
 ```
 
@@ -35,15 +35,15 @@ Factory programs are top-level TypeScript scripts. The `factory` global is avail
 ```typescript
 const result = await factory.spawn({
   agent: "researcher",
-  prompt: "You are a research assistant. You find accurate, up-to-date information and cite sources. You present findings in a structured format.",
-  task: "Find information about TypeScript 5.0 — new features, breaking changes, and migration notes.",
+  systemPrompt: "You are a research assistant. You find accurate, up-to-date information and cite sources. You present findings in a structured format.",
+  prompt: "Find information about TypeScript 5.0 — new features, breaking changes, and migration notes.",
   model: "anthropic/claude-opus-4-6",
 });
 
 console.log(result.text);
 ```
 
-The script runs as a module — use `await` at the top level, `Promise.all` for parallelism, and standard imports.
+The script runs as a module — use `await` at top level, `Promise.all` for parallelism, and standard imports.
 
 ## Factory API
 
@@ -53,17 +53,17 @@ Create a subagent task:
 
 ```typescript
 const result = await factory.spawn({
-  agent: "code-reviewer",           // Role label (for logging/display)
-  prompt: "You review code...",     // WHO: behavior, principles, methodology
-  task: "Review main.ts for...",    // WHAT: the specific work to do now
-  model: "anthropic/claude-opus-4-6", // Model in provider/model-id format
-  cwd: "/path/to/project",         // Working directory (defaults to process.cwd())
-  step: 1,                         // Optional step number
-  signal: abortSignal,             // Optional cancellation
+  agent: "code-reviewer",              // Role label (for logging/display)
+  systemPrompt: "You review code...",  // WHO: behavior, principles, methodology
+  prompt: "Review main.ts for...",     // WHAT: the specific work to do now
+  model: "anthropic/claude-opus-4-6",  // Model in provider/model-id format
+  cwd: "/path/to/project",             // Working directory (defaults to process.cwd())
+  step: 1,                               // Optional step number
+  signal: abortSignal,                   // Optional cancellation
 });
 ```
 
-Returns `Promise<ExecutionResult>`. Use `await` to wait for a single agent, `Promise.all` for parallel execution.
+Returns `Promise<ExecutionResult>`. Use `await` for one agent, `Promise.all` for parallel execution.
 
 ### Parallel execution
 
@@ -71,14 +71,14 @@ Returns `Promise<ExecutionResult>`. Use `await` to wait for a single agent, `Pro
 const [security, coverage] = await Promise.all([
   factory.spawn({
     agent: "security",
-    prompt: "You are a security reviewer...",
-    task: "Review src/auth/",
+    systemPrompt: "You are a security reviewer...",
+    prompt: "Review src/auth/",
     model: "anthropic/claude-opus-4-6",
   }),
   factory.spawn({
     agent: "coverage",
-    prompt: "You analyze test coverage...",
-    task: "Check coverage for src/auth/",
+    systemPrompt: "You analyze test coverage...",
+    prompt: "Check coverage for src/auth/",
     model: "anthropic/claude-sonnet-4-6",
   }),
 ]);
@@ -86,15 +86,11 @@ const [security, coverage] = await Promise.all([
 
 ### Observe
 
-Log events and write artifacts:
-
 ```typescript
-// Log structured events
 factory.observe.log("info", "Starting analysis", { fileCount: 42 });
 factory.observe.log("warning", "Slow response", { duration: 5000 });
 factory.observe.log("error", "Task failed", { taskId: "task-3" });
 
-// Write artifacts (reports, outputs)
 const artifactPath = factory.observe.artifact("summary.md", reportContent);
 ```
 
@@ -111,113 +107,63 @@ Each subagent returns an `ExecutionResult`:
 
 ```typescript
 interface ExecutionResult {
-  taskId: string;              // Unique task identifier
-  agent: string;               // Agent role label
-  task: string;                // Original task string
-  exitCode: number;            // 0 = success, non-zero = failure
+  taskId: string;
+  agent: string;
+  task: string;                // Original execution prompt string
+  exitCode: number;
 
-  // Output
-  text: string;                // Final assistant text (auto-populated)
-  sessionPath?: string;        // Path to .jsonl session file
+  text: string;
+  sessionPath?: string;
 
-  // Conversation
-  messages: unknown[];         // Full message history
+  messages: unknown[];
 
-  // Metadata
-  usage: UsageStats;           // Token counts and costs
-  model?: string;              // Model used
-  stopReason?: string;         // "end_turn", "max_tokens", etc.
-  errorMessage?: string;       // Error details if failed
-  stderr: string;              // Process stderr output
+  usage: UsageStats;
+  model?: string;
+  stopReason?: string;
+  errorMessage?: string;
+  stderr: string;
 
-  // Context
-  step?: number;               // Step number if provided
+  step?: number;
 }
 ```
 
-### Quick Access: result.text
+## Context flow
 
-The `text` field contains the final assistant response, auto-extracted from the last assistant message:
+### Context DOWN (Parent -> Subagent)
 
-```typescript
-const result = await factory.spawn({ ... });
-console.log(result.text);  // "The project is a CLI tool for..."
-```
+The parent session path is appended to the subagent system prompt automatically. Subagents can use `search_thread` to read parent context.
 
-### Deep Exploration: result.sessionPath
+### Context UP (Subagent -> Program)
 
-The `sessionPath` points to a `.jsonl` file containing the full conversation. Use `search_thread` to explore it, or pass it to subsequent subagents:
+1. `result.text` for quick chaining
+2. `result.sessionPath` for deep review
 
 ```typescript
-const result = await factory.spawn({ ... });
-
-const review = await factory.spawn({
-  agent: "reviewer",
-  prompt: "You are an analytical reviewer. You identify key findings, gaps, and actionable next steps.",
-  task: `Review the analysis session at ${result.sessionPath} and identify key findings.`,
-  model: "anthropic/claude-sonnet-4-6",
-});
-```
-
-## Context Flow
-
-### Context DOWN (Parent to Subagent)
-
-The parent session path is automatically appended to the subagent's system prompt. Subagents can use `search_thread` to read the parent conversation.
-
-### Context UP (Subagent to Program)
-
-1. **Quick access**: `result.text` contains final output
-2. **Deep access**: `result.sessionPath` points to full session
-
-```typescript
-const result = await factory.spawn({ ... });
-
-// Quick: Use text directly
-console.log(`Result: ${result.text}`);
-
-// Deep: Pass session to next agent
-const next = await factory.spawn({
-  agent: "reviewer",
-  prompt: "You review previous work for completeness and correctness. You flag gaps and suggest improvements.",
-  task: `Analyze the session at ${result.sessionPath} and identify any issues or missing coverage.`,
-  model: "anthropic/claude-opus-4-6",
-});
-```
-
-## Chaining Results
-
-Pass results between subagents:
-
-```typescript
-// Step 1: Research
 const research = await factory.spawn({
   agent: "researcher",
-  prompt: "You are a thorough technical researcher. You find accurate information, cite sources, and distinguish between stable and experimental features.",
-  task: "Find information about Rust async — current state, key patterns, and common pitfalls.",
+  systemPrompt: "You are a thorough technical researcher.",
+  prompt: "Research Rust async patterns and common pitfalls.",
   model: "anthropic/claude-opus-4-6",
 });
 
-// Step 2: Summarize using text
 const summary = await factory.spawn({
   agent: "summarizer",
-  prompt: "You write concise executive summaries. You distill key points and highlight actionable takeaways.",
-  task: `Summarize this research into an executive summary:\n\n${research.text}`,
+  systemPrompt: "You write concise executive summaries.",
+  prompt: `Summarize this research:\n\n${research.text}`,
   model: "anthropic/claude-haiku-4-5",
 });
 
-// Step 3: Deep review using session
 const review = await factory.spawn({
   agent: "reviewer",
-  prompt: "You are a technical reviewer. You verify claims, check for inaccuracies, and flag unsupported assertions.",
-  task: `Review research session at ${research.sessionPath} for technical accuracy. Flag any incorrect or outdated claims.`,
+  systemPrompt: "You are a technical reviewer. Verify claims and flag unsupported assertions.",
+  prompt: `Review research session at ${research.sessionPath} for technical accuracy.`,
   model: "anthropic/claude-opus-4-6",
 });
 ```
 
-## Error Handling
+## Error handling
 
-Check `exitCode`/`stopReason`/`errorMessage` and escalate:
+Check `exitCode` / `stopReason` / `errorMessage` and escalate:
 
 ```typescript
 const result = await factory.spawn({ ... });
@@ -233,83 +179,40 @@ if (failed) {
     exitCode: result.exitCode,
     stopReason: result.stopReason,
     error: result.errorMessage,
-    stderr: result.stderr
+    stderr: result.stderr,
   });
   throw new Error(`Task ${result.taskId} failed: ${result.errorMessage || "unknown error"}`);
 }
 ```
 
-Use try/catch for program-level errors:
+## Async model
 
-```typescript
-try {
-  const results = await Promise.all([
-    factory.spawn({ agent: "a1", prompt: "...", task: "task 1", model: "anthropic/claude-sonnet-4-6" }),
-    factory.spawn({ agent: "a2", prompt: "...", task: "task 2", model: "mistral/devstral-2512" }),
-  ]);
+Programs run asynchronously by default when invoked via tool call: immediate `runId`, completion via notification.
 
-  const failed = results.filter(r => r.exitCode !== 0);
-  if (failed.length > 0) {
-    factory.observe.log("warning", "Some tasks failed", { count: failed.length });
-  }
-} catch (error) {
-  factory.observe.log("error", "Program failed", { error: error.message });
-}
-```
-
-## Usage Stats
-
-Track token usage and costs:
-
-```typescript
-const result = await factory.spawn({ ... });
-
-console.log({
-  turns: result.usage.turns,
-  input: result.usage.input,
-  output: result.usage.output,
-  cacheRead: result.usage.cacheRead,
-  cacheWrite: result.usage.cacheWrite,
-  cost: result.usage.cost
-});
-
-// Aggregate across multiple subagents
-const results = await Promise.all(tasks.map(t => factory.spawn(t)));
-const totalCost = results.reduce((sum, r) => sum + r.usage.cost, 0);
-```
-
-## Async Model
-
-Programs run asynchronously by default. When invoked via the pi CLI, they return immediately with a `runId`, and results arrive via notification when complete.
-
-Inside your program, use `await` and `Promise.all`:
+Inside your program, use `await` and `Promise.all` normally:
 
 ```typescript
 const [r1, r2] = await Promise.all([
-  factory.spawn({ agent: "a", prompt: "...", task: "...", model: "anthropic/claude-opus-4-6" }),
-  factory.spawn({ agent: "b", prompt: "...", task: "...", model: "cerebras/zai-glm-4.7" }),
+  factory.spawn({ agent: "a", systemPrompt: "...", prompt: "...", model: "anthropic/claude-opus-4-6" }),
+  factory.spawn({ agent: "b", systemPrompt: "...", prompt: "...", model: "cerebras/zai-glm-4.7" }),
 ]);
 console.log(r1.text, r2.text);
 ```
 
-## Detached Processes
+## Detached processes
 
-Subagent processes are **detached** — they survive parent pi exit:
+Subagent processes are detached:
 
-- Closing pi or cancelling a turn does NOT kill running subagents
-- Output is written to `.stdout.jsonl` files (file-based, not piped)
-- PID files enable cancel via `/factory` monitor or `pi --factory`
-- Use the "c" key in the monitor to explicitly cancel a run
+- Closing pi or cancelling a turn does **not** kill running subagents
+- Output is written to `.stdout.jsonl` files
+- PID files enable cancel via `/factory` or `pi --factory`
 
-This means you can fire off a long-running program and safely close pi — the work continues.
+## Key principles
 
-## Key Principles
+1. Programs coordinate, subagents execute
+2. Use `result.text` for fast chaining
+3. Use `result.sessionPath` for deep context
+4. Check failure signals (`exitCode`, `stopReason`, `errorMessage`)
+5. Log progress with `factory.observe.log()`
 
-1. **Programs coordinate, subagents execute** — Programs focus on workflow logic, subagents do the work
-2. **Use text for quick results** — `result.text` gives you the final answer
-3. **Use sessionPath for deep context** — Pass to subsequent agents for full exploration
-4. **Check failure signals** — `exitCode`, `stopReason`, and `errorMessage`
-5. **Log progress** — Use `factory.observe.log()` for visibility
-6. **Handle errors gracefully** — Check exitCode, catch exceptions, provide fallbacks
-
-See [patterns.md](patterns.md) in this directory for common orchestration patterns.
+See [patterns.md](patterns.md) for common orchestration patterns.

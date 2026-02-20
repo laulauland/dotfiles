@@ -11,8 +11,18 @@ The orchestrator writes a script:
 
 ```ts
 const [security, coverage] = await Promise.all([
-  factory.spawn({ agent: "security", prompt: "You are a security reviewer. You look for OWASP Top 10 vulnerabilities, injection flaws, and auth bypasses. Report findings with severity ratings.", task: "Review src/auth/ for security issues, focusing on the login flow and session management.", model: "anthropic/claude-opus-4-6" }),
-  factory.spawn({ agent: "coverage", prompt: "You analyze test coverage. You identify untested code paths and suggest what tests to add.", task: "Check test coverage for src/auth/ and list any untested functions.", model: "anthropic/claude-sonnet-4-6" }),
+  factory.spawn({
+    agent: "security",
+    systemPrompt: "You are a security reviewer. You look for OWASP Top 10 vulnerabilities, injection flaws, and auth bypasses. Report findings with severity ratings.",
+    prompt: "Review src/auth/ for security issues, focusing on the login flow and session management.",
+    model: "anthropic/claude-opus-4-6",
+  }),
+  factory.spawn({
+    agent: "coverage",
+    systemPrompt: "You analyze test coverage. You identify untested code paths and suggest what tests to add.",
+    prompt: "Check test coverage for src/auth/ and list any untested functions.",
+    model: "anthropic/claude-sonnet-4-6",
+  }),
 ]);
 ```
 
@@ -39,6 +49,17 @@ Two fields — `task` and `code` are required:
 |-------|----------|-------------|
 | `task` | yes | Label/description for this program run. |
 | `code` | yes | TypeScript script using the `factory` global. Runs as a top-level module. |
+
+## Spawn input contract
+
+Each `factory.spawn(...)` call requires:
+
+- `agent`: short role label for logs/UI
+- `systemPrompt`: WHO the subagent is + HOW it should behave
+- `prompt`: WHAT the subagent should do right now
+- `model`: provider/model-id (for example `anthropic/claude-sonnet-4-6`)
+
+Optional: `cwd`, `tools`, `step`, `signal`.
 
 ## Async by default
 
@@ -69,21 +90,41 @@ Scripts use the `factory` global for orchestration. No exports needed — the sc
 ```ts
 // Parallel fan-out
 const results = await Promise.all([
-  factory.spawn({ agent: "linter", prompt: "You run linters and report issues with file paths and rule IDs.", task: "Lint src/ and report all warnings and errors.", model: "anthropic/claude-sonnet-4-6" }),
-  factory.spawn({ agent: "tester", prompt: "You run tests and report failures with clear reproduction steps.", task: "Run the test suite and report any failures.", model: "mistral/devstral-2512" }),
+  factory.spawn({
+    agent: "linter",
+    systemPrompt: "You run linters and report issues with file paths and rule IDs.",
+    prompt: "Lint src/ and report all warnings and errors.",
+    model: "anthropic/claude-sonnet-4-6",
+  }),
+  factory.spawn({
+    agent: "tester",
+    systemPrompt: "You run tests and report failures with clear reproduction steps.",
+    prompt: "Run the test suite and report any failures.",
+    model: "mistral/devstral-2512",
+  }),
 ]);
 
 // Sequential pipeline
 const analysis = await factory.spawn({
-  agent: "analyzer", prompt: "You analyze codebases.", task: "Map all API endpoints.", model: "anthropic/claude-opus-4-6",
-});
-const plan = await factory.spawn({
-  agent: "planner", prompt: "You design test plans.", task: `Design tests for:\n${analysis.text}`, model: "anthropic/claude-sonnet-4-6",
+  agent: "analyzer",
+  systemPrompt: "You analyze codebases.",
+  prompt: "Map all API endpoints.",
+  model: "anthropic/claude-opus-4-6",
 });
 
-// Simple single spawn
+const plan = await factory.spawn({
+  agent: "planner",
+  systemPrompt: "You design test plans.",
+  prompt: `Design tests for:\n${analysis.text}`,
+  model: "anthropic/claude-sonnet-4-6",
+});
+
+// Single spawn
 const result = await factory.spawn({
-  agent: "scout", prompt: "You scan codebases for issues.", task: "Find TODO/FIXME comments in src/.", model: "cerebras/zai-glm-4.7",
+  agent: "scout",
+  systemPrompt: "You scan codebases for issues.",
+  prompt: "Find TODO/FIXME comments in src/.",
+  model: "cerebras/zai-glm-4.7",
 });
 ```
 

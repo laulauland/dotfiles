@@ -185,7 +185,7 @@ export const config = {
 	/** Maximum nesting depth for subagent spawning. 1 = orchestrator can spawn subagents, but those subagents cannot spawn their own. 0 = no subagents at all. */
 	maxDepth: 1,
 	/** Extra text appended to the tool description. Use for model selection hints, project conventions, etc. */
-	prompt: "Use openai-codex/gpt-5.3-codex for most subagent operations, especially if they entail making changes across multiple files. If you need to search you can use faster models like cerebras/zai-glm-4.7. If you need to look at and reason over images (a screenshot is referenced) use google-gemini-cli/gemini-3-flash-preview.",
+	prompt: "Use openai/gpt-5.3-codex for most subagent operations, especially if they entail making changes across multiple files. If you need to search you can use faster models like cerebras/zai-glm-4.7. If you need to look at and reason over images (a screenshot is referenced) use google-gemini-cli/gemini-3-flash-preview to see the changes.",
 };
 
 // ────────────────────────────────────────────────────────────────────────
@@ -317,8 +317,8 @@ export default function (pi: ExtensionAPI) {
 			`Enabled models: ${modelsText}`,
 			"Write a TypeScript script. `factory` is a global (like `process` or `console`). Use factory.spawn() to orchestrate agents.",
 			"factory.spawn() returns a Promise<ExecutionResult>. Use `await` for sequential, `Promise.all` for parallel.",
-			"Each spawn needs: agent, prompt, task, model. cwd defaults to process.cwd().",
-			"prompt defines WHO the agent is (behavior, principles, methodology). task defines WHAT it should do now (specific files, specific work). Don't put task details in prompt.",
+			"Each spawn needs: agent, systemPrompt, prompt, model. cwd defaults to process.cwd().",
+			"systemPrompt defines WHO the agent is (behavior, principles, methodology). prompt defines WHAT it should do now (specific files, specific work). Don't put task details in systemPrompt.",
 			"Context flow: each subagent gets the parent session path and can use search_thread to explore it. Each subagent's session is persisted and available via result.sessionPath. Result text is auto-populated on result.text.",
 			"Async by default: returns immediately with a runId. Results are delivered via notification when complete. Do NOT poll or check for results — just continue with other work and the notification will arrive automatically.",
 			"Model selection: use provider/model-id format (e.g. 'anthropic/claude-opus-4-6', 'cerebras/zai-glm-4.7'). Match model capability to task complexity. Use smaller/faster models for simple tasks, stronger models for complex reasoning. Vary your choices across the enabled models — don't default to one.",
