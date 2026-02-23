@@ -7,44 +7,44 @@ keybind = tmux/
 # Exit tmux mode
 keybind = tmux/alt+t=deactivate_key_table
 
-# Window select (Cmd+1..9 -> C-x 1..9)
-keybind = tmux/cmd+digit_1=text:\x18\x31
-keybind = tmux/cmd+digit_2=text:\x18\x32
-keybind = tmux/cmd+digit_3=text:\x18\x33
-keybind = tmux/cmd+digit_4=text:\x18\x34
-keybind = tmux/cmd+digit_5=text:\x18\x35
-keybind = tmux/cmd+digit_6=text:\x18\x36
-keybind = tmux/cmd+digit_7=text:\x18\x37
-keybind = tmux/cmd+digit_8=text:\x18\x38
-keybind = tmux/cmd+digit_9=text:\x18\x39
+# Window select (Cmd+1..9 -> C-Space 1..9)
+keybind = tmux/cmd+digit_1=text:\x00\x31
+keybind = tmux/cmd+digit_2=text:\x00\x32
+keybind = tmux/cmd+digit_3=text:\x00\x33
+keybind = tmux/cmd+digit_4=text:\x00\x34
+keybind = tmux/cmd+digit_5=text:\x00\x35
+keybind = tmux/cmd+digit_6=text:\x00\x36
+keybind = tmux/cmd+digit_7=text:\x00\x37
+keybind = tmux/cmd+digit_8=text:\x00\x38
+keybind = tmux/cmd+digit_9=text:\x00\x39
 
 # Optional plain numeric aliases
-keybind = tmux/cmd+1=text:\x18\x31
-keybind = tmux/cmd+2=text:\x18\x32
-keybind = tmux/cmd+3=text:\x18\x33
-keybind = tmux/cmd+4=text:\x18\x34
-keybind = tmux/cmd+5=text:\x18\x35
-keybind = tmux/cmd+6=text:\x18\x36
-keybind = tmux/cmd+7=text:\x18\x37
-keybind = tmux/cmd+8=text:\x18\x38
-keybind = tmux/cmd+9=text:\x18\x39
+keybind = tmux/cmd+1=text:\x00\x31
+keybind = tmux/cmd+2=text:\x00\x32
+keybind = tmux/cmd+3=text:\x00\x33
+keybind = tmux/cmd+4=text:\x00\x34
+keybind = tmux/cmd+5=text:\x00\x35
+keybind = tmux/cmd+6=text:\x00\x36
+keybind = tmux/cmd+7=text:\x00\x37
+keybind = tmux/cmd+8=text:\x00\x38
+keybind = tmux/cmd+9=text:\x00\x39
 
-# Tmux actions (all send C-x prefix first)
+# Tmux actions (all send C-Space prefix first)
 # Cmd+t => new window
-keybind = tmux/cmd+t=text:\x18\x63
+keybind = tmux/cmd+t=text:\x00\x63
 # Cmd+w => kill pane
-keybind = tmux/cmd+w=text:\x18\x78
+keybind = tmux/cmd+w=text:\x00\x78
 # Cmd+d => horizontal split
-keybind = tmux/cmd+d=text:\x18\x7C
+keybind = tmux/cmd+d=text:\x00\x7C
 # Cmd+Shift+d => vertical split
-keybind = tmux/cmd+shift+d=text:\x18\x2D
+keybind = tmux/cmd+shift+d=text:\x00\x2D
 # Cmd+Shift+[ => previous window
-keybind = tmux/cmd+shift+left_bracket=text:\x18\x70
+keybind = tmux/cmd+shift+left_bracket=text:\x00\x70
 # Cmd+Shift+] => next window
-keybind = tmux/cmd+shift+right_bracket=text:\x18\x6E
+keybind = tmux/cmd+shift+right_bracket=text:\x00\x6E
 # Cmd+p => session switcher
-keybind = tmux/cmd+p=text:\x18\x77
+keybind = tmux/cmd+p=text:\x00\x77
 # Cmd+o => sessionizer
-keybind = tmux/cmd+o=text:\x18\x66
+keybind = tmux/cmd+o=text:\x00\x66
 # Cmd+b => display panes
-keybind = tmux/cmd+b=text:\x18\x71
+keybind = tmux/cmd+b=text:\x00\x71

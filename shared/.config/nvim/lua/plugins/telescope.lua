@@ -89,6 +89,7 @@ return {
 					["<leader>b"] = { function() require("telescope.builtin").buffers() end, desc = "Open buffers" },
 					["<leader>ff"] = { function() require("telescope.builtin").find_files() end, desc = "Open fuzzy finder" },
 					["<leader>fF"] = { function() require("telescope.builtin").find_files({ hidden = true }) end, desc = "Open fuzzy finder ALL" },
+					["<leader>fg"] = { function() require("telescope.builtin").git_status() end, desc = "Git status" },
 					["<leader>fw"] = { function() require("telescope").extensions.live_grep_args.live_grep_args() end, desc = "Open live grep" },
 					["<leader>fh"] = { function() require("telescope.builtin").help_tags() end, desc = "Open help finder" },
 					["<leader>fm"] = { function() require("telescope.builtin").marks() end, desc = "Open mark finder" },
