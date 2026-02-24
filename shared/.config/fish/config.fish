@@ -175,3 +175,19 @@ export PATH="/Users/laurynas-fp/.amp/bin:$PATH"
 set -gx PATH $PATH /Users/laurynas-fp/.cache/lm-studio/bin
 # End of LM Studio CLI section
 
+# zmx
+functions -c fish_prompt _original_fish_prompt 2>/dev/null
+
+function fish_prompt --description 'Write out the prompt'
+  if set -q ZMX_SESSION
+    echo -n "[$ZMX_SESSION] "
+  end
+  _original_fish_prompt
+end
+
+if type -q zmx
+  zmx completions fish | source
+end
+
+#zmx end
+

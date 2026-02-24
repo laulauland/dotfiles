@@ -10,6 +10,7 @@ $line_break\
 $cmd_duration\
 $status\
 $character\
+${env_var.ZMX_SESSION}\
 """
 
 [character]
@@ -66,3 +67,10 @@ format = "[\\[$time\\]](dimmed) "
 [custom.jj]
 command = "jj-starship --ancestor-bookmark-depth 20"
 when = "jj-starship detect"
+
+
+[env_var.ZMX_SESSION]
+symbol = " "
+format = "[$symbol$env_value]($style) "
+description = "zmx session name"
+style = "bold magenta"

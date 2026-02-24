@@ -38,7 +38,8 @@ split_segments() {
     printf '%s' "$normalized"
 }
 
-if [[ "$command" =~ $PIP_RE ]]; then
+UV_PIP_RE='(^|[[:space:](!])uv[[:space:]]+pip([[:space:]]|$)'
+if [[ "$command" =~ $PIP_RE ]] && [[ ! "$command" =~ $UV_PIP_RE ]]; then
     emit_deny "pip is disabled. Use uv instead:\n  Install a package for a script: uv run --with PACKAGE python script.py\n  Add a dependency to the project: uv add PACKAGE"
 fi
 

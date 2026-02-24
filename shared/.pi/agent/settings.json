@@ -2,7 +2,7 @@
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-5.4",
   "defaultThinkingLevel": "xhigh",
-  "lastChangelogVersion": "0.61.1",
+  "lastChangelogVersion": "0.63.1",
   "theme": "light",
   "enabledModels": [
     "google-gemini-cli/gemini-3-flash-preview",
@@ -34,6 +34,7 @@
   "extensions": [
     "-extensions/jj-session-binding.ts",
     "-extensions/file-picker.ts",
-    "-extensions/pi-factory/index.ts"
+    "-extensions/pi-factory/index.ts",
+    "-extensions/shell-completions/index.ts"
   ]
 }

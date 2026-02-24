@@ -46,7 +46,8 @@
       "Bash(pkill:*)",
       "Bash(fp-dev review:*)",
       "Bash(./apps/fp/dist/aarch64-apple-darwin/fp view:*)",
-      "Bash(FP_DEBUG=1 ./apps/fp/dist/aarch64-apple-darwin/fp view create:*)"
+      "Bash(FP_DEBUG=1 ./apps/fp/dist/aarch64-apple-darwin/fp view create:*)",
+      "mcp__pencil"
     ],
     "deny": [
       "EnterPlanMode",
@@ -113,10 +114,11 @@
     "plugin-dev@claude-code-plugins": true,
     "frontend-design@claude-plugins-official": true,
     "playground@claude-plugins-official": true,
-    "witness@laulauland-plugins": true,
     "fp@fiberplane-claude-code-plugins": true,
     "slack@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
+  "effortLevel": "high",
+  "voiceEnabled": true,
   "skipDangerousModePermissionPrompt": true
 }

@@ -18,7 +18,7 @@
  */
 
 import { CustomEditor, type ExtensionAPI } from "@mariozechner/pi-coding-agent";
-import type { AutocompleteItem, AutocompleteProvider } from "@mariozechner/pi-tui";
+import type { AutocompleteItem, AutocompleteProvider, AutocompleteSuggestions } from "@mariozechner/pi-tui";
 import * as fs from "node:fs";
 import * as path from "node:path";
 
@@ -180,10 +180,18 @@ function getShellCompletions(
  * Wraps an existing autocomplete provider to add shell completion support
  * when in bash mode (text starts with ! or !!).
  */
+type FileCompletionCapableProvider = AutocompleteProvider & {
+	shouldTriggerFileCompletion?: (
+		lines: string[],
+		cursorLine: number,
+		cursorCol: number
+	) => boolean;
+};
+
 function wrapWithShellCompletion(
 	baseProvider: AutocompleteProvider,
 	shell: ShellInfo
-): AutocompleteProvider {
+): FileCompletionCapableProvider {
 	const isBashMode = (lines: string[]): boolean => {
 		const text = lines.join("\n").trimStart();
 		return text.startsWith("!") || text.startsWith("!!");
@@ -202,11 +210,12 @@ function wrapWithShellCompletion(
 	};
 
 	return {
-		getSuggestions(
+		async getSuggestions(
 			lines: string[],
 			cursorLine: number,
-			cursorCol: number
-		): { items: AutocompleteItem[]; prefix: string } | null {
+			cursorCol: number,
+			options: { signal: AbortSignal; force?: boolean }
+		): Promise<AutocompleteSuggestions | null> {
 			if (isBashMode(lines)) {
 				const text = getTextUpToCursor(lines, cursorLine, cursorCol);
 				const result = getShellCompletions(text, process.cwd(), shell);
@@ -214,7 +223,7 @@ function wrapWithShellCompletion(
 					return result;
 				}
 			}
-			return baseProvider.getSuggestions(lines, cursorLine, cursorCol);
+			return await baseProvider.getSuggestions(lines, cursorLine, cursorCol, options);
 		},
 
 		applyCompletion(
@@ -248,22 +257,6 @@ function wrapWithShellCompletion(
 			return baseProvider.applyCompletion(lines, cursorLine, cursorCol, item, prefix);
 		},
 
-		// Forward optional methods
-		getForceFileSuggestions(
-			lines: string[],
-			cursorLine: number,
-			cursorCol: number
-		): { items: AutocompleteItem[]; prefix: string } | null {
-			if (isBashMode(lines)) {
-				const text = getTextUpToCursor(lines, cursorLine, cursorCol);
-				return getShellCompletions(text, process.cwd(), shell);
-			}
-			if ("getForceFileSuggestions" in baseProvider) {
-				return (baseProvider as any).getForceFileSuggestions(lines, cursorLine, cursorCol);
-			}
-			return this.getSuggestions(lines, cursorLine, cursorCol);
-		},
-
 		shouldTriggerFileCompletion(
 			lines: string[],
 			cursorLine: number,
@@ -272,8 +265,9 @@ function wrapWithShellCompletion(
 			if (isBashMode(lines)) {
 				return true;
 			}
-			if ("shouldTriggerFileCompletion" in baseProvider) {
-				return (baseProvider as any).shouldTriggerFileCompletion(lines, cursorLine, cursorCol);
+			const provider = baseProvider as FileCompletionCapableProvider;
+			if (typeof provider.shouldTriggerFileCompletion === "function") {
+				return provider.shouldTriggerFileCompletion(lines, cursorLine, cursorCol);
 			}
 			return true;
 		},

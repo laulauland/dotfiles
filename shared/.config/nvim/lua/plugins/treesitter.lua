@@ -34,9 +34,12 @@ return {
         "zig",
       }
 
-      local ts = require("nvim-treesitter")
-      ts.setup({})
-      ts.install(languages)
+      require("nvim-treesitter.configs").setup({
+        ensure_installed = languages,
+        auto_install = true,
+        highlight = { enable = true },
+        indent = { enable = true },
+      })
 
       local group = vim.api.nvim_create_augroup("UserTreesitter", { clear = true })
       vim.api.nvim_create_autocmd("FileType", {

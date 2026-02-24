@@ -1,34 +1,34 @@
 {
-	"cycleModelForward": "",
-	"cycleModelBackward": "",
-	"toggleThinking": "",
-	"selectModel": "ctrl+/",
-	"selectUp": [
-		"up",
-		"ctrl+p"
-	],
-	"selectDown": [
-		"down",
-		"ctrl+n"
-	],
-	"cursorUp": [
-		"up",
-		"ctrl+p"
-	],
-	"cursorDown": [
-		"down",
-		"ctrl+n"
-	],
-	"cursorLeft": [
-		"left",
-		"ctrl+b"
-	],
-	"cursorRight": [
-		"right",
-		"ctrl+f"
-	],
-	"followUp": [
-		"ctrl+enter"
-	],
-	"dequeue": "ctrl+up"
+  "tui.editor.cursorUp": [
+    "up",
+    "ctrl+p"
+  ],
+  "tui.editor.cursorDown": [
+    "down",
+    "ctrl+n"
+  ],
+  "tui.editor.cursorLeft": [
+    "left",
+    "ctrl+b"
+  ],
+  "tui.editor.cursorRight": [
+    "right",
+    "ctrl+f"
+  ],
+  "tui.select.up": [
+    "up",
+    "ctrl+p"
+  ],
+  "tui.select.down": [
+    "down",
+    "ctrl+n"
+  ],
+  "app.model.cycleForward": "",
+  "app.model.cycleBackward": "",
+  "app.model.select": "ctrl+/",
+  "app.thinking.toggle": "",
+  "app.message.followUp": [
+    "ctrl+enter"
+  ],
+  "app.message.dequeue": "ctrl+up"
 }
