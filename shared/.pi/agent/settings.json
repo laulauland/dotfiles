@@ -2,14 +2,13 @@
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-5.4",
   "defaultThinkingLevel": "xhigh",
-  "lastChangelogVersion": "0.58.3",
+  "lastChangelogVersion": "0.61.1",
   "theme": "light",
   "enabledModels": [
-    "openai-codex/gpt-5.3-codex",
     "google-gemini-cli/gemini-3-flash-preview",
     "cerebras/zai-glm-4.7",
-    "opencode/minimax-m2.5",
-    "opencode/kimi-k2.5",
+    "opencode-go/minimax-m2.5",
+    "opencode-go/kimi-k2.5",
     "openai-codex/gpt-5.4"
   ],
   "followUpMode": "one-at-a-time",
@@ -22,7 +21,8 @@
       "skills": [
         "-.pi-skills/mill/SKILL.md"
       ]
-    }
+    },
+    "/Users/laurynas-fp/Code/laulauland/pi-agentic-compaction"
   ],
   "prompts": [
     "-prompts/web-interface-guidelines.md",
