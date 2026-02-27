@@ -21,6 +21,10 @@ diff-args = [
 	"$right",
 ]
 
+[merge-tools.jj-hunk]
+program = "jj-hunk"
+edit-args = ["select", "$left", "$right"]
+
 [aliases]
 overview = [
 	"util",
@@ -123,8 +127,8 @@ fi
 auto-track-bookmarks = "glob:*"
 
 # [fsmonitor]
-# Use Watchman for faster working copy snapshots in large repos
-# Requires: brew install watchman
+# # Use Watchman for faster working copy snapshots in large repos
+# # Requires: brew install watchman
 # backend = "watchman"
 
 [git]

@@ -114,7 +114,8 @@
     "frontend-design@claude-plugins-official": true,
     "playground@claude-plugins-official": true,
     "witness@laulauland-plugins": true,
-    "fp@fiberplane-claude-code-plugins": true
+    "fp@fiberplane-claude-code-plugins": true,
+    "slack@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
   "skipDangerousModePermissionPrompt": true
