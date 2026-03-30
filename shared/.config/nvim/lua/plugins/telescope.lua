@@ -17,13 +17,36 @@ return {
 		"nvim-telescope/telescope.nvim",
 		dependencies = {
 			-- "natecraddock/telescope-zf-native.nvim",
-			"nvim-telescope/telescope-live-grep-args.nvim"
+			"nvim-telescope/telescope-live-grep-args.nvim",
+			"zschreur/telescope-jj.nvim",
 		},
 		config = function()
 			local actions = require("telescope.actions")
 			local actions_layout = require("telescope.actions.layout")
+			local builtin = require("telescope.builtin")
+			local telescope = require("telescope")
 
-			require("telescope").setup({
+			local function project_files(opts)
+				opts = opts or {}
+
+				local jj_ok, jj_err = pcall(function()
+					telescope.extensions.jj.files(opts)
+				end)
+				if jj_ok then
+					return
+				end
+
+				local git_ok, git_err = pcall(function()
+					builtin.git_files(opts)
+				end)
+				if git_ok then
+					return
+				end
+
+				error("Could not launch jj/git files:\n" .. tostring(jj_err) .. "\n" .. tostring(git_err))
+			end
+
+			telescope.setup({
 				defaults = {
 					color_devicons = false,
 					disable_devicons = true,
@@ -83,22 +106,23 @@ return {
 			local set_keymaps = require("utils").set_keymaps
 			set_keymaps({
 				n = {
-					["<S-C-p>"] = { function() require("telescope.builtin").commands() end, desc = "Open command finder" },
-					["<C-p>"] = { function() require("telescope.builtin").find_files() end, desc = "Open fuzzy finder" },
-					["<leader><leader>"] = { function() require("telescope.builtin").commands() end, desc = "Command palette" },
-					["<leader>b"] = { function() require("telescope.builtin").buffers() end, desc = "Open buffers" },
-					["<leader>ff"] = { function() require("telescope.builtin").find_files() end, desc = "Open fuzzy finder" },
-					["<leader>fF"] = { function() require("telescope.builtin").find_files({ hidden = true }) end, desc = "Open fuzzy finder ALL" },
-					["<leader>fg"] = { function() require("telescope.builtin").git_status() end, desc = "Git status" },
-					["<leader>fw"] = { function() require("telescope").extensions.live_grep_args.live_grep_args() end, desc = "Open live grep" },
-					["<leader>fh"] = { function() require("telescope.builtin").help_tags() end, desc = "Open help finder" },
-					["<leader>fm"] = { function() require("telescope.builtin").marks() end, desc = "Open mark finder" },
-					["gS"] = { function() require("telescope.builtin").lsp_dynamic_workspace_symbols() end, desc = "List all symbols", },
+					["<S-C-p>"] = { function() builtin.commands() end, desc = "Open command finder" },
+					["<C-p>"] = { function() builtin.find_files() end, desc = "Open fuzzy finder" },
+					["<leader><leader>"] = { function() builtin.commands() end, desc = "Command palette" },
+					["<leader>b"] = { function() builtin.buffers() end, desc = "Open buffers" },
+					["<leader>ff"] = { function() builtin.find_files() end, desc = "Open fuzzy finder" },
+					["<leader>fF"] = { function() builtin.find_files({ hidden = true }) end, desc = "Open fuzzy finder ALL" },
+					["<leader>fg"] = { project_files, desc = "Open VCS files" },
+					["<leader>fw"] = { function() telescope.extensions.live_grep_args.live_grep_args() end, desc = "Open live grep" },
+					["<leader>fh"] = { function() builtin.help_tags() end, desc = "Open help finder" },
+					["<leader>fm"] = { function() builtin.marks() end, desc = "Open mark finder" },
+					["gS"] = { function() builtin.lsp_dynamic_workspace_symbols() end, desc = "List all symbols", },
 				}
 			})
 
 			-- require("telescope").load_extension("zf-native")
-			require("telescope").load_extension("live_grep_args")
+			telescope.load_extension("jj")
+			telescope.load_extension("live_grep_args")
 		end
 	}
 }
