@@ -1,6 +1,5 @@
 local M = {}
 
-local actions = require("telescope.actions")
 local action_state = require("telescope.actions.state")
 local conf = require("telescope.config").values
 local finders = require("telescope.finders")
@@ -90,6 +89,8 @@ local function fetch_revision_entries(cwd, on_done)
 	vim.system({
 		"jj",
 		"log",
+		"--revisions",
+		"all()",
 		"--limit",
 		tostring(REVISION_LIMIT),
 		"--no-graph",
@@ -169,7 +170,7 @@ local function ensure_revision_cache(cwd)
 		error = nil,
 		resolved = {},
 		waiters = {},
-		pending = 2,
+		pending = 3,
 	}
 	revision_cache_by_cwd[cwd] = cache
 
@@ -185,6 +186,13 @@ local function ensure_revision_cache(cwd)
 	resolve_revision(cwd, DEFAULT_FROM, function(ok, value)
 		if ok and value ~= "" then
 			cache.resolved[DEFAULT_FROM] = value
+		end
+		finish_cache_request(cache)
+	end)
+
+	resolve_revision(cwd, DEFAULT_TO, function(ok, value)
+		if ok and value ~= "" then
+			cache.resolved[DEFAULT_TO] = value
 		end
 		finish_cache_request(cache)
 	end)
@@ -269,18 +277,15 @@ local function open_revision_picker(diff_opts)
 					return
 				end
 
-				actions.close(prompt_bufnr)
-				vim.schedule(function()
-					M.open_diff({
-						cwd = diff_opts.cwd,
-						from = selections[1].value.rev,
-						to = selections[2].value.rev,
-					})
-				end)
+				M.open_diff({
+					cwd = diff_opts.cwd,
+					from = selections[1].value.rev,
+					to = selections[2].value.rev,
+				})
 			end
 
-			map("i", "<CR>", confirm_revisions)
-			map("n", "<CR>", confirm_revisions)
+			map("i", "<CR>", confirm_revisions, { nowait = true })
+			map("n", "<CR>", confirm_revisions, { nowait = true })
 			return true
 		end,
 	})
@@ -331,14 +336,11 @@ function M.open_diff(opts)
 
 	diff_opts.attach_mappings = function(prompt_bufnr, map)
 		local function select_revisions()
-			actions.close(prompt_bufnr)
-			vim.schedule(function()
-				open_revision_picker(diff_opts)
-			end)
+			open_revision_picker(diff_opts)
 		end
 
-		map("i", "<C-r>", select_revisions)
-		map("n", "<C-r>", select_revisions)
+		map("i", "<C-r>", select_revisions, { nowait = true })
+		map("n", "<C-r>", select_revisions, { nowait = true })
 		return true
 	end
 
