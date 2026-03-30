@@ -34,12 +34,15 @@ return {
         "zig",
       }
 
-      require("nvim-treesitter.configs").setup({
-        ensure_installed = languages,
-        auto_install = true,
-        highlight = { enable = true },
-        indent = { enable = true },
-      })
+      local treesitter = require("nvim-treesitter")
+      local installed = treesitter.get_installed("parsers")
+      local missing = vim.tbl_filter(function(language)
+        return not vim.tbl_contains(installed, language)
+      end, languages)
+
+      if #missing > 0 then
+        treesitter.install(missing, { summary = true })
+      end
 
       local group = vim.api.nvim_create_augroup("UserTreesitter", { clear = true })
       vim.api.nvim_create_autocmd("FileType", {
