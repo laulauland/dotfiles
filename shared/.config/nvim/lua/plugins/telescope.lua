@@ -67,6 +67,10 @@ return {
 							["<esc>"] = actions.close,
 							["<C-CR>"] = actions.file_vsplit,
 							["<M-p>"] = actions_layout.toggle_preview,
+							["<C-r><C-w>"] = false,
+							["<C-r><C-a>"] = false,
+							["<C-r><C-f>"] = false,
+							["<C-r><C-l>"] = false,
 						},
 						n = {
 							["q"] = actions.close,
