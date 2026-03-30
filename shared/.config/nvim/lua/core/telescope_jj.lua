@@ -3,11 +3,13 @@ local M = {}
 local action_state = require("telescope.actions.state")
 local conf = require("telescope.config").values
 local finders = require("telescope.finders")
+local make_entry = require("telescope.make_entry")
 local pickers = require("telescope.pickers")
-local telescope = require("telescope")
+local previewers = require("telescope.previewers")
 
 local DEFAULT_FROM = "trunk()"
 local DEFAULT_TO = "@"
+local STACK_REVSET = "trunk()::@"
 local REVISION_LIMIT = 200
 local LOADING_ENTRY = {
 	rev = "__loading__",
@@ -33,6 +35,62 @@ local function jj_root(cwd)
 	end
 
 	return root
+end
+
+local function run_jj(cwd, args)
+	local result = vim.system(vim.list_extend({ "jj" }, args), { text = true, cwd = cwd }):wait()
+	if result.code ~= 0 then
+		error(vim.trim(result.stderr ~= "" and result.stderr or result.stdout))
+	end
+	return result.stdout
+end
+
+local function append_diff_args(cmd, opts)
+	if opts.revision then
+		vim.list_extend(cmd, { "-r", opts.revision })
+		return
+	end
+
+	if opts.from then
+		vim.list_extend(cmd, { "--from", opts.from })
+	end
+	if opts.to then
+		vim.list_extend(cmd, { "--to", opts.to })
+	end
+end
+
+local function diff_prompt_title(opts)
+	if opts.revision then
+		return "Jujutsu Diff (" .. opts.revision .. ")"
+	end
+
+	local from_str = opts.from or "@"
+	local to_str = opts.to or "@"
+	return "Jujutsu Diff (" .. from_str .. " → " .. to_str .. ")"
+end
+
+local function diff_files(opts)
+	local cmd = { "jj", "diff", "--name-only", "--no-pager" }
+	append_diff_args(cmd, opts)
+	return vim.split(run_jj(opts.cwd, vim.list_slice(cmd, 2)), "\n", { trimempty = true })
+end
+
+local function diff_previewer(opts)
+	return previewers.new_termopen_previewer({
+		title = "Difftastic Preview",
+		cwd = opts.cwd,
+		get_command = function(entry)
+			local cmd = { "jj", "diff", "--no-pager" }
+			if vim.fn.executable("difft") == 1 then
+				vim.list_extend(cmd, { "--tool", "difft", "--color=always" })
+			else
+				table.insert(cmd, "--git")
+			end
+			append_diff_args(cmd, opts)
+			vim.list_extend(cmd, { "--", entry.value })
+			return cmd
+		end,
+	})
 end
 
 local function log_template()
@@ -90,7 +148,7 @@ local function fetch_revision_entries(cwd, on_done)
 		"jj",
 		"log",
 		"--revisions",
-		"all()",
+		STACK_REVSET,
 		"--limit",
 		tostring(REVISION_LIMIT),
 		"--no-graph",
@@ -217,21 +275,60 @@ local function find_entry_index(entries, revision)
 	return nil
 end
 
-local function preselect_revisions(picker, entries, cache, revisions)
+local function selection_roles_for_revisions(revisions)
+	local roles = {}
+	if revisions[1] then
+		roles[revisions[1]] = "FROM"
+	end
+	if revisions[2] then
+		roles[revisions[2]] = "TO"
+	end
+	return roles
+end
+
+local function selected_revisions_from_picker(picker)
+	local revisions = {}
+	for _, selection in ipairs(picker:get_multi_selection()) do
+		revisions[#revisions + 1] = selection.value.rev
+	end
+	return revisions
+end
+
+local function revision_finder(entries, revisions)
+	local roles = selection_roles_for_revisions(revisions or {})
+	return finders.new_table({
+		results = entries,
+		entry_maker = function(entry)
+			local role = roles[entry.rev]
+			local prefix = role and string.format("%-4s  ", role) or "      "
+			return {
+				value = entry,
+				display = prefix .. entry.label,
+				ordinal = entry.ordinal,
+			}
+		end,
+	})
+end
+
+local function refresh_revision_picker(picker, entries, revisions)
+	revisions = revisions or selected_revisions_from_picker(picker)
+	local selection_row = picker:get_selection_row()
+	picker:refresh(revision_finder(entries, revisions), { reset_prompt = false })
 	for _, revision in ipairs(revisions) do
-		local resolved = resolved_revision(cache, revision)
-		local index = find_entry_index(entries, resolved)
+		local index = find_entry_index(entries, revision)
 		if index then
 			picker:add_selection(picker:get_row(index))
 		end
 	end
+	if selection_row ~= nil then
+		picker:set_selection(selection_row)
+	end
 end
 
-local function revision_entry_maker(entry)
+local function default_revision_pair(cache, diff_opts)
 	return {
-		value = entry,
-		display = entry.label,
-		ordinal = entry.ordinal,
+		resolved_revision(cache, diff_opts.from or DEFAULT_FROM),
+		resolved_revision(cache, diff_opts.to or DEFAULT_TO),
 	}
 end
 
@@ -245,45 +342,66 @@ local function open_revision_picker(diff_opts)
 	local picker = pickers.new({}, {
 		sorting_strategy = "ascending",
 		layout_config = { prompt_position = "top" },
-		prompt_title = "JJ revisions",
-		finder = finders.new_table({
-			results = cache.entries or { LOADING_ENTRY },
-			entry_maker = revision_entry_maker,
-		}),
+		prompt_title = "JJ revisions  (<Tab>: first=FROM, second=TO)",
+		finder = revision_finder(cache.entries or { LOADING_ENTRY }),
 		sorter = conf.generic_sorter({}),
-		default_selection_index = find_entry_index(cache.entries or {}, resolved_revision(cache, diff_opts.to or DEFAULT_TO)) or 1,
+		default_selection_index = find_entry_index(
+			cache.entries or {},
+			resolved_revision(cache, diff_opts.to or DEFAULT_TO)
+		) or 1,
 		on_complete = {
 			function(self)
 				if state.loading or state.preselected or not cache.entries then
 					return
 				end
-				preselect_revisions(self, cache.entries, cache, {
-					diff_opts.from or DEFAULT_FROM,
-					diff_opts.to or DEFAULT_TO,
-				})
 				state.preselected = true
+				refresh_revision_picker(self, cache.entries, default_revision_pair(cache, diff_opts))
 			end,
 		},
 		attach_mappings = function(prompt_bufnr, map)
+			local function toggle_revision_selection()
+				if state.loading or not cache.entries then
+					return
+				end
+
+				local current_picker = action_state.get_current_picker(prompt_bufnr)
+				local entry = action_state.get_selected_entry()
+				if not entry then
+					return
+				end
+
+				local revisions = selected_revisions_from_picker(current_picker)
+				local already_selected = current_picker._multi:is_selected(entry)
+				if not already_selected and #revisions >= 2 then
+					vim.notify("Only two revisions can be selected", vim.log.levels.WARN)
+					return
+				end
+
+				current_picker:toggle_selection(current_picker:get_selection_row())
+				refresh_revision_picker(current_picker, cache.entries)
+			end
+
 			local function confirm_revisions()
 				if state.loading then
 					return
 				end
 
 				local current_picker = action_state.get_current_picker(prompt_bufnr)
-				local selections = current_picker:get_multi_selection()
-				if #selections ~= 2 then
+				local revisions = selected_revisions_from_picker(current_picker)
+				if #revisions ~= 2 then
 					vim.notify("Select exactly two revisions with <Tab>", vim.log.levels.WARN)
 					return
 				end
 
 				M.open_diff({
 					cwd = diff_opts.cwd,
-					from = selections[1].value.rev,
-					to = selections[2].value.rev,
+					from = revisions[1],
+					to = revisions[2],
 				})
 			end
 
+			map("i", "<Tab>", toggle_revision_selection, { nowait = true })
+			map("n", "<Tab>", toggle_revision_selection, { nowait = true })
 			map("i", "<CR>", confirm_revisions, { nowait = true })
 			map("n", "<CR>", confirm_revisions, { nowait = true })
 			return true
@@ -309,10 +427,7 @@ local function open_revision_picker(diff_opts)
 				updated_cache.entries,
 				resolved_revision(updated_cache, diff_opts.to or DEFAULT_TO)
 			) or 1
-			picker:refresh(finders.new_table({
-				results = updated_cache.entries,
-				entry_maker = revision_entry_maker,
-			}), { reset_prompt = false })
+			picker:refresh(revision_finder(updated_cache.entries), { reset_prompt = false })
 		end)
 	end
 end
@@ -334,22 +449,31 @@ function M.open_diff(opts)
 
 	ensure_revision_cache(diff_opts.cwd)
 
-	diff_opts.attach_mappings = function(prompt_bufnr, map)
-		local function select_revisions()
-			open_revision_picker(diff_opts)
-		end
-
-		map("i", "<C-r>", select_revisions, { nowait = true })
-		map("n", "<C-r>", select_revisions, { nowait = true })
-		return true
-	end
-
-	local ok, err = pcall(function()
-		telescope.extensions.jj.diff(diff_opts)
-	end)
+	local ok, files = pcall(diff_files, diff_opts)
 	if not ok then
-		vim.notify(err, vim.log.levels.ERROR)
+		vim.notify(files, vim.log.levels.ERROR)
+		return
 	end
+
+	pickers.new(diff_opts, {
+		prompt_title = diff_prompt_title(diff_opts),
+		__locations_input = true,
+		finder = finders.new_table({
+			results = files,
+			entry_maker = make_entry.gen_from_file(diff_opts),
+		}),
+		previewer = diff_previewer(diff_opts),
+		sorter = conf.file_sorter(diff_opts),
+		attach_mappings = function(prompt_bufnr, map)
+			local function select_revisions()
+				open_revision_picker(diff_opts)
+			end
+
+			map("i", "<C-r>", select_revisions, { nowait = true })
+			map("n", "<C-r>", select_revisions, { nowait = true })
+			return true
+		end,
+	}):find()
 end
 
 return M
