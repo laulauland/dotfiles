@@ -25,6 +25,7 @@ return {
 			local actions_layout = require("telescope.actions.layout")
 			local builtin = require("telescope.builtin")
 			local telescope = require("telescope")
+			local jj = require("core.telescope_jj")
 
 			local function project_files(opts)
 				opts = opts or {}
@@ -112,6 +113,7 @@ return {
 					["<leader>b"] = { function() builtin.buffers() end, desc = "Open buffers" },
 					["<leader>ff"] = { function() builtin.find_files() end, desc = "Open fuzzy finder" },
 					["<leader>fF"] = { function() builtin.find_files({ hidden = true }) end, desc = "Open fuzzy finder ALL" },
+					["<leader>fd"] = { jj.open_diff, desc = "Diff vs trunk" },
 					["<leader>fg"] = { project_files, desc = "Open VCS files" },
 					["<leader>fw"] = { function() telescope.extensions.live_grep_args.live_grep_args() end, desc = "Open live grep" },
 					["<leader>fh"] = { function() builtin.help_tags() end, desc = "Open help finder" },
