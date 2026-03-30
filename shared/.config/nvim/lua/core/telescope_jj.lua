@@ -9,12 +9,12 @@ local telescope = require("telescope")
 
 local DEFAULT_FROM = "trunk()"
 local DEFAULT_TO = "@"
+local REVISION_LIMIT = 200
 
 local shortcut_revisions = {
 	{ rev = DEFAULT_FROM, label = "trunk()  repo trunk" },
 	{ rev = DEFAULT_TO, label = "@        working copy" },
 	{ rev = "@-", label = "@-       previous change" },
-	{ rev = "@--", label = "@--      two changes back" },
 }
 
 local function jj_root(cwd)
@@ -46,13 +46,22 @@ end
 
 local function revision_entries(cwd)
 	local entries = {}
+	local seen = {}
+
+	local function add_entry(entry)
+		if seen[entry.rev] then
+			return
+		end
+		seen[entry.rev] = true
+		entries[#entries + 1] = entry
+	end
 
 	for _, shortcut in ipairs(shortcut_revisions) do
-		entries[#entries + 1] = {
+		add_entry({
 			rev = shortcut.rev,
 			label = shortcut.label,
 			ordinal = shortcut.rev .. " " .. shortcut.label,
-		}
+		})
 	end
 
 	local template = table.concat({
@@ -70,6 +79,8 @@ local function revision_entries(cwd)
 		"log",
 		"--revisions",
 		"all()",
+		"--limit",
+		tostring(REVISION_LIMIT),
 		"--no-graph",
 		"--template",
 		template,
@@ -88,11 +99,11 @@ local function revision_entries(cwd)
 			description ~= "" and description or "(no description)",
 		}), "  ")
 
-		entries[#entries + 1] = {
+		add_entry({
 			rev = change_id,
 			label = label,
 			ordinal = table.concat({ change_id, commit_id, bookmarks, description }, " "),
-		}
+		})
 	end
 
 	return entries
@@ -109,17 +120,13 @@ local function default_selection_index(entries, default_rev)
 end
 
 local function open_revision_picker(opts)
-	local ok, entries = pcall(revision_entries, opts.cwd)
-	if not ok then
-		vim.notify(entries, vim.log.levels.ERROR)
-		return
-	end
-
 	pickers
 		.new({}, {
+			sorting_strategy = "ascending",
+			layout_config = { prompt_position = "top" },
 			prompt_title = opts.prompt_title,
 			finder = finders.new_table({
-				results = entries,
+				results = opts.entries,
 				entry_maker = function(entry)
 					return {
 						value = entry,
@@ -129,7 +136,7 @@ local function open_revision_picker(opts)
 				end,
 			}),
 			sorter = conf.generic_sorter({}),
-			default_selection_index = default_selection_index(entries, opts.default_rev),
+			default_selection_index = default_selection_index(opts.entries, opts.default_rev),
 			attach_mappings = function(prompt_bufnr, map)
 				local function select_revision()
 					local selection = action_state.get_selected_entry()
@@ -151,17 +158,17 @@ local function open_revision_picker(opts)
 		:find()
 end
 
-local function with_revision_picker(diff_opts)
+local function with_revision_picker(diff_opts, entries)
 	local current_from = diff_opts.from or DEFAULT_FROM
 	local current_to = diff_opts.to or DEFAULT_TO
 
 	open_revision_picker({
-		cwd = diff_opts.cwd,
+		entries = entries,
 		prompt_title = "JJ diff base (default: " .. current_from .. ")",
 		default_rev = current_from,
 		on_select = function(from_rev)
 			open_revision_picker({
-				cwd = diff_opts.cwd,
+				entries = entries,
 				prompt_title = "JJ diff target (default: " .. current_to .. ")",
 				default_rev = current_to,
 				on_select = function(to_rev)
@@ -191,11 +198,22 @@ function M.open_diff(opts)
 		to = DEFAULT_TO,
 	}, opts)
 
+	local cached_revision_entries = nil
+
 	diff_opts.attach_mappings = function(prompt_bufnr, map)
 		local function select_revisions()
+			if not cached_revision_entries then
+				local ok, entries = pcall(revision_entries, diff_opts.cwd)
+				if not ok then
+					vim.notify(entries, vim.log.levels.ERROR)
+					return
+				end
+				cached_revision_entries = entries
+			end
+
 			actions.close(prompt_bufnr)
 			vim.schedule(function()
-				with_revision_picker(diff_opts)
+				with_revision_picker(diff_opts, cached_revision_entries)
 			end)
 		end
 
