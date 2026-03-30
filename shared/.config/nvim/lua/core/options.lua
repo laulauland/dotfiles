@@ -53,8 +53,6 @@ local options = {
     foldcolumn = "0",
     foldlevelstart = 99,
     foldenable = true,
-    foldexpr = "nvim_treesitter#foldexpr()",
-    foldmethod = "expr",
     --n-v-c-sm:block,i-ci-ve:ver25,r-cr-o:hor20
     guicursor = {
         "n-sm:block",
