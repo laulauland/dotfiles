@@ -130,4 +130,38 @@ vim.api.nvim_create_autocmd("FileType", {
 	end,
 })
 
+-- Theme switching support
+vim.api.nvim_create_user_command("ThemeReload", function()
+	local theme_file = vim.fn.expand("~/.config/theme/current")
+	local f = io.open(theme_file, "r")
+	if f then
+		local theme = f:read("*l"):gsub("%s+", "")
+		f:close()
+
+		if theme == "dark" then
+			vim.o.background = "dark"
+			vim.cmd.colorscheme("default")
+		else
+			vim.o.background = "light"
+			vim.cmd.colorscheme("alabaster")
+		end
+
+		-- Re-apply transparent background
+		vim.api.nvim_set_hl(0, "Normal", { bg = "NONE" })
+		vim.api.nvim_set_hl(0, "NormalFloat", { bg = "NONE" })
+		vim.api.nvim_set_hl(0, "NormalNC", { bg = "NONE" })
+		vim.api.nvim_set_hl(0, "SignColumn", { bg = "NONE" })
+
+		print("Theme switched to " .. theme)
+	end
+end, { desc = "Reload theme from ~/.config/theme/current" })
+
+-- Handle SIGUSR1 for theme switching from external tools
+vim.api.nvim_create_autocmd("Signal", {
+	pattern = "SIGUSR1",
+	callback = function()
+		vim.cmd("ThemeReload")
+	end,
+})
+
 

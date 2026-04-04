@@ -20,7 +20,7 @@ keybind = alt+arrow_down=jump_to_prompt:+1
 keybind = alt+arrow_up=jump_to_prompt:-1
 
 
-theme = Alabaster
+theme = light:Alabaster,dark:Ghostty Default Style Dark
 
 config-file = mode/normal
 config-file = mode/tmux
