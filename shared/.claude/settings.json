@@ -1,124 +1,125 @@
 {
-  "includeCoAuthoredBy": false,
-  "permissions": {
-    "allow": [
-      "Bash(cat:*)",
-      "WebSearch",
-      "WebFetch(domain:www.better-auth.com)",
-      "Bash(fd:*)",
-      "Bash(sqlite3:*)",
-      "mcp__cloudflare-agents-repo__search_agents_documentation",
-      "mcp__cloudflare-agents-repo__search_agents_code",
-      "mcp__cloudflare-agents-repo__fetch_generic_url_content",
-      "WebFetch(domain:github.com)",
-      "WebFetch(domain:localhost)",
-      "WebFetch(domain:raw.githubusercontent.com)",
-      "WebFetch(domain:alexzhang13.github.io)",
-      "WebFetch(domain:lucumr.pocoo.org)",
-      "Bash(jj:*)",
-      "Bash(tmux capture-pane:*)",
-      "Bash(tmux list-panes:*)",
-      "WebFetch(domain:platform.claude.com)",
-      "mcp__context7__resolve-library-id",
-      "mcp__context7__get-library-docs",
-      "WebFetch(domain:app.unpkg.com)",
-      "Bash(mkdir:*)",
-      "Bash(/opt/homebrew/bin/jj log:*)",
-      "Bash(/opt/homebrew/bin/jj diff -r \"b3b365d6b99d::@\" --stat)",
-      "Bash(/opt/homebrew/bin/jj status)",
-      "Bash(/opt/homebrew/bin/jj describe:*)",
-      "Bash(/opt/homebrew/bin/jj bookmark list)",
-      "Bash(/opt/homebrew/bin/jj bookmark set project-registry-for-fp -r @)",
-      "Bash(/opt/homebrew/bin/jj git push --bookmark project-registry-for-fp)",
-      "WebFetch(domain:o1302973.ingest.us.sentry.io)",
-      "WebFetch(domain:api.github.com)",
-      "Bash(fp:*)",
-      "Skill(jj-hunk)",
-      "Bash(jj-hunk split:*)",
-      "Bash(fp-dev view create:*)",
-      "Bash(lsof:*)",
-      "Bash(bun:*)",
-      "Bash(jj-hunk list:*)",
-      "Bash(jj-hunk squash:*)",
-      "Bash(curl:*)",
-      "WebFetch(domain:effect.website)",
-      "Bash(fp-dev issue create:*)",
-      "Bash(pkill:*)",
-      "Bash(fp-dev review:*)",
-      "Bash(./apps/fp/dist/aarch64-apple-darwin/fp view:*)",
-      "Bash(FP_DEBUG=1 ./apps/fp/dist/aarch64-apple-darwin/fp view create:*)",
-      "mcp__pencil"
-    ],
-    "deny": [
-      "EnterPlanMode",
-      "ExitPlanMode"
-    ],
-    "defaultMode": "acceptEdits"
-  },
-  "hooks": {
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/git-to-jj-hook.sh"
-          },
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/jj-no-interactive-hook.sh"
-          },
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/pip-to-uv-hook.sh"
-          }
-        ]
-      }
-    ],
-    "Notification": [
-      {
-        "matcher": "permission_prompt",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/notification-hook.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "idle_prompt",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/notification-hook.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "elicitation_dialog",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/notification-hook.sh"
-          }
-        ]
-      }
-    ]
-  },
-  "statusLine": {
-    "type": "command",
-    "command": "bash ~/.claude/scripts/statusline-wrapper.sh"
-  },
-  "enabledPlugins": {
-    "frontend-design@claude-code-plugins": true,
-    "plugin-dev@claude-code-plugins": true,
-    "frontend-design@claude-plugins-official": true,
-    "playground@claude-plugins-official": true,
-    "fp@fiberplane-claude-code-plugins": true,
-    "slack@claude-plugins-official": true
-  },
-  "alwaysThinkingEnabled": true,
-  "effortLevel": "high",
-  "voiceEnabled": true,
-  "skipDangerousModePermissionPrompt": true
+	"includeCoAuthoredBy": false,
+	"permissions": {
+		"allow": [
+			"Bash(cat:*)",
+			"WebSearch",
+			"WebFetch(domain:www.better-auth.com)",
+			"Bash(fd:*)",
+			"Bash(sqlite3:*)",
+			"mcp__cloudflare-agents-repo__search_agents_documentation",
+			"mcp__cloudflare-agents-repo__search_agents_code",
+			"mcp__cloudflare-agents-repo__fetch_generic_url_content",
+			"WebFetch(domain:github.com)",
+			"WebFetch(domain:localhost)",
+			"WebFetch(domain:raw.githubusercontent.com)",
+			"WebFetch(domain:alexzhang13.github.io)",
+			"WebFetch(domain:lucumr.pocoo.org)",
+			"Bash(jj:*)",
+			"Bash(tmux capture-pane:*)",
+			"Bash(tmux list-panes:*)",
+			"WebFetch(domain:platform.claude.com)",
+			"mcp__context7__resolve-library-id",
+			"mcp__context7__get-library-docs",
+			"WebFetch(domain:app.unpkg.com)",
+			"Bash(mkdir:*)",
+			"Bash(/opt/homebrew/bin/jj log:*)",
+			"Bash(/opt/homebrew/bin/jj diff -r \"b3b365d6b99d::@\" --stat)",
+			"Bash(/opt/homebrew/bin/jj status)",
+			"Bash(/opt/homebrew/bin/jj describe:*)",
+			"Bash(/opt/homebrew/bin/jj bookmark list)",
+			"Bash(/opt/homebrew/bin/jj bookmark set project-registry-for-fp -r @)",
+			"Bash(/opt/homebrew/bin/jj git push --bookmark project-registry-for-fp)",
+			"WebFetch(domain:o1302973.ingest.us.sentry.io)",
+			"WebFetch(domain:api.github.com)",
+			"Bash(fp:*)",
+			"Skill(jj-hunk)",
+			"Bash(jj-hunk split:*)",
+			"Bash(fp-dev view create:*)",
+			"Bash(lsof:*)",
+			"Bash(bun:*)",
+			"Bash(jj-hunk list:*)",
+			"Bash(jj-hunk squash:*)",
+			"Bash(curl:*)",
+			"WebFetch(domain:effect.website)",
+			"Bash(fp-dev issue create:*)",
+			"Bash(pkill:*)",
+			"Bash(fp-dev review:*)",
+			"Bash(./apps/fp/dist/aarch64-apple-darwin/fp view:*)",
+			"Bash(FP_DEBUG=1 ./apps/fp/dist/aarch64-apple-darwin/fp view create:*)",
+			"mcp__pencil"
+		],
+		"deny": [
+			"EnterPlanMode",
+			"ExitPlanMode"
+		],
+		"defaultMode": "acceptEdits"
+	},
+	"hooks": {
+		"PreToolUse": [
+			{
+				"matcher": "Bash",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bash ~/.claude/scripts/git-to-jj-hook.sh"
+					},
+					{
+						"type": "command",
+						"command": "bash ~/.claude/scripts/jj-no-interactive-hook.sh"
+					},
+					{
+						"type": "command",
+						"command": "bash ~/.claude/scripts/pip-to-uv-hook.sh"
+					}
+				]
+			}
+		],
+		"Notification": [
+			{
+				"matcher": "permission_prompt",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bash ~/.claude/scripts/notification-hook.sh"
+					}
+				]
+			},
+			{
+				"matcher": "idle_prompt",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bash ~/.claude/scripts/notification-hook.sh"
+					}
+				]
+			},
+			{
+				"matcher": "elicitation_dialog",
+				"hooks": [
+					{
+						"type": "command",
+						"command": "bash ~/.claude/scripts/notification-hook.sh"
+					}
+				]
+			}
+		]
+	},
+	"statusLine": {
+		"type": "command",
+		"command": "bash ~/.claude/scripts/statusline-wrapper.sh"
+	},
+	"enabledPlugins": {
+		"frontend-design@claude-code-plugins": true,
+		"plugin-dev@claude-code-plugins": true,
+		"frontend-design@claude-plugins-official": true,
+		"playground@claude-plugins-official": true,
+		"fp@fiberplane-claude-code-plugins": true,
+		"slack@claude-plugins-official": true
+	},
+	"alwaysThinkingEnabled": true,
+	"effortLevel": "high",
+	"voiceEnabled": true,
+	"cleanupPeriodDays": 3650,
+	"skipDangerousModePermissionPrompt": true
 }
