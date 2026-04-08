@@ -1,0 +1,9 @@
+{
+  "state": "auth_required",
+  "checked_at": "2026-04-10T14:44:04.902Z",
+  "message": "Server sentry requires authentication",
+  "auth_command": "mcpc \"https://mcp.sentry.dev/mcp\" login",
+  "tool_count": 0,
+  "server_info": null,
+  "source": "Claude Code (project)"
+}

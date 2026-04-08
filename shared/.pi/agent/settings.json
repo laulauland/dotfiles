@@ -2,8 +2,8 @@
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-5.4",
   "defaultThinkingLevel": "xhigh",
-  "lastChangelogVersion": "0.63.1",
   "theme": "laulauland-light",
+  "lastChangelogVersion": "0.66.1",
   "enabledModels": [
     "google-gemini-cli/gemini-3-flash-preview",
     "cerebras/zai-glm-4.7",
@@ -20,9 +20,13 @@
       "source": "../../code/laulauland/mill/packages/pi-mill",
       "skills": [
         "-.pi-skills/mill/SKILL.md"
+      ],
+      "extensions": [
+        "-index.ts"
       ]
     },
-    "/Users/laurynas-fp/Code/laulauland/pi-agentic-compaction"
+    "/Users/laurynas-fp/Code/laulauland/pi-agentic-compaction",
+    "git:github.com/laulauland/pi-agentic-compaction"
   ],
   "prompts": [
     "-prompts/web-interface-guidelines.md",
