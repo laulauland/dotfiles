@@ -3,7 +3,7 @@
   "defaultModel": "gpt-5.4",
   "defaultThinkingLevel": "xhigh",
   "lastChangelogVersion": "0.63.1",
-  "theme": "light",
+  "theme": "laulauland-light",
   "enabledModels": [
     "google-gemini-cli/gemini-3-flash-preview",
     "cerebras/zai-glm-4.7",
@@ -31,10 +31,14 @@
     "-prompts/deslop.md",
     "-prompts/commit.md"
   ],
+  "themes": [
+    "-themes"
+  ],
   "extensions": [
     "-extensions/jj-session-binding.ts",
     "-extensions/file-picker.ts",
     "-extensions/pi-factory/index.ts",
-    "-extensions/shell-completions/index.ts"
+    "-extensions/shell-completions/index.ts",
+    "-extensions/theme-sync.ts"
   ]
 }

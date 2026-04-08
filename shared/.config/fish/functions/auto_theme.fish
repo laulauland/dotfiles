@@ -2,6 +2,9 @@ function auto_theme -d "Auto-detect terminal background and apply matching fish 
     set -l bg (term_background)
     set -l current (set -q __fish_theme_applied; and echo $__fish_theme_applied; or echo "")
 
+    # Export the detected mode so child processes like Neovim can match it.
+    set -gx TERM_BACKGROUND $bg
+
     # Skip if already applied this mode
     if test "$current" = "$bg"
         return
