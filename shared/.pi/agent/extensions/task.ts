@@ -265,15 +265,24 @@ async function ensureTaskModelReady(ctx: ExtensionContext, action: "starting" | 
 	return true;
 }
 
-async function startTask(pi: ExtensionAPI, ctx: ExtensionContext, prompt: string): Promise<void> {
+interface StartTaskOptions {
+	sendKickoffMessage?: boolean;
+}
+
+async function startTask(
+	pi: ExtensionAPI,
+	ctx: ExtensionContext,
+	prompt: string,
+	options?: StartTaskOptions,
+): Promise<ActiveTask | undefined> {
 	const normalizedPrompt = normalizePrompt(prompt);
 	if (!normalizedPrompt) {
 		ctx.ui.notify(USAGE, "warning");
-		return;
+		return undefined;
 	}
 
 	if (!(await ensureTaskModelReady(ctx, "starting"))) {
-		return;
+		return undefined;
 	}
 
 	const existingStack = getTaskStack(ctx);
@@ -310,7 +319,13 @@ async function startTask(pi: ExtensionAPI, ctx: ExtensionContext, prompt: string
 			: `Started task: ${startedTask.label}`,
 		"info",
 	);
-	pi.sendUserMessage(buildTaskUserMessage(normalizedPrompt));
+
+	const shouldSendKickoffMessage = options?.sendKickoffMessage ?? true;
+	if (shouldSendKickoffMessage) {
+		pi.sendUserMessage(buildTaskUserMessage(normalizedPrompt));
+	}
+
+	return startedTask;
 }
 
 async function completeTask(pi: ExtensionAPI, ctx: ExtensionCommandContext): Promise<void> {
@@ -485,21 +500,31 @@ export default function taskExtension(pi: ExtensionAPI): void {
 			"Do not use this for tiny one-shot actions or simple answers that can be handled directly in the current branch.",
 			"Examples of bad use: reading one file to answer a question, making one very small edit, explaining an error message, or running one quick command and reporting the result.",
 			"This tool only starts tasks. A human must later run /task complete or /task cancel manually.",
+			"This tool creates a checkpoint only at the current message and never sends a kickoff message.",
 			"When you believe this focused task is complete, explicitly tell the user to run /task complete so the work can be summarized back to the task checkpoint.",
 		],
 		parameters: Type.Object({
 			prompt: Type.String({ description: "Focused task prompt to start in a task branch" }),
 		}),
-		async execute(_toolCallId, params) {
+		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
 			const prompt = normalizePrompt(params.prompt);
 			if (!prompt) {
 				throw new Error("Task prompt must not be empty.");
 			}
 
-			pi.sendUserMessage(`/task start ${prompt}`, { deliverAs: "followUp" });
+			const startedTask = await startTask(pi, ctx, prompt, { sendKickoffMessage: false });
+			if (!startedTask) {
+				throw new Error("Failed to start task.");
+			}
+
 			return {
-				content: [{ type: "text", text: `Queued /task start ${formatTaskLabel(prompt)}` }],
-				details: { prompt },
+				content: [{ type: "text", text: `Started task checkpoint: ${startedTask.label}` }],
+				details: {
+					prompt,
+					taskId: startedTask.taskId,
+					depth: startedTask.depth,
+					checkpointId: startedTask.entryId,
+				},
 			};
 		},
 	});
