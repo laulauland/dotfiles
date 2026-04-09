@@ -3,8 +3,8 @@ import { promisify } from "node:util";
 import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 
 const execAsync = promisify(exec);
-const LIGHT_THEME = "laulauland-light";
-const DARK_THEME = "laulauland-dark";
+const LIGHT_THEME = "light";
+const DARK_THEME = "dark";
 const POLL_INTERVAL_MS = 2000;
 
 type ThemeMode = "light" | "dark";

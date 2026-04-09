@@ -157,6 +157,139 @@ Pass args in notebook: `marimo edit experiment.py -- --lr=0.01`
    mo.vstack([mo.md("Step 1 done"), mo.ui.table(results), mo.md("Finished")])
    ```
 
+## Script Mode Detection
+
+Use `mo.app_meta().mode` to detect execution context without argparse:
+
+```python
+@app.cell
+def _(mo):
+    is_script_mode = mo.app_meta().mode == "script"
+    return (is_script_mode,)
+```
+
+Mode values: `"edit"` (notebook editor), `"run"` (marimo run), `"script"` (uv run / python).
+
+## Keep It Simple
+
+Show all UI elements always. Only change the data source in script mode. Don't wrap everything in conditionals or try/except.
+
+**Data source switching:**
+```python
+@app.cell
+def _(is_script_mode, load_default_data, user_widget):
+    if is_script_mode:
+        data = load_default_data()
+    else:
+        data = user_widget.value
+    return (data,)
+```
+
+**Auto-run in script mode, button-gated in notebook:**
+```python
+@app.cell
+def _(is_script_mode, run_button, train, data):
+    if is_script_mode or run_button.value:
+        results = train(data)
+    return (results,)
+```
+
+## Anti-Patterns
+
+### Don't guard cells with `if` statements
+
+marimo handles dependencies automatically — cells only run when their dependencies exist. No need for existence checks:
+
+```python
+# WRONG: redundant guard
+@app.cell
+def _(plt, training_results):
+    if training_results:
+        fig, ax = plt.subplots()
+        ax.plot(training_results['losses'])
+        fig
+
+# RIGHT: marimo won't run this cell until training_results exists
+@app.cell
+def _(plt, training_results):
+    fig, ax = plt.subplots()
+    ax.plot(training_results['losses'])
+    fig
+```
+
+### Don't use try/except for control flow
+
+Only use try/except for specific, known exception types with meaningful recovery. Don't use it to handle missing data or uninitialized state:
+
+```python
+# WRONG: using exceptions as control flow
+@app.cell
+def _(widget, np):
+    try:
+        X, y = widget.data
+        X = np.array(X, dtype=np.float32)
+    except Exception:
+        return None, None
+
+# RIGHT: let marimo's reactivity handle it
+@app.cell
+def _(widget, np):
+    X, y = widget.data
+    X = np.array(X, dtype=np.float32)
+    return (X, y)
+```
+
+### Cell output rendering gotcha
+
+Only the final bare expression in a cell renders. Indented or conditional expressions don't display:
+
+```python
+# WRONG: indented expression won't render
+@app.cell
+def _(mo, condition):
+    if condition:
+        mo.md("This won't show!")
+    return
+
+# RIGHT: use a ternary or assign to a variable
+@app.cell
+def _(mo, condition):
+    mo.md("Shown!") if condition else mo.md("Not met")
+```
+
+## Checking API Docs Locally
+
+Look up any marimo function signature and docs without leaving the terminal:
+
+```bash
+uv --with marimo run python -c "import marimo as mo; help(mo.ui.form)"
+```
+
+## Testing with pytest
+
+Cells named `test_*` are auto-discovered by pytest. Run with `pytest notebook.py`.
+
+```python
+@app.cell
+def _(inc):
+    def test_increment():
+        assert inc(3) == 4
+    return
+
+@app.cell
+def _(inc, pytest):
+    @pytest.mark.parametrize(("x", "y"), [(3, 4), (4, 5)])
+    def test_parameterized(x, y):
+        assert inc(x) == y
+    return
+```
+
+Rules:
+- Only cells containing exclusively test functions/classes are executed by the test runner
+- Helper functions, constants, and imports must be in separate cells
+- Fixtures defined in one cell can't be used in another (unless in `app.setup`)
+- `conftest.py` fixtures are discovered automatically
+
 ## Data Snapshots
 
 Two separate concerns — don't conflate them:
@@ -186,7 +319,7 @@ def _(mo):
 
 Cache invalidates when source code or upstream cell code changes. Add `**/__marimo__/cache/` to `.gitignore`.
 
-See [references/caching.md](references/caching.md) for cache key semantics and gotchas.
+See [Caching Reference](references/caching.md) for cache key semantics and gotchas.
 
 ### 2. Explicit snapshots (for cross-script analysis)
 
@@ -263,10 +396,10 @@ Each experiment notebook is self-contained (sandboxed deps). Analysis scripts re
 
 ## Validation
 
-After creating or editing a marimo notebook, always run `marimo check --fix` on the file to fix common issues (unused variables in return tuples, missing returns, cell ordering):
+After creating or editing a marimo notebook, always run `marimo check` on the file to fix common issues (unused variables in return tuples, missing returns, cell ordering). Use `--fix` optionally to auto-fix:
 
 ```bash
-marimo check --fix path/to/notebook.py
+uvx marimo check notebook.py
 ```
 
 This is a required step — do not skip it.
@@ -280,3 +413,17 @@ python scripts/init_marimo.py <name> [--deps dep1 dep2] [--lazy] [--with-args]
 ```
 
 See `scripts/init_marimo.py` for the generator. Always review and customize the output.
+
+## References
+
+See `references/` for detailed guides on specific topics:
+
+- [UI Components](references/ui.md) — all `mo.ui.*` widgets, forms, batch, validation
+- [State Management](references/state.md) — reactivity, `mo.state()`, when to use it
+- [SQL](references/sql.md) — `mo.sql()`, DuckDB, SQLAlchemy, PyIceberg
+- [Testing](references/pytest.md) — pytest integration, fixtures, parametrize
+- [Exports](references/exports.md) — PDF, HTML, WASM, script, markdown export
+- [Deployment](references/deployment.md) — `marimo run`, thumbnails, OpenGraph metadata
+- [anywidget](references/anywidget.md) — custom widgets with vanilla JS
+- [Top-Level Imports](references/top_level_imports.md) — `app.setup`, `@app.function`, importable notebooks
+- [Caching](references/caching.md) — cache types, key construction, gotchas
