@@ -58,22 +58,6 @@ return {
             function() harpoon:list():select(4) end,
             desc = "harpoon 4",
         },
-        ["<leader>h"] = {
-            function() harpoon:list():select(1) end,
-            desc = "Harpoon 1",
-        },
-        ["<leader>j"] = {
-            function() harpoon:list():select(2) end,
-            desc = "Harpoon 2",
-        },
-        ["<leader>k"] = {
-            function() harpoon:list():select(3) end,
-            desc = "Harpoon 3",
-        },
-        ["<leader>l"] = {
-            function() harpoon:list():select(4) end,
-            desc = "harpoon 4",
-        },
 			}
 		})
 	end
