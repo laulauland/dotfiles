@@ -14,13 +14,16 @@ quick-terminal-animation-duration = 0
 # Follow Ghostty prerelease channel (required for newest features like key tables)
 auto-update-channel = tip
 
+clipboard-read = allow
+clipboard-write = allow
+
 # Keep shift+enter for Claude Code multiline input
-keybind = shift+enter=text:\x1b[200~\x0a\x1b[201~
+#keybind = shift+enter=text:\x1b[200~\x0a\x1b[201~
 keybind = alt+arrow_down=jump_to_prompt:+1
 keybind = alt+arrow_up=jump_to_prompt:-1
 
 
-theme = Alabaster
+theme = light:Alabaster, dark:Ghostty Default Style Dark
 
 config-file = mode/normal
 config-file = mode/tmux
