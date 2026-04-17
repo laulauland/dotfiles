@@ -115,11 +115,11 @@
     "plugin-dev@claude-code-plugins": true,
     "frontend-design@claude-plugins-official": true,
     "playground@claude-plugins-official": true,
-    "fp@fiberplane-claude-code-plugins": false,
+    "fp@fiberplane-claude-code-plugins": true,
     "slack@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
-  "effortLevel": "high",
-  "voiceEnabled": true,
-  "skipDangerousModePermissionPrompt": true
+  "effortLevel": "xhigh",
+  "skipDangerousModePermissionPrompt": true,
+  "voiceEnabled": true
 }
