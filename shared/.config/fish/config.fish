@@ -112,6 +112,7 @@ if status is-interactive
 
 	fnm env --use-on-cd --corepack-enabled --shell fish | source
 	atuin init fish --disable-up-arrow | source
+	atuin ai init | source
 	zoxide init fish | source
 
 	# Cache starship init for faster startup
