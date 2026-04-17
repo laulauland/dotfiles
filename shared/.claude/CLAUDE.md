@@ -110,24 +110,6 @@ function complexCalculation(): number {
    - Pay attention to time complexity (O(n)) perfomance
    - Avoid using spread object operator (...) in accumulators
 
-## Dependencies
-
-See if you can avoid dependencies, if you can't - don't modify package.json or Cargo.toml or such files directly instead resort to running CLI commands to add them.
-
-In TypeScript projects always investigate which package manager is being used by checking the lock file:
-- npm: package-lock.json
-- yarn: yarn.lock
-- pnpm: pnpm-lock.yaml
-- bun: bun.lock
-
-## Command Generation
-
-- When generating commands that have ( or ) or other symbols - wrap the strings in ""
-
-## Workflow Rules
-
-- NEVER EVER EVER run a dev server in the session. ALWAYS ask the user to run it in a separate terminal window.
-
 ## Command Line Tools
 
 - Use `fd` instead of `find`
@@ -138,10 +120,6 @@ In TypeScript projects always investigate which package manager is being used by
 - When instructed to write READMEs or PR descriptions keep language plain, straightforward, technical
 - Avoid salesy and PMy adjectives like "comprehensive"
 - If your bullet point list is becoming a 5 point list make it into a paragraph and really consider what's essential to extract into bulletpoints
-
-## Workflow Guidelines
-
-Unless told otherwise, ALWAYS use the code implementer subagent to implement changes that are approved after the plan mode. It is IMPORTANT to do this so that you save on context.
 
 ## Additional Guidelines
 
