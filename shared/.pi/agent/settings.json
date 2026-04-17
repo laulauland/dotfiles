@@ -2,14 +2,13 @@
   "defaultProvider": "openai-codex",
   "defaultModel": "gpt-5.4",
   "defaultThinkingLevel": "xhigh",
-  "theme": "laulauland-light",
-  "lastChangelogVersion": "0.66.1",
+  "lastChangelogVersion": "0.67.68",
+  "theme": "light",
   "enabledModels": [
     "google-gemini-cli/gemini-3-flash-preview",
-    "cerebras/zai-glm-4.7",
-    "opencode-go/minimax-m2.5",
     "opencode-go/kimi-k2.5",
-    "openai-codex/gpt-5.4"
+    "openai-codex/gpt-5.4",
+    "opencode-go/minimax-m2.7"
   ],
   "followUpMode": "one-at-a-time",
   "skills": [
@@ -20,13 +19,9 @@
       "source": "../../code/laulauland/mill/packages/pi-mill",
       "skills": [
         "-.pi-skills/mill/SKILL.md"
-      ],
-      "extensions": [
-        "-index.ts"
       ]
     },
-    "/Users/laurynas-fp/Code/laulauland/pi-agentic-compaction",
-    "git:github.com/laulauland/pi-agentic-compaction"
+    "/Users/laurynas-fp/Code/laulauland/pi-agentic-compaction"
   ],
   "prompts": [
     "-prompts/web-interface-guidelines.md",
@@ -35,14 +30,15 @@
     "-prompts/deslop.md",
     "-prompts/commit.md"
   ],
-  "themes": [
-    "-themes"
-  ],
   "extensions": [
     "-extensions/jj-session-binding.ts",
     "-extensions/file-picker.ts",
     "-extensions/pi-factory/index.ts",
-    "-extensions/shell-completions/index.ts",
-    "-extensions/theme-sync.ts"
-  ]
+    "-extensions/shell-completions/index.ts"
+  ],
+  "pi-agentic-compaction": {
+    "models": [
+      "openai/gpt-5.4-mini"
+    ]
+  }
 }
