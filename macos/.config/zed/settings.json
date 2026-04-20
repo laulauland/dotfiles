@@ -73,7 +73,7 @@
 	"calls": {
 		"mute_on_join": true
 	},
-	"collaboration_panel": { "dock": "right",
+	"collaboration_panel": { "dock": "left",
                           "button": false },
 	"use_smartcase_search": true,
 	"search_wrap": false,
