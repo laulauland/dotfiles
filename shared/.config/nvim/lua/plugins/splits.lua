@@ -1,9 +1,12 @@
 return {
 	'mrjones2014/smart-splits.nvim',
-	cond = function()
-		return vim.env.NVIM_IN_TMUX_POPUP ~= "1"
-	end,
 	config = function()
+		-- Inside a tmux popup the outer TMUX_PANE points at a pane the popup
+		-- server can't address, so the multiplexer integration surfaces errors
+		-- on every edge navigation. Disable the integration in that context.
+		require("smart-splits").setup({
+			multiplexer_integration = vim.env.NVIM_IN_TMUX_POPUP == "1" and false or nil,
+		})
 		require("utils").set_keymaps({
 			[{ "n", "v", "t" }] = {
 				["<C-h>"] = {

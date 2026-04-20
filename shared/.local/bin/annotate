@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
-# annotate — open the last Claude Code assistant message in a nvim tmux-popup,
-# then paste whatever is written below the marker back into the Claude Code input.
+# annotate — open the last Claude Code assistant message in a nvim tmux-popup
+# alongside an empty reply buffer, then paste the reply back into the Claude
+# Code input. Two buffers keeps markdown rendering on the assistant side while
+# the reply side stays plain-text for typing.
 #
 # Intended to be invoked as `!annotate` from inside Claude Code running in tmux.
 
 set -euo pipefail
 
-MARKER="--- CC: write below / only below is returned ---"
 EDITOR_CMD="${ANNOTATE_EDITOR:-nvim}"
 
 die() { printf 'annotate: %s\n' "$*" >&2; exit 1; }
@@ -39,26 +40,24 @@ last_text=$(jq -sr '
 
 tmpdir=$(mktemp -d -t annotate)
 trap 'rm -rf "$tmpdir"' EXIT
-tmpfile="$tmpdir/ANNOTATE.md"
+assistant_file="$tmpdir/assistant.md"
+reply_file="$tmpdir/reply.md"
 
-{
-  printf '%s\n' "Review the assistant message above."
-  printf '%s\n' "Write your follow-up below the marker."
-  printf '%s\n' "Only text below the marker is sent back to Claude Code."
-  printf '\n# Last assistant message\n\n'
-  printf '%s\n\n' "$last_text"
-  printf '%s\n\n' "$MARKER"
-} >"$tmpfile"
+printf '%s\n' "$last_text" >"$assistant_file"
+: >"$reply_file"
 
-reply_line=$(($(grep -n -F -- "$MARKER" "$tmpfile" | cut -d: -f1) + 1))
-
+# -o stacks the files horizontally (assistant on top, reply below). The +cmds
+# run in order in whatever window is active at the time: mark the assistant
+# buffer read-only, then hop down to the reply window.
 tmux display-popup -E -e NVIM_IN_TMUX_POPUP=1 -w 90% -h 90% \
-  "$EDITOR_CMD '+call cursor($reply_line,1)' '+startinsert' '$tmpfile'"
+  "$EDITOR_CMD -o '$assistant_file' '$reply_file' \
+    '+setlocal readonly nomodifiable' \
+    '+wincmd j'"
 
-reply=$(awk -v m="$MARKER" 'f{print} $0==m{f=1}' "$tmpfile")
+reply=$(cat "$reply_file")
 
 if [ -z "$(printf '%s' "$reply" | tr -d '[:space:]')" ]; then
-  die "no follow-up text written below marker"
+  die "no reply written"
 fi
 
 # Paste into the Claude Code pane as a bracketed paste — keeps newlines intact
