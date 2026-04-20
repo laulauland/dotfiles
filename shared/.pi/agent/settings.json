@@ -1,14 +1,14 @@
 {
   "defaultProvider": "openai-codex",
-  "defaultModel": "gpt-5.4",
-  "defaultThinkingLevel": "xhigh",
-  "lastChangelogVersion": "0.67.68",
+  "defaultModel": "gpt-5.5",
+  "defaultThinkingLevel": "low",
+  "lastChangelogVersion": "0.70.2",
   "theme": "light",
   "enabledModels": [
     "google-gemini-cli/gemini-3-flash-preview",
     "opencode-go/kimi-k2.5",
-    "openai-codex/gpt-5.4",
-    "opencode-go/minimax-m2.7"
+    "opencode-go/minimax-m2.7",
+    "openai-codex/gpt-5.5"
   ],
   "followUpMode": "one-at-a-time",
   "skills": [

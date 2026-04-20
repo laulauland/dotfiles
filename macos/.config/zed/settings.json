@@ -6,7 +6,7 @@
  "session": {
   "trust_all_worktrees": true
  },
- "disable_ai": true,
+ "disable_ai": false,
  "edit_predictions": {
   "provider": "copilot"
  },
@@ -58,18 +58,20 @@
   }
  ],
 	"agent_servers": {
-		"claude": {
-			"default_mode": "plan"
-		}
-	},
+  "claude-acp": {
+   "type": "registry",
+   "default_mode": "plan"
+  }
+ },
 	"calls": {
 		"mute_on_join": true
 	},
-	"collaboration_panel": { "button": false },
+	"collaboration_panel": { "dock": "right",
+                          "button": false },
 	"use_smartcase_search": true,
 	"search_wrap": false,
 	"wrap_guides": [80],
-	"git_panel": { "button": true, "dock": "left" },
+	"git_panel": { "button": true, "dock": "right" },
 	"project_panel": {
 		"dock": "right",
 		"auto_reveal_entries": true
@@ -139,11 +141,12 @@
 	},
 	"hover_popover_enabled": true,
 	"agent": {
-		"tool_permissions": {
+		"show_turn_stats": true,
+  "tool_permissions": {
    "default": "allow"
   },
   "message_editor_min_lines": 3,
-		"play_sound_when_agent_done": true,
+		"play_sound_when_agent_done": "always",
 		"profiles": {
 			"write": {
 				"name": "Write",

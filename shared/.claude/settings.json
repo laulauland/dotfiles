@@ -54,7 +54,7 @@
       "EnterPlanMode",
       "ExitPlanMode"
     ],
-    "defaultMode": "acceptEdits"
+    "defaultMode": "auto"
   },
   "hooks": {
     "PreToolUse": [
@@ -121,5 +121,7 @@
   "alwaysThinkingEnabled": true,
   "effortLevel": "xhigh",
   "skipDangerousModePermissionPrompt": true,
-  "voiceEnabled": true
+  "theme": "light-ansi",
+  "voiceEnabled": true,
+  "skipAutoPermissionPrompt": true
 }

@@ -2,6 +2,7 @@ shared/.pi/agent/sessions
 shared/.pi/agent/auth.json
 shared/.config/nvim/lazy-lock.json
 shared/.config/tmux/plugins
+shared/.config/jj/repos/
 node_modules
 
 # FP snapshot directory (isolated git repo for workdir snapshots)
