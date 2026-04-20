@@ -1,5 +1,8 @@
 return {
 	'mrjones2014/smart-splits.nvim',
+	cond = function()
+		return vim.env.NVIM_IN_TMUX_POPUP ~= "1"
+	end,
 	config = function()
 		require("utils").set_keymaps({
 			[{ "n", "v", "t" }] = {
