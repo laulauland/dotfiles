@@ -36,14 +36,6 @@ overview = [
 ]
 l = ["log", "-r", "all()", "--color=always", "-n", "15"]
 n = ["new"]
-# tug = ["bookmark", "move", "--from", "closest_bookmark(@-)", "--to", "@-"]
-tug = ["util", "exec", "--", "sh", "-c", """
-if [ "x$1" = "x" ]; then
-  jj bookmark move --from "closest_bookmark(@)" --to "closest_pushable(@)"
-else
-  jj bookmark move --to "closest_pushable(@)" "$@"
-fi
-""", ""]
 pull = ["git", "fetch"]
 push = [
 	"util",
@@ -107,6 +99,39 @@ gi = ["git", "init"]
 z = ["fuzzy_bookmark"]
 za = ["bookmark", "list", "-a"]
 
+# Megamerge workflow — see https://isaaccorbrey.com/notes/jujutsu-megamerges-for-fun-and-profit
+# Build an octopus merge from N bookmarks, then sit on an empty WIP child:
+#   jj mega feat-a feat-b feat-c
+mega = [
+	"util",
+	"exec",
+	"--",
+	"sh",
+	"-c",
+	"jj new \"$@\" -m megamerge && jj new",
+	"",
+]
+# Insert a revision between trunk() and the nearest megamerge (becomes a new merge parent).
+insert = [
+	"rebase",
+	"--after",
+	"trunk()",
+	"--before",
+	"closest_merge(@)",
+	"--revision",
+]
+# Move every non-empty commit above the megamerge into the megamerge as new parents.
+stage = ["insert", "closest_merge(@)+:: ~ empty()"]
+# Rebase mutable roots onto trunk(), preserving remote-tracked branches.
+restack = [
+	"rebase",
+	"--onto",
+	"trunk()",
+	"--source",
+	"roots(trunk()..) & mutable()",
+	"--simplify-parents",
+]
+
 fuzzy_bookmark = [
 	"util",
 	"exec",
@@ -136,10 +161,15 @@ write-change-id-header = true
 sign-on-push = true
 abandon-unreachable-commits = true
 track-default-bookmark-on-clone = true
-private-commits = "description(glob:'wip:*') | description(glob:'private:*')"
+private-commits = "description(glob:'wip:*') | description(glob:'private:*') | description(exact:'megamerge')"
+
+[revsets]
+# `jj bookmark advance` (alias `jj b a`) targets this; matches old `tug` behavior.
+bookmark-advance-to = "closest_pushable(@)"
 
 [revset-aliases]
 "closest_bookmark(to)" = "heads(::to & bookmarks())"
+"closest_merge(to)" = "heads(::to & merges())"
 "fork_history(to, from)" = "fork_point(to | from)..@"
 "immutable_heads()" = "builtin_immutable_heads() | remote_bookmarks()"
 "closest_pushable(to)" = 'heads(::to & mutable() & ~description(exact:"") & (~empty() | merges()))'

@@ -115,6 +115,26 @@ function complexCalculation(): number {
 - Use `fd` instead of `find`
 - Use `rg` (ripgrep) instead of `grep`
 
+## Version Control
+
+Always use `jj` (Jujutsu), never `git`. The `jujutsu` skill has the command reference.
+
+Custom aliases worth knowing (from `~/.config/jj/config.toml`):
+- `jj overview` — diff stats + last 3 commits (default command)
+- `jj l` — last 15 commits with color
+- `jj stack` — log of the current mutable stack
+- `jj b a` — advance closest bookmark to closest pushable commit (built-in `bookmark advance`, configured via `revsets.bookmark-advance-to`)
+- `jj push` — push closest bookmark or pushable commit
+- `jj pushall` — push to every configured remote
+- `jj sync` — fetch from all remotes
+- `jj merge <bookmark>` — two-way merge commit
+- `jj mega <bookmark>...` — build a megamerge octopus and sit on an empty WIP child
+- `jj insert <rev>` — slot a revision between trunk and the nearest megamerge
+- `jj stage` — fold all non-empty commits above the megamerge into it as new parents
+- `jj restack` — rebase mutable roots onto `trunk()`
+
+**Megamerge watch-out:** if `jj log` shows a commit with description `megamerge` or `@` has a merge ancestor, you're inside the megamerge workflow — read the `jj-megamerge` skill before editing or pushing. The `megamerge` commit is in `git.private-commits`, so a normal push refuses it; never pass `--allow-private` to bypass that. Run `jj git push --dry-run` before the real push.
+
 ## Writing Guidelines
 
 - When instructed to write READMEs or PR descriptions keep language plain, straightforward, technical
