@@ -30,12 +30,7 @@
     "-prompts/deslop.md",
     "-prompts/commit.md"
   ],
-  "extensions": [
-    "-extensions/jj-session-binding.ts",
-    "-extensions/file-picker.ts",
-    "-extensions/pi-factory/index.ts",
-    "-extensions/shell-completions/index.ts"
-  ],
+  "extensions": [],
   "pi-agentic-compaction": {
     "models": [
       "openai/gpt-5.4-mini"
