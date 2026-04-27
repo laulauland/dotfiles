@@ -1,5 +1,6 @@
 {
-	"title_bar": {
+	"cli_default_open_behavior": "existing_window",
+ "title_bar": {
   "show_menus": true
  },
  "ui_font_size": 14.0,
