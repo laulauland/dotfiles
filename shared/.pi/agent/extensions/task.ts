@@ -13,6 +13,7 @@ const START_ALIASES = ["start", "run", "create"] as const;
 const COMPLETE_ALIASES = ["complete", "done", "end"] as const;
 const CANCEL_ALIASES = ["cancel", "stop"] as const;
 const USAGE = "Usage: /task start|run|create <prompt> | /task complete|done|end | /task cancel|stop";
+const NO_SUBAGENT_MESSAGE = "No subagent was started. Continue working in this conversation.";
 
 interface TaskStartData {
 	version: 1;
@@ -20,6 +21,7 @@ interface TaskStartData {
 	taskId: string;
 	prompt: string;
 	createdAt: string;
+	startedBy?: "command" | "tool";
 }
 
 interface TaskCompleteData {
@@ -43,6 +45,7 @@ interface TaskRecord {
 	taskId: string;
 	prompt: string;
 	createdAt: string | undefined;
+	startedBy: "command" | "tool";
 }
 
 interface ActiveTask extends TaskRecord {
@@ -54,6 +57,8 @@ interface TaskCompletionOutcome {
 	kind: "completed" | "cancelled" | "aborted" | "error";
 	message?: string;
 }
+
+type TaskCompletionContext = ExtensionCommandContext | ExtensionContext;
 
 function getTaskSessionStore(): typeof globalThis & {
 	[TASK_SESSION_PATCH_KEY]?: boolean;
@@ -138,6 +143,7 @@ function getTaskStack(ctx: ExtensionContext): ActiveTask[] {
 				taskId,
 				prompt,
 				createdAt: typeof data.createdAt === "string" ? data.createdAt : undefined,
+				startedBy: data.startedBy === "tool" ? "tool" : "command",
 			});
 			continue;
 		}
@@ -175,7 +181,7 @@ function updateTaskStatus(ctx: ExtensionContext): void {
 	const widgetLines = [
 		ctx.ui.theme.fg(
 			"accent",
-			stack.length > 1 ? `🧵 ${stack.length} focused task branches active` : "🧵 Focused task branch active",
+			stack.length > 1 ? `🧵 ${stack.length} focused checkpoints active` : "🧵 Focused checkpoint active",
 		),
 		...stack.map((task) => {
 			const indent = "  ".repeat(Math.max(0, task.depth - 1));
@@ -189,19 +195,19 @@ function updateTaskStatus(ctx: ExtensionContext): void {
 }
 
 function buildTaskUserMessage(prompt: string): string {
-	return `${prompt}\n\nWhen you believe this focused task is complete, explicitly tell the user to run /task complete so the work can be summarized back to the task checkpoint.`;
+	return `${prompt}\n\nYou are still the active agent in this conversation. No subagent was started. Do not call the task tool or start another task for this prompt. Work directly on the task above. When you believe this checkpoint is complete, explicitly tell the user to run /task complete so the work can be summarized back to the checkpoint.`;
 }
 
 function buildCompletionSummaryInstructions(task: ActiveTask, parentTask: ActiveTask | undefined): string {
 	const parentContext = parentTask
-		? `This task was nested inside a parent task with this prompt:\n\n${parentTask.prompt}\n\n`
+		? `This checkpoint was nested inside a parent checkpoint with this prompt:\n\n${parentTask.prompt}\n\n`
 		: "";
 
-	return `${parentContext}This branch was a focused task branch started with this prompt:\n\n${task.prompt}\n\nWhen summarizing back to the checkpoint, focus on:\n- whether the task was completed\n- the most important decisions and why they were made\n- the files that changed\n- validation, tests, or checks that were run\n- any remaining caveats, risks, or follow-up work\n\nKeep the summary concise and action-oriented.`;
+	return `${parentContext}This work checkpoint was started with this prompt:\n\n${task.prompt}\n\nWhen summarizing back to the checkpoint, focus on:\n- whether the checkpointed work was completed\n- the most important decisions and why they were made\n- the files that changed\n- validation, tests, or checks that were run\n- any remaining caveats, risks, or follow-up work\n\nKeep the summary concise and action-oriented.`;
 }
 
 function buildCompletionLoaderMessage(task: ActiveTask): string {
-	return `Returning to ${buildTreeLabel("start", task)} and summarizing this task branch...`;
+	return `Returning to ${buildTreeLabel("start", task)} and summarizing this checkpoint...`;
 }
 
 function parseTaskCommand(input: string):
@@ -240,25 +246,25 @@ function notifyTaskStack(ctx: ExtensionContext): void {
 	}
 
 	ctx.ui.notify(
-		stack.length === 1 ? `Active task: ${stack[0]!.label}` : `Active tasks (${stack.length})`,
+		stack.length === 1 ? `Active checkpoint: ${stack[0]!.label}` : `Active checkpoints (${stack.length})`,
 		"info",
 	);
 	for (const task of stack) {
 		const indent = "  ".repeat(Math.max(0, task.depth - 1));
 		ctx.ui.notify(`${indent}${task.depth}. ${task.label}`, "info");
 	}
-	ctx.ui.notify("Run /task complete to summarize the current task back to its checkpoint.", "info");
-	ctx.ui.notify("Run /task cancel or /task stop to drop the current task in place without summarizing.", "info");
+	ctx.ui.notify("Run /task complete to summarize the current checkpoint.", "info");
+	ctx.ui.notify("Run /task cancel or /task stop to drop the current checkpoint in place without summarizing.", "info");
 }
 
 async function ensureTaskModelReady(ctx: ExtensionContext, action: "starting" | "completing"): Promise<boolean> {
 	if (!ctx.model) {
-		ctx.ui.notify(`Select a model before ${action} a task.`, "error");
+		ctx.ui.notify(`Select a model before ${action} a checkpoint.`, "error");
 		return false;
 	}
 
 	if (!ctx.modelRegistry.hasConfiguredAuth(ctx.model)) {
-		ctx.ui.notify(`Current model is not authenticated. Fix auth before ${action} a task.`, "error");
+		ctx.ui.notify(`Current model is not authenticated. Fix auth before ${action} a checkpoint.`, "error");
 		return false;
 	}
 
@@ -267,6 +273,7 @@ async function ensureTaskModelReady(ctx: ExtensionContext, action: "starting" | 
 
 interface StartTaskOptions {
 	sendKickoffMessage?: boolean;
+	startedBy?: "command" | "tool";
 }
 
 async function startTask(
@@ -289,17 +296,19 @@ async function startTask(
 	const taskId = randomUUID();
 	const previousLeafId = ctx.sessionManager.getLeafId();
 
+	const startedBy = options?.startedBy ?? "command";
 	pi.appendEntry<TaskStartData>(TASK_ENTRY_TYPE, {
 		version: 1,
 		kind: "start",
 		taskId,
 		prompt: normalizedPrompt,
 		createdAt: new Date().toISOString(),
+		startedBy,
 	});
 
 	const checkpointId = ctx.sessionManager.getLeafId();
 	if (!checkpointId || checkpointId === previousLeafId) {
-		throw new Error("Failed to create a task checkpoint.");
+		throw new Error("Failed to create a checkpoint.");
 	}
 
 	const startedTask: ActiveTask = {
@@ -307,6 +316,7 @@ async function startTask(
 		taskId,
 		prompt: normalizedPrompt,
 		createdAt: new Date().toISOString(),
+		startedBy,
 		depth: existingStack.length + 1,
 		label: formatTaskLabel(normalizedPrompt),
 	};
@@ -315,8 +325,8 @@ async function startTask(
 	updateTaskStatus(ctx);
 	ctx.ui.notify(
 		startedTask.depth > 1
-			? `Started nested task ${startedTask.depth}: ${startedTask.label}`
-			: `Started task: ${startedTask.label}`,
+			? `Started nested checkpoint ${startedTask.depth}: ${startedTask.label}`
+			: `Started checkpoint: ${startedTask.label}`,
 		"info",
 	);
 
@@ -328,15 +338,25 @@ async function startTask(
 	return startedTask;
 }
 
-async function completeTask(pi: ExtensionAPI, ctx: ExtensionCommandContext): Promise<void> {
+async function completeTask(
+	pi: ExtensionAPI,
+	ctx: TaskCompletionContext,
+	options?: { requestedBy?: "command" | "tool" },
+): Promise<void> {
 	const stack = getTaskStack(ctx);
 	const activeTask = stack[stack.length - 1];
 	const parentTask = stack.length > 1 ? stack[stack.length - 2] : undefined;
 
 	if (!activeTask) {
-		ctx.ui.notify("No active task on the current branch.", "warning");
+		ctx.ui.notify("No active checkpoint on the current branch.", "warning");
 		ctx.ui.notify("Start one with /task start|run|create <prompt>.", "info");
 		return;
+	}
+
+	if (options?.requestedBy === "tool" && activeTask.startedBy !== "tool") {
+		throw new Error(
+			"The active checkpoint was started manually with /task. Only the user may complete it with /task complete.",
+		);
 	}
 
 	if (!(await ensureTaskModelReady(ctx, "completing"))) {
@@ -345,11 +365,22 @@ async function completeTask(pi: ExtensionAPI, ctx: ExtensionCommandContext): Pro
 
 	const completeNavigation = async (): Promise<TaskCompletionOutcome> => {
 		try {
-			const result = await ctx.navigateTree(activeTask.entryId, {
-				summarize: true,
-				customInstructions: buildCompletionSummaryInstructions(activeTask, parentTask),
-				label: buildTreeLabel("done", activeTask),
-			});
+			const session = getCurrentTaskSession();
+			const result = "navigateTree" in ctx && typeof ctx.navigateTree === "function"
+				? await ctx.navigateTree(activeTask.entryId, {
+						summarize: true,
+						customInstructions: buildCompletionSummaryInstructions(activeTask, parentTask),
+						label: buildTreeLabel("done", activeTask),
+					})
+				: await session?.navigateTree(activeTask.entryId, {
+						summarize: true,
+						customInstructions: buildCompletionSummaryInstructions(activeTask, parentTask),
+						label: buildTreeLabel("done", activeTask),
+					});
+
+			if (!result) {
+				return { kind: "error", message: "No task navigation context is available." };
+			}
 
 			if (result.cancelled) {
 				return { kind: "cancelled" };
@@ -422,20 +453,30 @@ async function completeTask(pi: ExtensionAPI, ctx: ExtensionCommandContext): Pro
 
 	ctx.ui.notify(
 		activeTask.depth > 1
-			? `Completed nested task ${activeTask.depth}: ${activeTask.label}`
-			: `Completed task: ${activeTask.label}`,
+			? `Completed nested checkpoint ${activeTask.depth}: ${activeTask.label}`
+			: `Completed checkpoint: ${activeTask.label}`,
 		"info",
 	);
 }
 
-async function cancelTask(pi: ExtensionAPI, ctx: ExtensionCommandContext): Promise<void> {
+async function cancelTask(
+	pi: ExtensionAPI,
+	ctx: TaskCompletionContext,
+	options?: { requestedBy?: "command" | "tool" },
+): Promise<void> {
 	const stack = getTaskStack(ctx);
 	const activeTask = stack[stack.length - 1];
 
 	if (!activeTask) {
-		ctx.ui.notify("No active task on the current branch.", "warning");
+		ctx.ui.notify("No active checkpoint on the current branch.", "warning");
 		ctx.ui.notify("Start one with /task start|run|create <prompt>.", "info");
 		return;
+	}
+
+	if (options?.requestedBy === "tool" && activeTask.startedBy !== "tool") {
+		throw new Error(
+			"The active checkpoint was started manually with /task. Only the user may cancel it with /task cancel.",
+		);
 	}
 
 	pi.setLabel(activeTask.entryId, undefined);
@@ -449,15 +490,15 @@ async function cancelTask(pi: ExtensionAPI, ctx: ExtensionCommandContext): Promi
 	updateTaskStatus(ctx);
 	ctx.ui.notify(
 		activeTask.depth > 1
-			? `Cancelled nested task ${activeTask.depth} in place: ${activeTask.label}`
-			: `Cancelled task in place: ${activeTask.label}`,
+			? `Cancelled nested checkpoint ${activeTask.depth} in place: ${activeTask.label}`
+			: `Cancelled checkpoint in place: ${activeTask.label}`,
 		"info",
 	);
 }
 
 export default function taskExtension(pi: ExtensionAPI): void {
 	pi.registerCommand("task", {
-		description: "Start, complete, or cancel a focused task branch",
+		description: "Start, complete, or cancel a focused work checkpoint",
 		handler: async (args, ctx) => {
 			const parsed = parseTaskCommand(args);
 
@@ -490,35 +531,69 @@ export default function taskExtension(pi: ExtensionAPI): void {
 	pi.registerTool({
 		name: "task",
 		label: "Task",
-		description:
-			"Start a focused task branch. This only begins a task; the human must later run /task complete or /task cancel manually.",
-		promptSnippet: "Start a focused task branch for a substantial subtask via /task start <prompt>",
+		description: "Start, complete, cancel, or inspect an agent-owned checkpoint in the current conversation. This does not start a subagent.",
+		promptSnippet: "Manage an agent-owned checkpoint in the current conversation",
 		promptGuidelines: [
-			"Use this tool when you want to spin off a focused task branch and keep the main thread cleaner.",
-			"Prefer this for substantial multi-step work such as larger implementations, refactors, debugging passes, migrations, or any subtask likely to take multiple tool calls and responses.",
-			"Examples of good use: implementing a feature across several files, refactoring a subsystem, debugging a failing test suite, migrating code to a new API, or doing a focused investigation-and-fix pass.",
-			"Do not use this for tiny one-shot actions or simple answers that can be handled directly in the current branch.",
-			"Examples of bad use: reading one file to answer a question, making one very small edit, explaining an error message, or running one quick command and reporting the result.",
-			"This tool only starts tasks. A human must later run /task complete or /task cancel manually.",
+			"Use action=start to mark the beginning of a substantial work section in the current conversation.",
+			"This tool is checkpointing, not delegation: no subagent is started and you must continue doing the work yourself.",
+			"After action=start, immediately continue implementing or investigating the checkpointed work unless the user explicitly asked only to create a checkpoint.",
+			"Prefer start for substantial multi-step work such as larger implementations, refactors, debugging passes, migrations, or work likely to take multiple tool calls and responses.",
+			"Do not use start for tiny one-shot actions or simple answers that can be handled directly without a checkpoint.",
 			"This tool creates a checkpoint only at the current message and never sends a kickoff message.",
-			"When you believe this focused task is complete, explicitly tell the user to run /task complete so the work can be summarized back to the task checkpoint.",
+			"For user-requested sequences, start one checkpoint, do the work yourself, complete it, then start the next checkpoint.",
+			"Use action=complete only for a checkpoint that was started by this tool. Manually-started /task checkpoints must be completed by the user with /task complete.",
+			"Do not create nested checkpoints unless the user explicitly asks for nesting.",
 		],
 		parameters: Type.Object({
-			prompt: Type.String({ description: "Focused task prompt to start in a task branch" }),
+			action: Type.Optional(
+				Type.Union([
+					Type.Literal("start"),
+					Type.Literal("complete"),
+					Type.Literal("cancel"),
+					Type.Literal("status"),
+				]),
+			),
+			prompt: Type.Optional(Type.String({ description: "Checkpoint prompt. Required when action is start." })),
 		}),
 		async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
-			const prompt = normalizePrompt(params.prompt);
-			if (!prompt) {
-				throw new Error("Task prompt must not be empty.");
+			const action = params.action ?? "start";
+
+			if (action === "status") {
+				const activeTask = getActiveTask(ctx);
+				return {
+					content: [{ type: "text", text: activeTask ? `Active checkpoint: ${activeTask.label}` : "No active checkpoint." }],
+					details: activeTask ?? null,
+				};
 			}
 
-			const startedTask = await startTask(pi, ctx, prompt, { sendKickoffMessage: false });
+			if (action === "complete") {
+				await completeTask(pi, ctx, { requestedBy: "tool" });
+				return {
+					content: [{ type: "text", text: "Completed active tool-started checkpoint." }],
+					details: {},
+				};
+			}
+
+			if (action === "cancel") {
+				await cancelTask(pi, ctx, { requestedBy: "tool" });
+				return {
+					content: [{ type: "text", text: "Cancelled active tool-started checkpoint." }],
+					details: {},
+				};
+			}
+
+			const prompt = normalizePrompt(params.prompt ?? "");
+			if (!prompt) {
+				throw new Error("Checkpoint prompt must not be empty when action is start.");
+			}
+
+			const startedTask = await startTask(pi, ctx, prompt, { sendKickoffMessage: false, startedBy: "tool" });
 			if (!startedTask) {
-				throw new Error("Failed to start task.");
+				throw new Error("Failed to start checkpoint.");
 			}
 
 			return {
-				content: [{ type: "text", text: `Started task checkpoint: ${startedTask.label}` }],
+				content: [{ type: "text", text: `Checkpoint started: ${startedTask.label}\n${NO_SUBAGENT_MESSAGE}` }],
 				details: {
 					prompt,
 					taskId: startedTask.taskId,

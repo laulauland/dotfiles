@@ -57,15 +57,19 @@ interface HierarchyItem {
 
 // Module-level cache for issues (used by getIssueContext)
 let fpContext: FPContext = { issues: [], ready: false };
+let fpAvailableCache: boolean | undefined;
 
 function isFpAvailable(): boolean {
+	if (fpAvailableCache !== undefined) return fpAvailableCache;
+
 	try {
 		// Try to run fp with any option to check if it's available
 		execSync("fp --version", { stdio: "pipe" });
-		return true;
+		fpAvailableCache = true;
 	} catch {
-		return false;
+		fpAvailableCache = false;
 	}
+	return fpAvailableCache;
 }
 
 function loadFpIssues(): FPContext {
@@ -576,29 +580,26 @@ class FpPickerOverlay {
  * Resolve fp references in a prompt and capture context
  */
 function resolveFpReferences(prompt: string): { resolvedPrompt: string; contexts: string[] } {
+	const matches = Array.from(prompt.matchAll(FP_REF_PATTERN));
+	if (matches.length === 0) {
+		return { resolvedPrompt: prompt, contexts: [] };
+	}
+
 	const contexts: string[] = [];
 
-	// Load/refresh issues if not already loaded, cwd changed, or if fp is available
+	// Load/refresh issues only when the prompt actually contains @fp references.
 	const cwd = process.cwd();
 	if ((!fpContext.ready || fpContext.cwd !== cwd) && isFpAvailable()) {
 		fpContext = loadFpIssues();
 	}
 
-	const resolvedPrompt = prompt.replace(FP_REF_PATTERN, (match, issueId) => {
-		const context = getIssueContext(issueId);
-		// Preserve the reference in the prompt
-		return match;
-	});
-
-	// Collect all referenced issues
-	const matches = prompt.matchAll(FP_REF_PATTERN);
 	for (const match of matches) {
 		const issueId = match[1];
 		const context = getIssueContext(issueId);
 		contexts.push(context);
 	}
 
-	return { resolvedPrompt, contexts };
+	return { resolvedPrompt: prompt, contexts };
 }
 
 export default function (pi: ExtensionAPI) {

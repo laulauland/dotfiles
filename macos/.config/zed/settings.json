@@ -78,7 +78,8 @@
 	"use_smartcase_search": true,
 	"search_wrap": false,
 	"wrap_guides": [80],
-	"git_panel": { "button": true, "dock": "right" },
+	"git_panel": { "tree_view": true,
+                "button": true, "dock": "right" },
 	"project_panel": {
 		"dock": "right",
 		"auto_reveal_entries": true
