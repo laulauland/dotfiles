@@ -28,11 +28,16 @@ export default function thinkingCommand(pi: ExtensionAPI) {
 			return matches.length > 0 ? matches : null;
 		},
 		handler: async (args, ctx) => {
-			const requestedLevel = parseLevel(args);
+			let requestedLevel = parseLevel(args);
 
 			if (!args.trim()) {
-				ctx.ui.notify(`Thinking level: ${pi.getThinkingLevel()}`, "info");
-				return;
+				const currentLevel = pi.getThinkingLevel();
+				const choice = await ctx.ui.select(
+					`Thinking level (current: ${currentLevel})`,
+					THINKING_LEVELS.map((level) => (level === currentLevel ? `${level} (current)` : level)),
+				);
+				if (!choice) return;
+				requestedLevel = parseLevel(choice.replace(" (current)", ""));
 			}
 
 			if (!requestedLevel) {
