@@ -21,7 +21,8 @@
         "-.pi-skills/mill/SKILL.md"
       ]
     },
-    "/Users/laurynas-fp/Code/laulauland/pi-agentic-compaction"
+    "/Users/laurynas-fp/Code/laulauland/pi-agentic-compaction",
+    "npm:@aliou/pi-processes"
   ],
   "prompts": [
     "-prompts/web-interface-guidelines.md",
