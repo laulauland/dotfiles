@@ -61,6 +61,12 @@
   "claude-acp": {
    "type": "registry",
    "default_mode": "plan"
+  },
+  "pi": {
+   "type": "custom",
+   "command": "bunx",
+   "args": ["pi-acp"],
+   "env": {}
   }
  },
 	"calls": {
