@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cmd="${1:-show}"
+
+log_template='"__JJJ__" ++ change_id ++ "\t" ++ change_id.shortest() ++ " " ++ if(description.first_line(), description.first_line(), "(no description set)") ++ " " ++ committer.timestamp().ago() ++ " " ++ author.email() ++ "\n"'
+
+selected=$(
+  jj log -r 'all()' --color=always --template "$log_template" \
+    | perl -ne '
+        if (/^(.*)__JJJ__(.*?)\t(.*)$/) {
+          my ($graph, $rev, $rest) = ($1, $2, $3);
+          $rev =~ s/\e\[[0-9;?]*[ -\/]*[@-~]//g;
+          $last_rev = $rev;
+          print "$rev\t$graph$rest\n";
+        } elsif (defined $last_rev && /[│├╭╮╯]/) {
+          print "$last_rev\t$_";
+        }
+      ' \
+    | fzf \
+        --min-height=15 \
+        --cycle \
+        --ansi \
+        --multi \
+        --layout=reverse \
+        --delimiter=$'\t' \
+        --with-nth=2.. \
+        --preview 'jj show --color=always -r {1}' \
+        --preview-window='right,60%,border-left,hidden,<100(down,50%,border-top)' \
+        --bind 'alt-p:toggle-preview,ctrl-d:preview-half-page-down,ctrl-u:preview-half-page-up' \
+        --prompt "jj $cmd> "
+) || exit 0
+
+revs=$(printf '%s\n' "$selected" | cut -f1 | awk '!seen[$0]++')
+
+while IFS= read -r rev || [[ -n "$rev" ]]; do
+  [[ -n "$rev" ]] || continue
+  jj "$cmd" -r "$rev" "${@:2}"
+done < <(printf '%s\n' "$revs")

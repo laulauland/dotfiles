@@ -14,6 +14,8 @@ const COMPLETE_ALIASES = ["complete", "done", "end"] as const;
 const CANCEL_ALIASES = ["cancel", "stop"] as const;
 const USAGE = "Usage: /task start|run|create <prompt> | /task complete|done|end | /task cancel|stop";
 const NO_SUBAGENT_MESSAGE = "No subagent was started. Continue working in this conversation.";
+let pendingToolCompletionTaskId: string | undefined;
+let pendingToolCompletionInFlight = false;
 
 interface TaskStartData {
 	version: 1;
@@ -496,6 +498,27 @@ async function cancelTask(
 	);
 }
 
+async function completePendingToolTask(pi: ExtensionAPI, ctx: ExtensionContext): Promise<void> {
+	if (!pendingToolCompletionTaskId || pendingToolCompletionInFlight) return;
+
+	const stack = getTaskStack(ctx);
+	const activeTask = stack[stack.length - 1];
+	if (!activeTask || activeTask.taskId !== pendingToolCompletionTaskId) return;
+
+	pendingToolCompletionInFlight = true;
+	try {
+		await completeTask(pi, ctx, { requestedBy: "tool" });
+		pendingToolCompletionTaskId = undefined;
+	} catch (error) {
+		ctx.ui.notify(
+			`Failed to complete checkpoint after turn: ${error instanceof Error ? error.message : String(error)}`,
+			"error",
+		);
+	} finally {
+		pendingToolCompletionInFlight = false;
+	}
+}
+
 export default function taskExtension(pi: ExtensionAPI): void {
 	pi.registerCommand("task", {
 		description: "Start, complete, or cancel a focused work checkpoint",
@@ -567,10 +590,24 @@ export default function taskExtension(pi: ExtensionAPI): void {
 			}
 
 			if (action === "complete") {
-				await completeTask(pi, ctx, { requestedBy: "tool" });
+				const activeTask = getActiveTask(ctx);
+				if (!activeTask) {
+					throw new Error("No active checkpoint on the current branch.");
+				}
+				if (activeTask.startedBy !== "tool") {
+					throw new Error(
+						"The active checkpoint was started manually with /task. Only the user may complete it with /task complete.",
+					);
+				}
+				pendingToolCompletionTaskId = activeTask.taskId;
 				return {
-					content: [{ type: "text", text: "Completed active tool-started checkpoint." }],
-					details: {},
+					content: [
+						{
+							type: "text",
+							text: "Checkpoint marked complete. It will be summarized back after this assistant turn ends.",
+						},
+					],
+					details: { taskId: activeTask.taskId, checkpointId: activeTask.entryId },
 				};
 			}
 
@@ -605,6 +642,9 @@ export default function taskExtension(pi: ExtensionAPI): void {
 	});
 
 	pi.on("session_start", async (_event, ctx) => updateTaskStatus(ctx));
+	pi.on("agent_end", async (_event, ctx) => {
+		await completePendingToolTask(pi, ctx);
+	});
 	pi.on("session_switch", async (_event, ctx) => updateTaskStatus(ctx));
 	pi.on("session_tree", async (_event, ctx) => updateTaskStatus(ctx));
 	pi.on("session_fork", async (_event, ctx) => updateTaskStatus(ctx));

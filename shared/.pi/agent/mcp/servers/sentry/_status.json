@@ -1,6 +1,6 @@
 {
   "state": "auth_required",
-  "checked_at": "2026-04-24T08:04:05.761Z",
+  "checked_at": "2026-04-29T12:53:17.451Z",
   "message": "Server sentry requires authentication",
   "auth_command": "mcpc \"https://mcp.sentry.dev/mcp\" login",
   "tool_count": 0,
