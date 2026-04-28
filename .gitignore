@@ -1,5 +1,6 @@
 shared/.pi/agent/sessions
 shared/.pi/agent/auth.json
+shared/.pi/agent/settings.json
 shared/.config/nvim/lazy-lock.json
 shared/.config/tmux/plugins
 shared/.config/jj/repos/
