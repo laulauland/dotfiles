@@ -24,3 +24,4 @@ bottom
 lazydocker
 stylua
 biome
+emacs
