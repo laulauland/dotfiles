@@ -205,9 +205,12 @@ export default function (pi: ExtensionAPI) {
 		setupFooter(ctx);
 	});
 
-	pi.on("session_switch", async (_event, ctx) => {
-		refreshJjInfo();
-		setupFooter(ctx);
+	pi.on("session_shutdown", async (_event, ctx) => {
+		// Clear the footer before this extension runtime is torn down. The footer's
+		// render callback closes over this session's ctx, which becomes stale after
+		// reload/new/resume/fork. Leaving it registered can crash the TUI on the next
+		// render.
+		ctx.ui.setFooter(undefined);
 	});
 
 	// Refresh when prompt is sent
@@ -216,7 +219,7 @@ export default function (pi: ExtensionAPI) {
 	});
 
 	// Refresh after each tool execution
-	pi.on("tool_end", async () => {
+	pi.on("tool_execution_end", async () => {
 		refreshJjInfo();
 	});
 
