@@ -11,6 +11,7 @@ type ThemeMode = "light" | "dark";
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
 let activeContext: ExtensionContext | null = null;
+let activeToken: symbol | null = null;
 let currentThemeName: string | null = null;
 
 function readMode(value: string | undefined): ThemeMode | null {
@@ -45,15 +46,23 @@ async function detectThemeMode(): Promise<ThemeMode> {
 	return readMode(process.env.TERM_BACKGROUND) ?? readMode(process.env.DFT_BACKGROUND) ?? "light";
 }
 
-async function applyTheme(): Promise<void> {
-	if (!activeContext) return;
+async function applyTheme(ctx = activeContext, token = activeToken): Promise<void> {
+	if (!ctx || !token) return;
 
 	const nextThemeName = themeNameForMode(await detectThemeMode());
+	if (ctx !== activeContext || token !== activeToken) return;
 	if (nextThemeName === currentThemeName) return;
 
-	const result = activeContext.ui.setTheme(nextThemeName);
-	if (result.success) {
-		currentThemeName = nextThemeName;
+	try {
+		const result = ctx.ui.setTheme(nextThemeName);
+		if (ctx !== activeContext || token !== activeToken) return;
+		if (result.success) {
+			currentThemeName = nextThemeName;
+		}
+	} catch (error) {
+		const message = error instanceof Error ? error.message : String(error);
+		if (message.includes("extension ctx is stale")) return;
+		throw error;
 	}
 }
 
@@ -73,15 +82,18 @@ function stopWatcher(): void {
 
 export default function themeSync(pi: ExtensionAPI) {
 	pi.on("session_start", async (_event, ctx) => {
+		const token = Symbol("theme-sync-session");
 		activeContext = ctx;
+		activeToken = token;
 		currentThemeName = null;
-		await applyTheme();
-		startWatcher();
+		await applyTheme(ctx, token);
+		if (activeContext === ctx && activeToken === token) startWatcher();
 	});
 
 	pi.on("session_shutdown", () => {
-		activeContext = null;
-		currentThemeName = null;
 		stopWatcher();
+		activeContext = null;
+		activeToken = null;
+		currentThemeName = null;
 	});
 }

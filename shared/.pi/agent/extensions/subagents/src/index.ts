@@ -208,11 +208,13 @@ export default function minimalSubagents(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "dispatch_subagent",
     label: "Dispatch Subagent",
-    description: "Start one background subagent using the current agent persona/system prompt. Always non-blocking. Multiple dispatch_subagent calls in the same turn are grouped into one completion notification.",
-    promptSnippet: "Dispatch background subagents for independent work",
+    description: "Start one background subagent using the current agent persona/system prompt. Fire-and-forget: this tool returns an agent ID immediately and the parent agent should normally respond to the user confidently instead of waiting for results. Completion notifications arrive later.",
+    promptSnippet: "Dispatch fire-and-forget background subagents for independent work",
     promptGuidelines: [
       "Use dispatch_subagent to delegate independent, parallelizable research or implementation work to a background subagent.",
-      "dispatch_subagent always runs in the background and returns an agent ID immediately; do not wait for it unless you need its result via get_subagent_result.",
+      "dispatch_subagent is fire-and-forget: after dispatching, normally stop and tell the user the subagent is running; do not immediately call get_subagent_result just to wait.",
+      "Only call get_subagent_result when checking a subagent that is likely finished, when listing status, or when the user explicitly asks for the result.",
+      "Never use get_subagent_result wait=true unless the user explicitly asks you to block for completion.",
       "Subagents reuse the current agent persona and system prompt. Provide clear, self-contained prompts.",
       "Use the skills parameter to preload named skills into a subagent when they are relevant; normal skill loading remains available.",
     ],
@@ -246,7 +248,7 @@ export default function minimalSubagents(pi: ExtensionAPI): void {
       trackForSmartGroup(id);
 
       return textResult(
-        `Subagent started in background.\nAgent ID: ${id}\nDescription: ${params.description}\n\nYou will be notified when it completes. Use get_subagent_result with agent_id=${id} to retrieve the result.`,
+        `Subagent started in background.\nAgent ID: ${id}\nDescription: ${params.description}\n\nReturn to the user now; do not block waiting for this subagent unless the user explicitly asked you to. You will be notified when it completes. Use get_subagent_result with agent_id=${id} later to retrieve the result.`,
         { id, status: manager.getRecord(id)?.status },
       );
     },
@@ -255,14 +257,19 @@ export default function minimalSubagents(pi: ExtensionAPI): void {
   pi.registerTool({
     name: "get_subagent_result",
     label: "Get Subagent Result",
-    description: "Check status and retrieve output from a background subagent.",
+    description: "Check status and retrieve output from a background subagent. Prefer non-blocking status checks; do not use wait=true unless the user explicitly asked to wait.",
+    promptGuidelines: [
+      "Use get_subagent_result without wait to check status or fetch an already-completed subagent.",
+      "Do not call get_subagent_result with wait=true immediately after dispatch_subagent; return to the user and let the completion notification arrive instead.",
+      "Use all=true to monitor currently queued/running subagents.",
+    ],
     parameters: Type.Object({
       agent_id: Type.Optional(Type.String({ description: "Agent ID returned by dispatch_subagent. Omit with all=true to list all subagents." })),
       all: Type.Optional(Type.Boolean({ description: "List all known subagents." })),
-      wait: Type.Optional(Type.Boolean({ description: "Wait for the selected subagent to finish before returning." })),
+      wait: Type.Optional(Type.Boolean({ description: "Block until the selected subagent finishes. Avoid this unless the user explicitly asks to wait." })),
       verbose: Type.Optional(Type.Boolean({ description: "Include the subagent conversation transcript." })),
     }),
-    async execute(_toolCallId, params) {
+    async execute(_toolCallId, params, signal) {
       if (params.all || !params.agent_id) {
         const records = manager.list();
         if (records.length === 0) return textResult("No subagents found.");
@@ -273,9 +280,15 @@ export default function minimalSubagents(pi: ExtensionAPI): void {
       if (!record) return textResult(`Subagent not found: ${params.agent_id}`, undefined, true);
 
       if (params.wait && (record.status === "queued" || record.status === "running")) {
-        record.resultConsumed = true;
-        cancelNudge(record.id);
-        await record.done;
+        const interrupted = await new Promise<boolean>((resolve) => {
+          if (signal?.aborted) return resolve(true);
+          const onAbort = () => resolve(true);
+          signal?.addEventListener("abort", onAbort, { once: true });
+          record.done.then(() => resolve(false)).finally(() => signal?.removeEventListener("abort", onAbort));
+        });
+        if (interrupted) {
+          return textResult(`Stopped waiting for subagent ${record.id}; it is still ${record.status}. Use get_subagent_result later, or stop_subagent to kill it.`);
+        }
       }
 
       if (record.status !== "queued" && record.status !== "running") {
@@ -318,6 +331,67 @@ export default function minimalSubagents(pi: ExtensionAPI): void {
       return manager.abort(params.agent_id)
         ? textResult(`Stopped subagent ${params.agent_id}.`)
         : textResult(`Subagent ${params.agent_id} was not found or is not running.`, undefined, true);
+    },
+  });
+
+  pi.registerCommand("subagents", {
+    description: "List background subagents and show their status",
+    handler: async (args) => {
+      const verbose = args.trim() === "--verbose" || args.trim() === "-v";
+      const records = manager.list();
+      const content = records.length === 0
+        ? "No subagents found."
+        : records.map((record) => formatRecordResult(record, verbose)).join("\n\n---\n\n");
+      pi.sendMessage({
+        customType: "subagent-command",
+        display: true,
+        content,
+      });
+    },
+  });
+
+  pi.registerCommand("subagent-result", {
+    description: "Show a subagent result by id; use --verbose for transcript",
+    handler: async (args) => {
+      const parts = args.trim().split(/\s+/).filter(Boolean);
+      const id = parts.find((part) => !part.startsWith("-"));
+      const verbose = parts.includes("--verbose") || parts.includes("-v");
+      if (!id) {
+        pi.sendMessage({ customType: "subagent-command", display: true, content: "Usage: /subagent-result <id> [--verbose]" });
+        return;
+      }
+      const record = manager.getRecord(id);
+      if (!record) {
+        pi.sendMessage({ customType: "subagent-command", display: true, content: `Subagent not found: ${id}` });
+        return;
+      }
+      if (record.status !== "queued" && record.status !== "running") {
+        record.resultConsumed = true;
+        cancelNudge(record.id);
+      }
+      pi.sendMessage({ customType: "subagent-command", display: true, content: formatRecordResult(record, verbose) });
+    },
+  });
+
+  pi.registerCommand("subagent-stop", {
+    description: "Stop a queued or running subagent by id, or use 'all'",
+    handler: async (args) => {
+      const id = args.trim();
+      if (!id) {
+        pi.sendMessage({ customType: "subagent-command", display: true, content: "Usage: /subagent-stop <id|all>" });
+        return;
+      }
+      if (id === "all") {
+        manager.abortAll();
+        pi.sendMessage({ customType: "subagent-command", display: true, content: "Stopped all queued/running subagents." });
+        return;
+      }
+      const ok = manager.abort(id);
+      pi.sendMessage({
+        customType: "subagent-command",
+        display: true,
+        content: ok ? `Stopped subagent ${id}.` : `Subagent ${id} was not found or is not running.`,
+      });
     },
   });
 
