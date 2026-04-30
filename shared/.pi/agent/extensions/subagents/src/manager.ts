@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
+import type { AgentSession, ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 import { runSubagent } from "./runner.js";
 import type { AgentRecord } from "./types.js";
 
@@ -9,6 +9,16 @@ interface SpawnOptions {
   skills?: string[];
   inheritContext?: boolean;
   maxTurns?: number;
+}
+
+function disposeSessionAfterShutdown(session: AgentSession): void {
+  try {
+    void (session.extensionRunner as any).emit({ type: "session_shutdown", reason: "quit" })
+      .catch(() => {})
+      .finally(() => session.dispose?.());
+  } catch {
+    session.dispose?.();
+  }
 }
 
 export class SubagentManager {
@@ -181,7 +191,7 @@ export class SubagentManager {
         record.completedAt ??= Date.now();
         record.resolveDone();
       }
-      record.session?.dispose?.();
+      if (record.session) disposeSessionAfterShutdown(record.session);
     }
     this.agents.clear();
   }
@@ -191,7 +201,7 @@ export class SubagentManager {
     for (const [id, record] of this.agents) {
       if (record.status === "queued" || record.status === "running") continue;
       if ((record.completedAt ?? 0) > cutoff) continue;
-      record.session?.dispose?.();
+      if (record.session) disposeSessionAfterShutdown(record.session);
       this.agents.delete(id);
     }
   }

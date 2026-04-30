@@ -65,6 +65,16 @@ export interface RunSubagentOptions {
   onTurnEnd?: (turnCount: number) => void;
 }
 
+async function shutdownSubagentExtensions(session: AgentSession): Promise<void> {
+  try {
+    await (session.extensionRunner as any).emit({ type: "session_shutdown", reason: "quit" });
+  } catch {
+    // Best-effort cleanup only. AgentSession.dispose() invalidates extension contexts
+    // without emitting session_shutdown, so subagent-hosted extensions with timers
+    // (for example theme-sync) need this explicit shutdown to stop themselves.
+  }
+}
+
 export async function runSubagent(ctx: ExtensionContext, options: RunSubagentOptions): Promise<{ text: string; session: AgentSession; aborted: boolean }> {
   const agentDir = getAgentDir();
   const skillBlocks = preloadSkills(options.skills ?? [], ctx.cwd).map(
@@ -151,6 +161,7 @@ export async function runSubagent(ctx: ExtensionContext, options: RunSubagentOpt
   } finally {
     unsubscribe();
     options.signal.removeEventListener("abort", onAbort);
+    await shutdownSubagentExtensions(session);
   }
 
   return { text: currentText.trim() || lastAssistantText(session), session, aborted };
