@@ -3,6 +3,15 @@ return {
   dependencies = { { "echasnovski/mini.icons", opts = {} } },
 	lazy = false,
 	config = function()
+		vim.api.nvim_set_hl(0, "OilTestFile", { link = "Comment" })
+
+		local function is_test_file(name)
+			return name:match("[._%-]test%.")
+				or name:match("[._%-]spec%.")
+				or name:match("_test%.")
+				or name:match("_spec%.")
+		end
+
 		require("oil").setup({
 		skip_confirm_for_simple_edits = true,
 		columns = {
@@ -16,6 +25,11 @@ return {
 			is_hidden_file = function(name, bufnr) return vim.startswith(name, ".") end,
 			-- This function defines what will never be shown, even when `show_hidden` is set
 			is_always_hidden = function(name, bufnr) return false end,
+			highlight_filename = function(entry)
+				if entry.type == "file" and is_test_file(entry.name) then
+					return "OilTestFile"
+				end
+			end,
 			-- Sort file names in a more intuitive order for humans. Is less performant,
 			-- so you may want to set to false if you work with large directories.
 			natural_order = true,

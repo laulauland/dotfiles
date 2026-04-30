@@ -45,12 +45,19 @@ return {
 			n = {
 				["gs"] = {
 					function()
+						require("aerial").toggle()
+					end,
+					desc = "Show document symbols",
+				},
+
+				["gS"] = {
+					function()
 						-- NOTE: Workaround for https://github.com/stevearc/aerial.nvim/issues/331
 						require("aerial").refetch_symbols()
 						vim.cmd.AerialToggle("float")
 						vim.cmd.doautocmd("BufWinEnter")
 					end,
-					desc = "Show document symbols",
+					desc = "Search document symbols",
 				},
 			}
 		})

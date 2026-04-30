@@ -122,7 +122,7 @@ return {
 					["<leader>fw"] = { function() telescope.extensions.live_grep_args.live_grep_args() end, desc = "Open live grep" },
 					["<leader>fh"] = { function() builtin.help_tags() end, desc = "Open help finder" },
 					["<leader>fm"] = { function() builtin.marks() end, desc = "Open mark finder" },
-					["gS"] = { function() builtin.lsp_dynamic_workspace_symbols() end, desc = "List all symbols", },
+					["<leader>fs"] = { function() builtin.lsp_dynamic_workspace_symbols() end, desc = "List all symbols", },
 				}
 			})
 
