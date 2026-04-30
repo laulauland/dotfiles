@@ -54,7 +54,7 @@
       "EnterPlanMode",
       "ExitPlanMode"
     ],
-    "defaultMode": "auto"
+    "defaultMode": "default"
   },
   "hooks": {
     "PreToolUse": [
@@ -116,12 +116,13 @@
     "frontend-design@claude-plugins-official": true,
     "playground@claude-plugins-official": true,
     "fp@fiberplane-claude-code-plugins": true,
-    "slack@claude-plugins-official": true
+    "slack@claude-plugins-official": true,
+    "figma@claude-plugins-official": true
   },
   "alwaysThinkingEnabled": true,
   "effortLevel": "xhigh",
   "skipDangerousModePermissionPrompt": true,
   "theme": "light-ansi",
-  "voiceEnabled": true,
-  "skipAutoPermissionPrompt": true
+  "skipAutoPermissionPrompt": true,
+  "voiceEnabled": true
 }

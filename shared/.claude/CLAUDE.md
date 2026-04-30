@@ -143,6 +143,8 @@ Custom aliases worth knowing (from `~/.config/jj/config.toml`):
 - List remotes: `jj git remote list` — singular, not `remotes`
 - Move a bookmark backwards: `jj bookmark set NAME -r REV --allow-backwards` — without the flag, jj refuses the move
 
+**Workspaces / worktrees:** when the user asks for a new working copy, worktree, or parallel branch, prefer `pando create <name>` (also installed as `pd`) over `jj workspace add`. Pando CoW-clones the *current directory* including untracked state (build artifacts, deps, dirty edits), so the new workspace is usable immediately without rebuilding. The `pando` skill has the full reference. Fall back to `jj workspace add` only when pando isn't installed or the source has no significant untracked state.
+
 ## Writing Guidelines
 
 - When instructed to write READMEs or PR descriptions keep language plain, straightforward, technical
