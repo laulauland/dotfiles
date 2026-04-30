@@ -99,6 +99,11 @@ gi = ["git", "init"]
 z = ["fuzzy_bookmark"]
 za = ["bookmark", "list", "-a"]
 
+# Catches common git-isms / typos from agents
+cat = ["file", "show"]
+untrack = ["file", "untrack"]
+remotes = ["git", "remote"]
+
 # Megamerge workflow — see https://isaaccorbrey.com/notes/jujutsu-megamerges-for-fun-and-profit
 # Build an octopus merge from N bookmarks, then sit on an empty WIP child:
 #   jj mega feat-a feat-b feat-c

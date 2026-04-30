@@ -135,6 +135,14 @@ Custom aliases worth knowing (from `~/.config/jj/config.toml`):
 
 **Megamerge watch-out:** if `jj log` shows a commit with description `megamerge` or `@` has a merge ancestor, you're inside the megamerge workflow — read the `jj-megamerge` skill before editing or pushing. The `megamerge` commit is in `git.private-commits`, so a normal push refuses it; never pass `--allow-private` to bypass that. Run `jj git push --dry-run` before the real push.
 
+**git→jj translations that fail at runtime** (these are the ones agents reach for from muscle memory):
+- Show a file at a revision: `jj file show -r REV path` — *not* `jj cat`, `jj show REV path`, or `jj show REV:path`
+- Compact log: `jj log` is already compact; use `-T builtin_log_oneline` if you need git's `--oneline` shape — the `--oneline` flag does not exist
+- Push a single bookmark: `jj git push --bookmark NAME` — flag is **singular**, not `--bookmarks`
+- Untrack a file: `jj file untrack PATH` — `jj untrack` is not a subcommand
+- List remotes: `jj git remote list` — singular, not `remotes`
+- Move a bookmark backwards: `jj bookmark set NAME -r REV --allow-backwards` — without the flag, jj refuses the move
+
 ## Writing Guidelines
 
 - When instructed to write READMEs or PR descriptions keep language plain, straightforward, technical
