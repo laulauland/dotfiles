@@ -57,7 +57,11 @@ if [[ "$current_mode" == "$mode" ]]; then
   exit 0
 fi
 
-theme_file="$HOME/.config/tmux/themes/alabaster-${mode}.conf"
+declare -A theme_for_mode=(
+  [light]=alabaster
+  [dark]=usgc-reticle-it
+)
+theme_file="$HOME/.config/tmux/themes/${theme_for_mode[$mode]}-${mode}.conf"
 if [[ ! -f "$theme_file" ]]; then
   exit 0
 fi
