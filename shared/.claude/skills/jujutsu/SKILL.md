@@ -259,6 +259,46 @@ jj squash --from def456 --into abc123
 jj describe -r abc123 -m "feat: implement feature (cleaned up)"
 ```
 
+### Resolving Rebase Conflicts After Deep Squashes
+
+When squashing a validated top-of-stack change into older commits, especially with `--ignore-immutable`, conflicts may repeat through descendants. If the desired final content is already known and validated, prefer a source-of-truth resolution instead of hand-merging every marker.
+
+Workflow:
+
+```bash
+# 1. Record the operation before the risky squash so validated files can be recovered.
+jj op log --limit 5
+# note <before-squash-op>
+
+# 2. Squash one logical slice at a time, not the whole stack.
+jj squash --ignore-immutable --from <source> --into <target> --keep-emptied --use-destination-message <files...>
+
+# 3. Inspect conflicted revisions and files.
+jj log -r 'conflicts() & ::<tip>'
+jj resolve --list -r <first-conflicted-rev>
+
+# 4. Create a temporary child of the first conflicted commit.
+jj new <first-conflicted-rev>
+
+# 5. Replace conflicted files with the already-validated final version.
+jj --at-op <before-squash-op> file show -r <source> <path> > <path>
+# repeat for each conflicted path; preserve executable bit if needed:
+chmod +x <path>
+
+# 6. Squash the resolution into the conflicted parent and continue.
+jj squash --use-destination-message
+
+# 7. Repeat from step 3 if the same conflict reappears later in descendants.
+```
+
+Use this only when the final file content is known-good (e.g. tests passed before history surgery). It is faster and less error-prone than manually resolving the same semantic conflict many times. After the stack is clean, validate again:
+
+```bash
+jj log -r 'conflicts()'
+jj status
+# project checks, e.g. typecheck/tests
+```
+
 ## Typical Workflow
 
 ```bash
