@@ -122,7 +122,7 @@
   "alwaysThinkingEnabled": true,
   "effortLevel": "xhigh",
   "skipDangerousModePermissionPrompt": true,
-  "theme": "light-ansi",
+  "theme": "auto",
   "skipAutoPermissionPrompt": true,
   "voiceEnabled": true
 }
