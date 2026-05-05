@@ -35,9 +35,9 @@ if status is-interactive
 
 	abbr -a pnf "pnpm --filter"
 
-    if test -n "$GHOSTTY_RESOURCES_DIR"
-        source $GHOSTTY_RESOURCES_DIR/shell-integration/fish/vendor_conf.d/ghostty-shell-integration.fish
-    end
+    # if test -n "$GHOSTTY_RESOURCES_DIR"
+    #     source $GHOSTTY_RESOURCES_DIR/shell-integration/fish/vendor_conf.d/ghostty-shell-integration.fish
+    # end
 
 		function mark_prompt_start --on-event fish_prompt
 				echo -en "\e]133;A\e\\"
