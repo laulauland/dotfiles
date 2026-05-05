@@ -1,5 +1,6 @@
 {
-	"cli_default_open_behavior": "existing_window",
+	"icon_theme": "Zed (Default)",
+ "cli_default_open_behavior": "existing_window",
  "title_bar": {
   "show_menus": true
  },
@@ -187,7 +188,11 @@
 		"default_profile": "write",
 		"dock": "left"
 	},
-	"theme": "Alabaster",
+	"theme": {
+  "mode": "system",
+  "light": "One Light",
+  "dark": "One Dark"
+ },
 	"inlay_hints": {
 		"enabled": false
 	},
