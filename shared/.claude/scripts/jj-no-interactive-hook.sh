@@ -25,6 +25,11 @@ command=$(echo "$input" | jq -r '.tool_input.command // ""')
 # Pattern prefix to match jj at start or after command chain operators (&&, ||, ;, |)
 JJ_PREFIX='(^|[[:space:]]&&[[:space:]]|[[:space:]]\|\|[[:space:]]|;[[:space:]]*|\|[[:space:]]*)'
 
+# Allow --help/-h through on any jj subcommand
+if [[ "$command" =~ [[:space:]](-h|--help)([[:space:]]|$) ]]; then
+    exit 0
+fi
+
 # Commands that always open a diff editor
 if [[ "$command" =~ ${JJ_PREFIX}jj[[:space:]]+(diffedit)([[:space:]]|$) ]]; then
     jq -n '{
@@ -38,7 +43,7 @@ if [[ "$command" =~ ${JJ_PREFIX}jj[[:space:]]+(diffedit)([[:space:]]|$) ]]; then
 fi
 
 # jj squash without -m/--message opens an interactive editor
-if [[ "$command" =~ ${JJ_PREFIX}jj[[:space:]]+(squash)([[:space:]]|$) ]] && [[ ! "$command" =~ (-m[[:space:]]|--message[[:space:]]|-m\"|-m\'|--message=) ]]; then
+if [[ "$command" =~ ${JJ_PREFIX}jj[[:space:]]+(squash)([[:space:]]|$) ]] && [[ ! "$command" =~ (-m[[:space:]]|--message[[:space:]]|-m\"|-m\'|--message=|-u([[:space:]]|$)|--use-destination-message([[:space:]]|$)) ]]; then
     jq -n '{
         hookSpecificOutput: {
             hookEventName: "PreToolUse",

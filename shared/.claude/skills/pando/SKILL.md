@@ -20,6 +20,7 @@ The substantive win over plain `jj workspace add` is preserving the *current dir
 ```
 pando create <name> [--from <revset>]   # create workspace, prints abs path on stdout
 pando list                              # NAME / AGE / BASE / JJ (tab-separated)
+pando info <name> --json                # workspace facts as JSON
 pando remove <name> [--keep-jj-workspace]
 pando rm <name>                         # alias of remove
 pando completions <shell>               # bash | zsh | fish | elvish | powershell
@@ -55,17 +56,17 @@ Pass `--keep-jj-workspace` only if the user explicitly wants pando state gone bu
 1. **Names cannot contain whitespace or path separators.** Use kebab/snake-case, e.g. `feature-x`, `review_2025_04`.
 2. **Run `pando create` from inside the source directory.** There is no `--source` flag; the source is always `$PWD`.
 3. **`--from` is silently ignored when the source is not a jj repo.** Don't assume it took effect on a non-jj source.
-4. **`pando create` is atomic.** If jj registration fails, the state directory is rolled back. If `pando rm`'s jj forget step fails, pando state is preserved so the user can retry.
+4. **`pando create` is atomic.** If jj registration or the CoW mount fails, the state directory is rolled back. If `pando rm`'s jj forget step fails, pando state is preserved so the user can retry.
 5. **The workspace is a real directory the user `cd`s into.** Edits there don't touch the canonical source tree (CoW divergence on first write).
-6. **On Linux, OverlayFS may require mount privileges.** If `create` fails with EPERM, that's the cause.
+6. **On Linux, unprivileged users get fuse-overlayfs automatically.** Root uses kernel overlayfs; non-root uses `fuse-overlayfs` (found in PATH, or auto-downloaded as a static binary to `~/.local/share/pando/bin/`). Requires `/dev/fuse` (present on all desktop/server Linux).
 7. **`pando completions` writes to stdout** — redirect into the shell's completions directory, e.g. `pando completions fish > ~/.config/fish/completions/pando.fish`.
 
 ## Inspecting state
 
 ```bash
 pando list                              # workspaces, ages, base commits
-ls "$PANDO_HOME"                        # raw state dirs
-cat "$PANDO_HOME/<name>/meta.toml"      # name, created_at, canonical_root, workspace_path, jj{}
+pando info <name> --json                # name, state_dir, workspace_path, canonical_root, created_at, jj{}
+cat "$PANDO_HOME/<name>/meta.toml"      # raw metadata on disk
 ```
 
 From inside the canonical jj repo, registered pando workspaces also show up in `jj workspace list` as `pando-<name>:...`.

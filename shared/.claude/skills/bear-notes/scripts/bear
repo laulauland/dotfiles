@@ -10,20 +10,10 @@ CORE_DATA_EPOCH="2001-01-01 00:00:00"
 
 # URL encode function for x-callback-url parameters
 urlencode() {
-    local string="${1}"
-    local strlen=${#string}
-    local encoded=""
-    local pos c o
-
-    for (( pos=0 ; pos<strlen ; pos++ )); do
-        c=${string:$pos:1}
-        case "$c" in
-            [-_.~a-zA-Z0-9] ) o="${c}" ;;
-            * ) printf -v o '%%%02x' "'$c"
-        esac
-        encoded+="${o}"
-    done
-    echo "${encoded}"
+    # UTF-8-safe percent-encoding via jq @uri. The previous byte-at-a-time loop
+    # only encoded the first byte of multi-byte chars, mangling em-dashes,
+    # arrows, ellipses, etc. jq is already a hard dependency of this script.
+    printf '%s' "${1}" | jq -sRr '@uri'
 }
 
 # Convert Core Data timestamp to human-readable date
