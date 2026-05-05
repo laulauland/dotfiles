@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+
+# Regenerate the cmux.json "commands" array with one palette entry per project
+# under ~/Code. Each entry, when picked, invokes the sessionizer to focus or
+# create the matching workspace.
+#
+# Run on demand (e.g. after adding a new repo) via the "Refresh Projects"
+# entry in the cmux command palette, or directly from a shell.
+
+set -euo pipefail
+
+cmux_json="$HOME/.config/cmux/cmux.json"
+sessionizer="$HOME/.config/tmux/scripts/sessionizer.sh"
+
+code_dir="$HOME/Code"
+[[ -d "$HOME/code" ]] && code_dir="$HOME/code"
+
+if [[ ! -d $code_dir ]]; then
+    echo "cmux-refresh-projects: $code_dir not found" >&2
+    exit 1
+fi
+
+projects=$(fd -HI --type d --max-depth 3 --prune '.git' "$code_dir" --exec dirname {} | awk '!seen[$0]++' | sort)
+
+new_commands=$(printf '%s\n' "$projects" | jq -R -s --arg sessionizer "$sessionizer" '
+    [{
+        name: "Refresh Projects",
+        keywords: ["refresh", "rescan", "projects", "sessionizer"],
+        command: "cmux-refresh-projects"
+    }] +
+    (
+        split("\n") |
+        map(select(length > 0)) |
+        map({
+            name: ("→ " + (split("/")[-2:] | join("/"))),
+            keywords: ["session", "project", (split("/") | last)],
+            command: ($sessionizer + " " + (. | @sh))
+        })
+    )
+')
+
+tmp=$(mktemp)
+jq --argjson cmds "$new_commands" '.commands = $cmds' "$cmux_json" >"$tmp"
+mv "$tmp" "$cmux_json"
+
+if command -v cmux >/dev/null 2>&1; then
+    cmux reload-config >/dev/null 2>&1 || true
+fi
+
+count=$(echo "$projects" | grep -c .)
+echo "cmux-refresh-projects: wrote $count project entries"

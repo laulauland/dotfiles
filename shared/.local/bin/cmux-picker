@@ -1,0 +1,31 @@
+#!/usr/bin/env bash
+
+# Native fuzzy picker for ~/Code projects. Lists projects via `choose`
+# (a tiny native macOS dropdown) and on selection brings cmux to the front
+# and routes through the sessionizer to focus or create the matching workspace.
+#
+# Wire it to a global hotkey via Karabiner (or any launcher of your choice).
+
+set -euo pipefail
+
+code_dir="$HOME/Code"
+[[ -d "$HOME/code" ]] && code_dir="$HOME/code"
+
+if [[ ! -d $code_dir ]]; then
+    osascript -e "display notification \"$code_dir not found\" with title \"cmux-picker\""
+    exit 1
+fi
+
+projects=$(fd -HI --type d --max-depth 3 --prune '.git' "$code_dir" --exec dirname {} | awk '!seen[$0]++' | sort)
+
+display=$(printf '%s\n' "$projects" | sed "s|^$code_dir/||")
+
+selected=$(printf '%s' "$display" | choose -p "Open project" -n 12 -w 60 -a) || exit 0
+
+[[ -z $selected ]] && exit 0
+
+abs="$code_dir/$selected"
+[[ -d $abs ]] || exit 0
+
+open -a cmux
+"$HOME/.config/tmux/scripts/sessionizer.sh" "$abs"
