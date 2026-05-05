@@ -9,6 +9,7 @@ default-command = "overview"
 editor = "nvim"
 #pager = "delta"
 diff-formatter = "difft"
+merge-editor = "mergiraf"
 
 [merge-tools.difft]
 program = "difft"
@@ -160,6 +161,9 @@ auto-track-bookmarks = "glob:*"
 # # Use Watchman for faster working copy snapshots in large repos
 # # Requires: brew install watchman
 # backend = "watchman"
+
+[snapshot]
+auto-update-stale = true
 
 [git]
 write-change-id-header = true
