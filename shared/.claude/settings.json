@@ -123,9 +123,8 @@
   "autoCompactWindow": 250000,
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
-  "theme": "auto",
+  "theme": "light-ansi",
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
-  "voiceEnabled": true,
-  "agentPushNotifEnabled": true
+  "voiceEnabled": true
 }
