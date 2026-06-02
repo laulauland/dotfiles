@@ -47,7 +47,6 @@ local options = {
     list = true,
     listchars = { -- NOTE: these are the baseline
         tab = "  ",
-        eol = "¬",
         trail = "·",
     },
     foldcolumn = "0",

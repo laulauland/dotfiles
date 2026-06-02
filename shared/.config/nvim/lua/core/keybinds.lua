@@ -133,7 +133,6 @@ require("utils").set_keymaps(
 					else
 						vim.opt.listchars = {
 							tab = "  ",
-							eol = "¬",
 							trail = "·",
 						}
 						vim.g.whitespace = true
