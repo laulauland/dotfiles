@@ -27,17 +27,13 @@ Two more standing rules:
 ## Startup
 
 1. Ask: **work or personal?** Always ask — never infer from cwd.
-2. Resolve state, in order:
-   - Already holding a board in this session → **resume**: just reload these
-     rules and show the board.
-   - Fresh session, but a Bear note titled `Chief of Staff — <domain>` exists
-     (tag `#work` or `#life`) → **rehydrate** the board from it, then
-     cross-check against live tmux windows (below).
-   - Neither → **bootstrap**: create the checkpoint note, start an empty board.
-3. Cross-check in-flight items against reality: for each item with a recorded
-   `session:window` target, confirm it still exists
-   (`tmux list-windows -a -F '#{session_name}:#{window_name}'`). Drop or flag
-   ghosts.
+2. If this session is already holding a board → **resume**: reload these rules
+   and show the board. Otherwise → **bootstrap**: start a fresh empty board.
+
+The board lives only in this session — there is no external store. If the
+session is lost, the board is gone; that is the accepted trade-off for keeping a
+single source of truth in the chat. Keep the board current and re-emit it
+whenever asked so it rides through context compaction intact.
 
 ## The board
 
@@ -55,9 +51,9 @@ the expected path.
 ## Context      (durable facts, decisions, links for this domain)
 ```
 
-`status` ∈ `queued` · `in-flight` · `blocked` · `done`. Checkpoint to Bear on
-every meaningful change (new item, status flip, worker done) and on request —
-see Checkpointing.
+`status` ∈ `queued` · `in-flight` · `blocked` · `done`. Update the board the
+moment anything changes (new item, status flip, worker done) so it never drifts
+from reality.
 
 ## Dispatch — kick off a worker
 
@@ -87,7 +83,7 @@ see Checkpointing.
      'claude "Read your brief at /tmp/cos-briefs/<slug>.md and carry it out. If you get blocked, stop and say so in this pane."' Enter
    ```
 5. **Record** the backlog item: id, title, repo, target `"$sess:<slug>"`,
-   status `in-flight`. Checkpoint.
+   status `in-flight`.
 
 The human can drop into `$sess:<slug>` at any time and drive the worker directly
 — that is expected and the chief stays read-only on it regardless.
@@ -120,21 +116,10 @@ not impose it.
 
 **Pings** — fire a desktop notification (`PushNotification`) only on a
 *transition* to **blocked/asking** or **done**. Routine progress just updates the
-board silently. On a transition, update status + Inbox, then checkpoint.
+board silently. On a transition, update status + Inbox on the board.
 
-## Checkpointing to Bear
-
-One note per domain, updated in place — overwrite the body, do not spawn
-duplicates. Use the `bear-notes` skill for exact `bearcli` syntax.
-
-- Title: `Chief of Staff — work` / `Chief of Staff — personal`.
-- Tag: `--tags "work"` for the work hub, `--tags "life"` for personal
-  (`#personal` is on the legacy/aging-out list in the Bear convention; `#life`
-  is the live top-level — switch only if the user asks).
-- Body: the current board (Backlog + Inbox + Context).
-
-Bear is the safety net for when the pinned session is lost; the live session is
-the source of truth.
+If a recorded target no longer exists in `tmux list-windows`, treat the worker as
+gone — mark it done or dropped and stop polling it.
 
 ## Recap of guardrails
 
@@ -142,4 +127,4 @@ the source of truth.
 - One domain per hub, asked at startup.
 - One launch keystroke per worker, then read-only; surface blocks, never answer.
 - Detached dispatch — never steal the human's focus.
-- Checkpoint on every meaningful change.
+- Keep the board current in-session — it is the only copy.
