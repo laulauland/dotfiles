@@ -58,29 +58,4 @@ M.get_hlgroup = function(name, fallback)
     return fallback
 end
 
-
---- register mappings table with which-key
--- @param mappings nested table of mappings where the first key is the mode, the second key is the prefix, and the value is the mapping table for which-key
--- @param opts table of which-key options when setting the mappings (see which-key documentation for possible values)
---M.which_key_register = function(mappings, opts)
---    local status_ok, which_key = pcall(require, "which-key")
---    if not status_ok then return end
---    for mode, prefixes in pairs(mappings) do
---        for prefix, mapping_table in pairs(prefixes) do
---            which_key.register(
---                mapping_table,
---                vim.tbl_deep_extend(opts, {
---                    mode = mode,
---                    prefix = prefix,
---                    buffer = nil,
---                    silent = true,
---                    noremap = true,
---                    nowait = true,
---                })
---            )
---        end
---    end
---    print(which_key.register)
---end
-
 return M
