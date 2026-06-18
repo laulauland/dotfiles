@@ -105,18 +105,15 @@ if status is-interactive
     bind \co _open_fzf
     bind \e\co _rg_fzf_nvim
 
+	# fnm env embeds a per-shell multishell path, so it must run live (not cached).
 	fnm env --use-on-cd --corepack-enabled --shell fish | source
-	atuin init fish --disable-up-arrow | source
-	atuin ai init | source
-	zoxide init fish | source
 
-	# Cache starship init for faster startup
-	set -l starship_cache ~/.cache/starship/init.fish
-	if not test -f $starship_cache
-		mkdir -p (dirname $starship_cache)
-		starship init fish --print-full-init > $starship_cache
-	end
-	source $starship_cache
+	# Static init scripts: cache to a file and source it instead of re-forking the
+	# tool every startup. __cache_init busts the cache when the binary is upgraded.
+	__cache_init atuin atuin init fish --disable-up-arrow
+	__cache_init atuin-ai atuin ai init
+	__cache_init zoxide zoxide init fish
+	__cache_init starship starship init fish --print-full-init
 
 	# Defer direnv until first prompt/directory change
 	function __direnv_deferred_init --on-event fish_prompt
@@ -182,7 +179,7 @@ function fish_prompt --description 'Write out the prompt'
 end
 
 if type -q zmx
-  zmx completions fish | source
+  __cache_init zmx zmx completions fish
 end
 
 #zmx end
