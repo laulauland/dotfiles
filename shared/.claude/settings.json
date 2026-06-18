@@ -48,7 +48,53 @@
       "Bash(fp-dev review:*)",
       "Bash(./apps/fp/dist/aarch64-apple-darwin/fp view:*)",
       "Bash(FP_DEBUG=1 ./apps/fp/dist/aarch64-apple-darwin/fp view create:*)",
-      "mcp__pencil"
+      "mcp__pencil",
+      "Bash(gh pr view:*)",
+      "Bash(gh pr list:*)",
+      "Bash(/Users/laurynas-fp/Code/work/nocturne/apps/fp/dist/aarch64-apple-darwin/fp issue create:*)",
+      "Bash(/Users/laurynas-fp/Code/work/nocturne/apps/fp/dist/aarch64-apple-darwin/fp tree:*)",
+      "Bash(ast-grep scan:*)",
+      "mcp__codex__codex",
+      "mcp__codex__codex-reply",
+      "mcp__shadcn__get_project_registries",
+      "Bash(bunx:*)",
+      "WebFetch(domain:setup.fp.dev)",
+      "WebFetch(domain:results-receiver.actions.githubusercontent.com)",
+      "Skill(changeset)",
+      "Bash(gh pr checks:*)",
+      "Bash(gh run view:*)",
+      "Bash(gh run list:*)",
+      "Bash(sg scan:*)",
+      "Bash(echo:*)",
+      "Bash(grep:*)",
+      "Read(~/.fiberplane/**)",
+      "Edit(~/.fiberplane/**)",
+      "mcp__agentation__agentation_get_all_pending",
+      "WebFetch(domain:registry.npmjs.org)",
+      "WebFetch(domain:effect-ts.github.io)",
+      "WebFetch(domain:uptrace.dev)",
+      "WebFetch(domain:docs.sentry.io)",
+      "mcp__chrome-devtools__list_pages",
+      "mcp__chrome-devtools__select_page",
+      "mcp__chrome-devtools__take_screenshot",
+      "mcp__chrome-devtools__performance_start_trace",
+      "mcp__chrome-devtools__performance_analyze_insight",
+      "mcp__chrome-devtools__list_console_messages",
+      "mcp__chrome-devtools__take_snapshot",
+      "mcp__chrome-devtools__evaluate_script",
+      "mcp__chrome-devtools__navigate_page",
+      "mcp__chrome-devtools__wait_for",
+      "Bash(gh api:*)",
+      "Bash(gh pr diff:*)",
+      "Bash(awk:*)",
+      "Bash(ELECTRON_RUN_AS_NODE=1 ./node_modules/.bin/electron:*)",
+      "WebFetch(domain:api.anthropic.com)",
+      "Bash(uv run:*)",
+      "Bash(/Users/laurynas-fp/Code/work/nocturne/apps/fp/dist/aarch64-apple-darwin/fp init:*)",
+      "mcp__chrome-devtools__press_key",
+      "WebFetch(domain:cursor.com)",
+      "Bash(tmux list-windows *)",
+      "Bash(bearcli search *)"
     ],
     "deny": [
       "EnterPlanMode",
@@ -57,6 +103,27 @@
     "defaultMode": "default"
   },
   "hooks": {
+    "WorktreeCreate": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/scripts/worktree-create-hook.sh",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "WorktreeRemove": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/scripts/worktree-remove-hook.sh"
+          }
+        ]
+      }
+    ],
     "PreToolUse": [
       {
         "matcher": "Bash",
@@ -123,7 +190,8 @@
   "autoCompactWindow": 250000,
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
-  "theme": "light-ansi",
+  "skipWorkflowUsageWarning": true,
+  "theme": "auto",
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
   "voiceEnabled": true
