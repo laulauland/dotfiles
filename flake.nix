@@ -13,14 +13,26 @@
       url = "github:nix-community/home-manager/release-26.05";
       inputs.nixpkgs.follows = "nixpkgs";
     };
+
+    hermes-agent = {
+      url = "github:NousResearch/hermes-agent";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
+
+    pi = {
+      url = "github:lukasl-dev/pi.nix";
+      inputs.nixpkgs.follows = "nixpkgs";
+    };
   };
 
   outputs =
     {
       determinate,
       disko,
+      hermes-agent,
       home-manager,
       nixpkgs,
+      pi,
       ...
     }:
     {
@@ -36,7 +48,7 @@
           shire = nixpkgs.lib.nixosSystem {
             system = "x86_64-linux";
             specialArgs = {
-              inherit home-manager;
+              inherit hermes-agent home-manager pi;
             };
             modules = shireModules;
           };
@@ -44,7 +56,7 @@
           shire-install = nixpkgs.lib.nixosSystem {
             system = "x86_64-linux";
             specialArgs = {
-              inherit home-manager;
+              inherit hermes-agent home-manager pi;
             };
             modules = shireModules ++ [
               disko.nixosModules.disko

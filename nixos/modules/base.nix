@@ -1,10 +1,21 @@
-{ pkgs, ... }:
+{ hermes-agent, lib, pi, pkgs, ... }:
 
 {
+  nixpkgs.config.allowUnfreePredicate = pkg: builtins.elem (lib.getName pkg) [
+    "claude-code"
+    "codex"
+  ];
+
   nix.settings = {
     experimental-features = [
       "nix-command"
       "flakes"
+    ];
+    extra-substituters = [
+      "https://pi.cachix.org"
+    ];
+    extra-trusted-public-keys = [
+      "pi.cachix.org-1:lGeoGJaZ5ZDabuRzkcD5EBTNnDM4HJ1vqeOxlWk1Flk="
     ];
     trusted-users = [
       "root"
@@ -21,6 +32,7 @@
   };
 
   programs.fish.enable = true;
+  programs.mosh.enable = true;
 
   environment.shells = [
     pkgs.fish
@@ -28,6 +40,8 @@
 
   environment.systemPackages = with pkgs; [
     bat
+    claude-code
+    codex
     difftastic
     direnv
     eza
@@ -39,9 +53,11 @@
     jujutsu
     mergiraf
     neovim
+    pi.packages.${pkgs.system}.coding-agent
     ripgrep
     starship
     tmux
     zoxide
+    hermes-agent.packages.${pkgs.system}.default
   ];
 }

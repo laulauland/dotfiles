@@ -48,6 +48,17 @@
     ];
   };
 
+  swapDevices = [
+    {
+      device = "/swapfile";
+      size = 4096;
+    }
+    {
+      device = "/swapfile-build";
+      size = 4096;
+    }
+  ];
+
   boot.loader.grub.devices = [
     "/dev/sda"
   ];
