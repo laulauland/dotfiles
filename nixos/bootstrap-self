@@ -1,0 +1,26 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_URL=${DOTFILES_REPO_URL:-https://github.com/laulauland/dotfiles.git}
+TARGET=${DOTFILES_DIR:-"$HOME/Code/laulauland/dotfiles"}
+
+if [ "$(hostname -s)" != "shire" ]; then
+	echo "This bootstrap is intended to run on shire."
+	echo "Current host: $(hostname -s)"
+	exit 1
+fi
+
+if [ ! -d "$TARGET" ]; then
+	mkdir -p "$(dirname "$TARGET")"
+	git clone "$REPO_URL" "$TARGET"
+elif [ -d "$TARGET/.git" ]; then
+	git -C "$TARGET" pull --ff-only
+elif [ -d "$TARGET/.jj" ]; then
+	jj --repository "$TARGET" git fetch
+else
+	echo "$TARGET already exists but is not a git or jj checkout."
+	exit 1
+fi
+
+cd "$TARGET"
+exec ./nixos/switch "$@"

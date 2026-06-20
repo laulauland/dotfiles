@@ -4,7 +4,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This is a cross-platform dotfiles repository using GNU Stow for deployment. The configuration supports both macOS and Linux environments with shared configurations.
+This is a dotfiles repository with two deployment paths:
+
+- GNU Stow for macOS workstation and Arch server dotfiles.
+- NixOS flakes for declarative NixOS hosts.
 
 ## Setup and Installation
 
@@ -14,9 +17,14 @@ This is a cross-platform dotfiles repository using GNU Stow for deployment. The 
 ./stow
 ```
 
-This script automatically detects the operating system and deploys the appropriate configurations:
+This script deploys stow-managed home configuration:
+
 - macOS: Deploys `shared` + `macos` directories
-- Linux: Deploys `shared` + `linux` directories
+- Arch Linux: Deploys `shared` + `arch` directories
+- NixOS: Use `./nixos/switch`, which infers the host and runs `nixos-rebuild`
+
+Linux desktop stow configuration is currently archived. NixOS hosts are managed
+from `nixos/`.
 
 ### Prerequisites
 - GNU Stow must be installed
@@ -31,7 +39,10 @@ dotfiles/
 │   ├── .local/bin/   # Custom executable scripts (added to PATH)
 │   └── .config/      # Application configurations
 ├── macos/           # macOS-specific configurations
-├── linux/           # Linux-specific configurations
+├── arch/            # Arch server-specific stow overlay
+├── flake.nix        # NixOS flake entrypoint
+├── nixos/           # NixOS modules and host definitions
+├── archive/         # Archived configs such as the old Linux desktop stow layer
 ├── snippets/        # Code snippets (TypeScript, etc.)
 └── stow             # Deployment script
 ```
@@ -83,12 +94,16 @@ jj pushall           # Push to all configured remotes
 ```
 
 ### Configuration Testing
-- Use `./stow` to test changes
+- Use `./stow` to test macOS and Arch stow changes
+- Use `./nixos/switch` on NixOS hosts
 - No formal test suite - configuration changes are deployed directly
 
 ### File Organization
 - Cross-platform configs go in `shared/`
-- OS-specific configs in respective `macos/` or `linux/` directories
+- macOS-specific configs go in `macos/`
+- Arch server-specific configs go in `arch/`
+- NixOS host state goes in `nixos/hosts/<host>/`
+- Reusable NixOS modules go in `nixos/modules/`
 - Use stow's dotfiles feature (files prefixed with `dot-` become `.filename`)
 
 ## Special Considerations

@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "$#" -lt 1 ]; then
+	echo "Usage: $0 root@<shire-ip-or-host> [nixos-anywhere args...]"
+	exit 64
+fi
+
+TARGET=$1
+shift
+
+ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+
+nix --extra-experimental-features "nix-command flakes" run github:nix-community/nixos-anywhere -- \
+	--option extra-substituters https://install.determinate.systems \
+	--option extra-trusted-public-keys cache.flakehub.com-3:hJuILl5sVK4iKm86JzgdXW12Y2Hwd5G07qKtHTOcDCM= \
+	--generate-hardware-config nixos-generate-config "$ROOT/nixos/hosts/shire/hardware-configuration.nix" \
+	--flake "path:$ROOT#shire-install" \
+	--target-host "$TARGET" \
+	"$@"

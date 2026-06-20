@@ -1,21 +1,40 @@
 #!/usr/bin/env bash
-
-# check if stow is installed, error with message if not
-
-#!/usr/bin/env bash
-
-if ! command -v stow &> /dev/null
-then
-    echo "stow is not installed. Please install it first."
-    exit 1
-fi
+set -euo pipefail
 
 OPERATING_SYSTEM=$(uname)
+HOSTNAME=$(hostname -s 2>/dev/null || hostname)
 
-if [ "$OPERATING_SYSTEM" == "Darwin" ]; then 
-	stow --verbose --restow --adopt --target ~ --dotfiles shared macos
-elif [ "$OPERATING_SYSTEM" == "Linux" ]; then
-	stow --verbose --restow --adopt --target ~ --dotfiles shared linux
-else
+run_stow() {
+	if ! command -v stow >/dev/null 2>&1; then
+		echo "stow is not installed. Please install it first."
+		exit 1
+	fi
+
+	stow --verbose --restow --adopt --target ~ --dotfiles "$@"
+}
+
+is_nixos() {
+	[ -r /etc/os-release ] && grep -q '^ID=nixos$' /etc/os-release
+}
+
+case "$OPERATING_SYSTEM" in
+Darwin)
+	run_stow shared macos
+	;;
+Linux)
+	if is_nixos; then
+		echo "NixOS host '$HOSTNAME' is not stow-managed."
+		echo "Use ./nixos/switch instead."
+		exit 1
+	elif [ -r /etc/os-release ] && grep -q '^ID=arch$' /etc/os-release; then
+		run_stow shared arch
+	else
+		echo "This Linux host is not configured for stow deployment."
+		exit 1
+	fi
+	;;
+*)
 	echo "Your operating system is not supported."
-fi
+	exit 1
+	;;
+esac
