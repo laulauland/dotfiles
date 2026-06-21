@@ -4,6 +4,7 @@
   imports = [
     ./hardware-configuration.nix
     ../../modules/base.nix
+    ../../modules/hermes-gateway.nix
     ../../modules/hetzner-cloud.nix
     ../../modules/ssh.nix
     ../../modules/tailscale.nix

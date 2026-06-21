@@ -58,6 +58,6 @@
     starship
     tmux
     zoxide
-    hermes-agent.packages.${pkgs.system}.default
+    hermes-agent.packages.${pkgs.system}.messaging
   ];
 }
