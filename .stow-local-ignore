@@ -38,5 +38,9 @@ node_modules
 defaults
 ^/defaults$
 
+# Fish stores host-local universal variables here. Do not adopt or stow them.
+(^|/)\.config/fish/fish_variables$
+(^|/)fish_variables$
+
 # our own script
 stow

@@ -4,6 +4,7 @@ shared/.pi/agent/settings.json
 shared/.config/nvim/lazy-lock.json
 shared/.config/tmux/plugins
 shared/.config/jj/repos/
+shared/.config/fish/fish_variables
 shared/.local/share/
 shared/.local/state/
 node_modules

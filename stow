@@ -19,6 +19,8 @@ run_stow() {
 		--ignore='defaults' \
 		--ignore='^\.local/share($|/)' \
 		--ignore='^\.local/state($|/)' \
+		--ignore='(^|/)\.config/fish/fish_variables$' \
+		--ignore='(^|/)fish_variables$' \
 		--target ~ \
 		--dotfiles \
 		"$@"
