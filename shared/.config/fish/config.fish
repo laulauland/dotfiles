@@ -108,11 +108,6 @@ if status is-interactive
     bind \co _open_fzf
     bind \e\co _rg_fzf_nvim
 
-    # fnm env embeds a per-shell multishell path, so it must run live (not cached).
-    if type -q fnm
-        fnm env --use-on-cd --corepack-enabled --shell fish | source
-    end
-
     # Static init scripts: cache to a file and source it instead of re-forking the
     # tool every startup. __cache_init busts the cache when the binary is upgraded.
     if type -q atuin
@@ -136,12 +131,6 @@ if status is-interactive
         end
     end
 end
-
-# bun
-set --export BUN_INSTALL "$HOME/.bun"
-set --export PATH $BUN_INSTALL/bin $PATH
-# cargo
-fish_add_path "$HOME/.cargo/bin"
 
 # Custom scripts
 fish_add_path "$HOME/.local/bin"

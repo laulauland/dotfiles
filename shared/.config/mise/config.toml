@@ -1,0 +1,10 @@
+[tools]
+bun = "latest"
+elixir = "latest"
+erlang = "latest"
+go = "latest"
+hyperfine = "latest"
+node = "latest"
+pnpm = "latest"
+rust = "latest"
+zig = "latest"
