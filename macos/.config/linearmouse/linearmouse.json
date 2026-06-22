@@ -1,6 +1,24 @@
 {
-  "$schema" : "https:\/\/schema.linearmouse.app\/0.10.4",
+  "$schema" : "https:\/\/schema.linearmouse.app\/0.11.2",
   "schemes" : [
-
+    {
+      "if" : {
+        "device" : {
+          "category" : "trackpad",
+          "productID" : "0x0",
+          "productName" : "Apple Internal Keyboard \/ Trackpad",
+          "serialNumber" : "HXMHT300C8Q0000YCJ+ANLB",
+          "vendorID" : "0x0"
+        }
+      },
+      "scrolling" : {
+        "acceleration" : {
+          "vertical" : 1
+        },
+        "speed" : {
+          "vertical" : 0
+        }
+      }
+    }
   ]
 }
