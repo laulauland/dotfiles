@@ -199,3 +199,8 @@ if type -q zmx
 end
 
 #zmx end
+
+# Added by LM Studio CLI (lms)
+set -gx PATH $PATH /Users/laurynas/.lmstudio/bin
+# End of LM Studio CLI section
+
