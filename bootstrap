@@ -27,6 +27,9 @@ install_homebrew() {
 		exit 1
 	fi
 
+	echo "Homebrew install needs sudo once to create system directories."
+	sudo -v
+
 	echo "Installing Homebrew..."
 	NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
 

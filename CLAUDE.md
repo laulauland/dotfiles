@@ -35,7 +35,8 @@ from `nixos/`.
 
 ### Prerequisites
 - macOS bootstrap installs Homebrew if it is missing, then installs GNU Stow from
-  `Brewfile`
+  `Brewfile`. Installing Homebrew may prompt for sudo once; do not run the whole
+  bootstrap script with sudo.
 - `./stow` remains available when you only want to re-apply dotfiles
 - `./macos/defaults` remains available when you only want to re-apply macOS
   System Settings preferences
