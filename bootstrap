@@ -3,6 +3,19 @@ set -euo pipefail
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 OPERATING_SYSTEM=$(uname)
+APPLY_DEFAULTS=0
+
+while [ $# -gt 0 ]; do
+	case "$1" in
+	--defaults)
+		APPLY_DEFAULTS=1
+		shift
+		;;
+	*)
+		break
+		;;
+	esac
+done
 
 install_homebrew() {
 	if command -v brew >/dev/null 2>&1; then
@@ -50,6 +63,10 @@ bootstrap_macos() {
 	brew_install_lines "$REPO_ROOT/Brewfile" formula
 	brew_install_lines "$REPO_ROOT/Caskfile" cask
 	"$REPO_ROOT/stow"
+
+	if [ "$APPLY_DEFAULTS" -eq 1 ]; then
+		"$REPO_ROOT/macos/defaults"
+	fi
 }
 
 case "$OPERATING_SYSTEM" in

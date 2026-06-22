@@ -1,0 +1,125 @@
+#!/usr/bin/env bash
+set -uo pipefail
+
+# Portable macOS preferences. This intentionally avoids stateful domains such as
+# Dock persistent apps, Finder window histories, text replacements, and menu bar
+# binary blobs.
+
+FAILED=0
+
+run() {
+	if ! "$@"; then
+		printf 'warning: failed:' >&2
+		printf ' %q' "$@" >&2
+		printf '\n' >&2
+		FAILED=1
+	fi
+}
+
+write() {
+	run defaults write "$@"
+}
+
+write_global() {
+	write NSGlobalDomain "$@"
+}
+
+# Keyboard and text input.
+write_global ApplePressAndHoldEnabled -bool false
+write_global InitialKeyRepeat -int 13
+write_global KeyRepeat -int 1
+write_global NSAutomaticCapitalizationEnabled -bool false
+write_global NSAutomaticDashSubstitutionEnabled -bool false
+write_global NSAutomaticPeriodSubstitutionEnabled -bool false
+write_global NSAutomaticQuoteSubstitutionEnabled -bool false
+write_global NSAutomaticSpellingCorrectionEnabled -bool false
+write_global WebAutomaticSpellingCorrectionEnabled -bool false
+write_global com.apple.keyboard.fnState -bool true
+
+# General UI behavior.
+write_global AppleInterfaceStyleSwitchesAutomatically -bool true
+write_global AppleMiniaturizeOnDoubleClick -bool false
+write_global AppleShowScrollBars -string WhenScrolling
+write_global AppleSpacesSwitchOnActivate -bool false
+write_global AppleEnableSwipeNavigateWithScrolls -bool false
+write_global AppleEnableMouseSwipeNavigateWithScrolls -bool false
+write_global NSWindowResizeTime -float 0.001
+write_global NSWindowShouldDragOnGesture -bool true
+
+# Locale-style preferences.
+write_global AppleMeasurementUnits -string Centimeters
+write_global AppleMetricUnits -bool true
+write_global AppleTemperatureUnit -string Celsius
+
+# Sound and pointer speed.
+write_global com.apple.sound.beep.feedback -bool false
+write_global com.apple.sound.beep.flash -bool false
+write_global com.apple.mouse.scaling -float 3
+write_global com.apple.scrollwheel.scaling -float 0.5
+write_global com.apple.trackpad.scaling -float 2.5
+
+# Finder.
+write com.apple.finder ShowPathbar -bool true
+write com.apple.finder ShowStatusBar -bool false
+write com.apple.finder FXPreferredViewStyle -string clmv
+write com.apple.finder NewWindowTarget -string PfHm
+write com.apple.finder NewWindowTargetPath -string "file://$HOME/"
+write com.apple.finder ShowExternalHardDrivesOnDesktop -bool false
+write com.apple.finder ShowHardDrivesOnDesktop -bool false
+write com.apple.finder ShowMountedServersOnDesktop -bool false
+write com.apple.finder ShowRemovableMediaOnDesktop -bool false
+
+# Dock, Mission Control, and hot corners.
+write com.apple.dock autohide -bool true
+write com.apple.dock autohide-delay -float 0
+write com.apple.dock orientation -string left
+write com.apple.dock magnification -bool true
+write com.apple.dock largesize -int 85
+write com.apple.dock tilesize -int 34
+write com.apple.dock show-recents -bool false
+write com.apple.dock mru-spaces -bool false
+write com.apple.dock expose-group-apps -bool true
+write com.apple.dock appswitcher-all-displays -bool true
+write com.apple.dock wvous-tl-corner -int 3
+write com.apple.dock wvous-tr-corner -int 2
+write com.apple.dock wvous-bl-corner -int 4
+write com.apple.dock wvous-br-corner -int 5
+write com.apple.dock wvous-tl-modifier -int 0
+write com.apple.dock wvous-tr-modifier -int 0
+write com.apple.dock wvous-bl-modifier -int 0
+write com.apple.dock wvous-br-modifier -int 0
+
+# Trackpad.
+for domain in com.apple.AppleMultitouchTrackpad com.apple.driver.AppleBluetoothMultitouch.trackpad; do
+	write "$domain" Clicking -bool true
+	write "$domain" DragLock -bool false
+	write "$domain" Dragging -bool false
+	write "$domain" TrackpadRightClick -bool true
+	write "$domain" TrackpadThreeFingerDrag -bool false
+	write "$domain" TrackpadThreeFingerTapGesture -int 2
+	write "$domain" TrackpadThreeFingerHorizSwipeGesture -int 2
+	write "$domain" TrackpadThreeFingerVertSwipeGesture -int 2
+	write "$domain" TrackpadFourFingerHorizSwipeGesture -int 2
+	write "$domain" TrackpadFourFingerVertSwipeGesture -int 2
+	write "$domain" TrackpadTwoFingerDoubleTapGesture -int 1
+	write "$domain" TrackpadTwoFingerFromRightEdgeSwipeGesture -int 3
+done
+
+# Stage Manager off, but keep normal desktop widgets visible.
+write com.apple.WindowManager GloballyEnabled -bool false
+write com.apple.WindowManager AutoHide -bool false
+write com.apple.WindowManager HideDesktop -bool false
+write com.apple.WindowManager StageManagerHideWidgets -bool false
+write com.apple.WindowManager StandardHideWidgets -bool false
+
+# Clock.
+write com.apple.menuextra.clock Show24Hour -bool true
+write com.apple.menuextra.clock ShowAMPM -bool true
+write com.apple.menuextra.clock ShowDate -int 2
+write com.apple.menuextra.clock ShowSeconds -bool false
+
+killall Dock >/dev/null 2>&1 || true
+killall Finder >/dev/null 2>&1 || true
+killall SystemUIServer >/dev/null 2>&1 || true
+
+exit "$FAILED"
