@@ -1,0 +1,26 @@
+# USGC HIGHK — PN 5200-010 — white scheme (high dielectric constant)
+# Upstream ships only a Sublime Text scheme (no terminal palette); the 16 ANSI
+# colors below are adapted from the USGC standard-color table for a light bg.
+# Normal colors use the muted standard variants; bright use the fluorescent set.
+palette = 0=#000000
+palette = 1=#660000
+palette = 2=#00A645
+palette = 3=#666600
+palette = 4=#000066
+palette = 5=#660066
+palette = 6=#006666
+palette = 7=#AAAAAA
+palette = 8=#555555
+palette = 9=#FF0000
+palette = 10=#00FF00
+palette = 11=#FFBF00
+palette = 12=#0000FF
+palette = 13=#FF00FF
+palette = 14=#00FFFF
+palette = 15=#2A2A2A
+background = #FFFFFF
+foreground = #000000
+cursor-color = #0000FF
+cursor-text = #FFFFFF
+selection-background = #00FF00
+selection-foreground = #000000
