@@ -11,3 +11,9 @@ Raycast notes:
 - Do not track `~/.config/raycast/extensions` or `~/.config/raycast-x/extensions`:
   these are generated extension caches with compiled JavaScript, source maps,
   and extension-local state. Reinstall extensions through Raycast instead.
+
+Manual app notes:
+
+- Helium is installed as bundle id `net.imput.helium`. Do not use Homebrew's
+  `helium` cask for this app; that cask is a different, deprecated Android
+  utility.

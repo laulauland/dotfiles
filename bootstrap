@@ -4,12 +4,17 @@ set -euo pipefail
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 OPERATING_SYSTEM=$(uname)
 APPLY_DEFAULTS=0
+CHANGE_SHELL=0
 INSTALL_FAILED=0
 
 while [ $# -gt 0 ]; do
 	case "$1" in
 	--defaults)
 		APPLY_DEFAULTS=1
+		shift
+		;;
+	--fish-shell)
+		CHANGE_SHELL=1
 		shift
 		;;
 	*)
@@ -20,6 +25,7 @@ done
 
 install_homebrew() {
 	if command -v brew >/dev/null 2>&1; then
+		eval "$(brew shellenv)"
 		return
 	fi
 
@@ -77,15 +83,59 @@ brew_install_lines() {
 	done <"$file"
 }
 
+mas_install_lines() {
+	local file=$1
+	local app_id
+	local app_name
+
+	[ -f "$file" ] || return
+	command -v mas >/dev/null 2>&1 || return
+
+	while read -r app_id app_name || [ -n "$app_id" ]; do
+		case "$app_id" in
+		"" | \#*) continue ;;
+		esac
+
+		echo "Installing mas app: $app_id $app_name"
+		if ! mas install "$app_id"; then
+			echo "warning: failed to install mas app: $app_id $app_name" >&2
+			INSTALL_FAILED=1
+		fi
+	done <"$file"
+}
+
+set_fish_shell() {
+	local fish_path
+
+	if ! fish_path=$(command -v fish); then
+		echo "warning: fish is not installed; cannot change login shell" >&2
+		INSTALL_FAILED=1
+		return
+	fi
+
+	if [ "$SHELL" = "$fish_path" ]; then
+		return
+	fi
+
+	if ! grep -qxF "$fish_path" /etc/shells; then
+		echo "Adding $fish_path to /etc/shells"
+		echo "$fish_path" | sudo tee -a /etc/shells >/dev/null
+	fi
+
+	echo "Changing login shell to $fish_path"
+	chsh -s "$fish_path"
+}
+
 bootstrap_macos() {
 	install_homebrew
 	brew update
 	install_stow
 	brew_install_lines "$REPO_ROOT/Brewfile" formula
 	brew_install_lines "$REPO_ROOT/Caskfile" cask
+	mas_install_lines "$REPO_ROOT/Masfile"
 
 	if [ "$INSTALL_FAILED" -ne 0 ]; then
-		echo "One or more Homebrew packages failed to install; continuing with dotfiles." >&2
+		echo "One or more packages failed to install; continuing with dotfiles." >&2
 	fi
 
 	"$REPO_ROOT/stow"
@@ -95,6 +145,10 @@ bootstrap_macos() {
 			echo "warning: one or more macOS defaults failed to apply" >&2
 			INSTALL_FAILED=1
 		fi
+	fi
+
+	if [ "$CHANGE_SHELL" -eq 1 ]; then
+		set_fish_shell
 	fi
 
 	exit "$INSTALL_FAILED"

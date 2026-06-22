@@ -18,6 +18,9 @@ This is a dotfiles repository with two deployment paths:
 
 # Also apply portable macOS System Settings defaults
 ./bootstrap --defaults
+
+# Also change the login shell to fish
+./bootstrap --fish-shell
 ```
 
 This script installs platform dependencies, then deploys stow-managed home
@@ -25,8 +28,12 @@ configuration:
 
 - macOS: Installs Homebrew packages from `Brewfile` and `Caskfile`, then deploys
   `shared` + `macos` directories
+- macOS: Installs Mac App Store apps from `Masfile` when `mas` is available and
+  the user is signed in to the App Store
 - macOS with `--defaults`: also applies portable System Settings preferences
   from `macos/defaults`
+- macOS with `--fish-shell`: adds Homebrew fish to `/etc/shells` if needed and
+  runs `chsh -s` for the current user
 - Arch Linux: Deploys `shared` + `arch` directories
 - NixOS: Use `./nixos/switch`, which infers the host and runs `nixos-rebuild`
 
@@ -37,6 +44,9 @@ from `nixos/`.
 - macOS bootstrap installs Homebrew if it is missing, then installs GNU Stow from
   `Brewfile`. Installing Homebrew may prompt for sudo once; do not run the whole
   bootstrap script with sudo.
+- Mac App Store installs require `mas` and an App Store login.
+- Changing the login shell may prompt for sudo to update `/etc/shells`; do not
+  run the whole bootstrap script with sudo.
 - `./stow` remains available when you only want to re-apply dotfiles
 - `./macos/defaults` remains available when you only want to re-apply macOS
   System Settings preferences

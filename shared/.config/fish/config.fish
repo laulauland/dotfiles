@@ -3,6 +3,17 @@
 # set -gx ZEROBREW_PREFIX /opt/zb
 # fish_add_path /opt/zb/bin
 
+# Prefer Homebrew-managed tools over Apple/Xcode shims on macOS.
+if test (uname) = Darwin
+    if test -x /opt/homebrew/bin/brew
+        eval (/opt/homebrew/bin/brew shellenv)
+    else if test -x /usr/local/bin/brew
+        eval (/usr/local/bin/brew shellenv)
+    end
+
+    fish_add_path --prepend /opt/homebrew/bin /opt/homebrew/sbin /usr/local/bin /usr/local/sbin
+end
+
 set -x EDITOR nvim
 set -x VISUAL nvim
 

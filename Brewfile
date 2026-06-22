@@ -39,6 +39,7 @@ lazygit
 lazyjj
 llama.cpp
 mergiraf
+mas
 mise
 mosh
 neovim
