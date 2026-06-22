@@ -204,3 +204,6 @@ end
 set -gx PATH $PATH /Users/laurynas/.lmstudio/bin
 # End of LM Studio CLI section
 
+
+# Pi
+fish_add_path "/Users/laurynas/.local/share/mise/installs/node/26.3.1/bin"
