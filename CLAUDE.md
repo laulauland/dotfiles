@@ -13,13 +13,15 @@ This is a dotfiles repository with two deployment paths:
 
 ### Initial Setup
 ```bash
-# Install dotfiles (requires GNU stow)
-./stow
+# Install workstation dependencies and dotfiles
+./bootstrap
 ```
 
-This script deploys stow-managed home configuration:
+This script installs platform dependencies, then deploys stow-managed home
+configuration:
 
-- macOS: Deploys `shared` + `macos` directories
+- macOS: Installs Homebrew packages from `Brewfile` and `Caskfile`, then deploys
+  `shared` + `macos` directories
 - Arch Linux: Deploys `shared` + `arch` directories
 - NixOS: Use `./nixos/switch`, which infers the host and runs `nixos-rebuild`
 
@@ -27,8 +29,9 @@ Linux desktop stow configuration is currently archived. NixOS hosts are managed
 from `nixos/`.
 
 ### Prerequisites
-- GNU Stow must be installed
-- The script will error with a helpful message if stow is missing
+- macOS bootstrap installs Homebrew if it is missing, then installs GNU Stow from
+  `Brewfile`
+- `./stow` remains available when you only want to re-apply dotfiles
 
 ## Architecture
 
@@ -44,7 +47,8 @@ dotfiles/
 ├── nixos/           # NixOS modules and host definitions
 ├── archive/         # Archived configs such as the old Linux desktop stow layer
 ├── snippets/        # Code snippets (TypeScript, etc.)
-└── stow             # Deployment script
+├── bootstrap        # Dependency + dotfile bootstrap script
+└── stow             # Dotfile deployment script
 ```
 
 ### Key Configuration Areas
@@ -94,7 +98,8 @@ jj pushall           # Push to all configured remotes
 ```
 
 ### Configuration Testing
-- Use `./stow` to test macOS and Arch stow changes
+- Use `./bootstrap` to install/update macOS dependencies and apply dotfiles
+- Use `./stow` to test only macOS and Arch stow changes
 - Use `./nixos/switch` on NixOS hosts
 - No formal test suite - configuration changes are deployed directly
 

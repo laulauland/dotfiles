@@ -1,0 +1,70 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+OPERATING_SYSTEM=$(uname)
+
+install_homebrew() {
+	if command -v brew >/dev/null 2>&1; then
+		return
+	fi
+
+	if [ "$OPERATING_SYSTEM" != "Darwin" ]; then
+		echo "Homebrew is not installed."
+		exit 1
+	fi
+
+	echo "Installing Homebrew..."
+	NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
+
+	if [ -x /opt/homebrew/bin/brew ]; then
+		eval "$(/opt/homebrew/bin/brew shellenv)"
+	elif [ -x /usr/local/bin/brew ]; then
+		eval "$(/usr/local/bin/brew shellenv)"
+	fi
+}
+
+brew_install_lines() {
+	local file=$1
+	local mode=$2
+	local package
+
+	[ -f "$file" ] || return
+
+	while IFS= read -r package || [ -n "$package" ]; do
+		case "$package" in
+		"" | \#*) continue ;;
+		esac
+
+		if [ "$mode" = "cask" ]; then
+			brew install --cask "$package"
+		else
+			brew install "$package"
+		fi
+	done <"$file"
+}
+
+bootstrap_macos() {
+	install_homebrew
+	brew update
+	brew_install_lines "$REPO_ROOT/Brewfile" formula
+	brew_install_lines "$REPO_ROOT/Caskfile" cask
+	"$REPO_ROOT/stow"
+}
+
+case "$OPERATING_SYSTEM" in
+Darwin)
+	bootstrap_macos
+	;;
+Linux)
+	if [ -r /etc/os-release ] && grep -q '^ID=nixos$' /etc/os-release; then
+		exec "$REPO_ROOT/nixos/switch" "$@"
+	fi
+
+	"$REPO_ROOT/stow"
+	;;
+*)
+	echo "Your operating system is not supported."
+	exit 1
+	;;
+esac
