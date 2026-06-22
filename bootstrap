@@ -4,6 +4,7 @@ set -euo pipefail
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 OPERATING_SYSTEM=$(uname)
 APPLY_DEFAULTS=0
+INSTALL_FAILED=0
 
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -40,6 +41,15 @@ install_homebrew() {
 	fi
 }
 
+install_stow() {
+	if command -v stow >/dev/null 2>&1; then
+		return
+	fi
+
+	echo "Installing GNU Stow..."
+	brew install stow
+}
+
 brew_install_lines() {
 	local file=$1
 	local mode=$2
@@ -52,10 +62,17 @@ brew_install_lines() {
 		"" | \#*) continue ;;
 		esac
 
+		echo "Installing $mode: $package"
 		if [ "$mode" = "cask" ]; then
-			brew install --cask "$package"
+			if ! brew install --cask "$package"; then
+				echo "warning: failed to install cask: $package" >&2
+				INSTALL_FAILED=1
+			fi
 		else
-			brew install "$package"
+			if ! brew install "$package"; then
+				echo "warning: failed to install formula: $package" >&2
+				INSTALL_FAILED=1
+			fi
 		fi
 	done <"$file"
 }
@@ -63,13 +80,24 @@ brew_install_lines() {
 bootstrap_macos() {
 	install_homebrew
 	brew update
+	install_stow
 	brew_install_lines "$REPO_ROOT/Brewfile" formula
 	brew_install_lines "$REPO_ROOT/Caskfile" cask
+
+	if [ "$INSTALL_FAILED" -ne 0 ]; then
+		echo "One or more Homebrew packages failed to install; continuing with dotfiles." >&2
+	fi
+
 	"$REPO_ROOT/stow"
 
 	if [ "$APPLY_DEFAULTS" -eq 1 ]; then
-		"$REPO_ROOT/macos/defaults"
+		if ! "$REPO_ROOT/macos/defaults"; then
+			echo "warning: one or more macOS defaults failed to apply" >&2
+			INSTALL_FAILED=1
+		fi
 	fi
+
+	exit "$INSTALL_FAILED"
 }
 
 case "$OPERATING_SYSTEM" in
