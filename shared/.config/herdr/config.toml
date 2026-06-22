@@ -1,0 +1,36 @@
+# herdr configuration
+# Matches the ghostty/tmux setup: colors follow the active USGC terminal theme,
+# keybindings mirror the tmux prefix workflow.
+
+[theme]
+# Render herdr from the host terminal's ANSI palette. ghostty sets that palette
+# from the active USGC-RETICLE-IT (dark) / USGC-HIGHK-IT (light) theme, so herdr
+# tracks whatever scheme ghostty is currently showing.
+name = "terminal"
+
+[theme.custom]
+# Keep the USGC gold as the highlight accent. "yellow" resolves to the live
+# palette's yellow (#FFC200 in RETICLE), so it stays correct across light/dark.
+accent = "yellow"
+
+[keys]
+# Prefix matches tmux's C-Space (replaces herdr's default ctrl+b).
+prefix = "ctrl+space"
+
+# Overrides to match tmux muscle memory. Everything not listed already lines up
+# with the tmux bindings at herdr's defaults:
+#   focus_pane_{left,down,up,right} = prefix+{h,j,k,l}
+#   split_vertical   = prefix+v      (tmux `bind v`  side-by-side)
+#   split_horizontal = prefix+minus  (tmux `bind -`  stacked)
+#   new_tab          = prefix+c      (tmux `bind c`)
+#   close_pane       = prefix+x      (tmux `bind x`)
+#   close_tab        = prefix+shift+x(tmux `bind X`)
+#   workspace_picker = prefix+w      (tmux `bind w`)
+detach = "prefix+d"            # tmux default prefix d
+zoom = "prefix+enter"          # tmux `bind Enter resize-pane -Z`
+reload_config = "prefix+r"     # tmux `bind r source-file`
+resize_mode = "prefix+shift+r" # moved off prefix+r to free reload
+
+[ui]
+# Match the theme accent for borders, highlights, and navigation UI.
+accent = "yellow"
