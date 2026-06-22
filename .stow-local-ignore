@@ -26,5 +26,8 @@ _darcs
 
 stylua.toml
 
+# XDG state/cache data should not be adopted into dotfiles.
+^/\.local/share($|/)
+
 # our own script
 stow
