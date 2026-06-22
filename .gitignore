@@ -5,6 +5,7 @@ shared/.config/nvim/lazy-lock.json
 shared/.config/tmux/plugins
 shared/.config/jj/repos/
 shared/.local/share/
+shared/.local/state/
 node_modules
 
 # FP snapshot directory (isolated git repo for workdir snapshots)

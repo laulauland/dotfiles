@@ -122,4 +122,10 @@ killall Dock >/dev/null 2>&1 || true
 killall Finder >/dev/null 2>&1 || true
 killall SystemUIServer >/dev/null 2>&1 || true
 
+if [ "$FAILED" -eq 0 ]; then
+	echo "macOS defaults applied successfully."
+else
+	echo "macOS defaults completed with warnings." >&2
+fi
+
 exit "$FAILED"

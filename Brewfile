@@ -54,7 +54,7 @@ snitch
 starship
 stow
 stylua
-terraform
+hashicorp/tap/terraform
 tldr
 tmux
 tree-sitter-cli

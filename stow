@@ -10,7 +10,18 @@ run_stow() {
 		exit 1
 	fi
 
-	stow --verbose --restow --adopt --target ~ --dotfiles "$@"
+	stow \
+		--verbose \
+		--restow \
+		--adopt \
+		--no-folding \
+		--ignore='node_modules' \
+		--ignore='defaults' \
+		--ignore='^\.local/share($|/)' \
+		--ignore='^\.local/state($|/)' \
+		--target ~ \
+		--dotfiles \
+		"$@"
 }
 
 is_nixos() {

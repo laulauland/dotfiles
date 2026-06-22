@@ -83,6 +83,25 @@ brew_install_lines() {
 	done <"$file"
 }
 
+brew_tap_lines() {
+	local file=$1
+	local tap
+
+	[ -f "$file" ] || return
+
+	while IFS= read -r tap || [ -n "$tap" ]; do
+		case "$tap" in
+		"" | \#*) continue ;;
+		esac
+
+		echo "Tapping Homebrew repository: $tap"
+		if ! brew tap "$tap"; then
+			echo "warning: failed to tap Homebrew repository: $tap" >&2
+			INSTALL_FAILED=1
+		fi
+	done <"$file"
+}
+
 mas_install_lines() {
 	local file=$1
 	local app_id
@@ -130,6 +149,7 @@ bootstrap_macos() {
 	install_homebrew
 	brew update
 	install_stow
+	brew_tap_lines "$REPO_ROOT/Tapfile"
 	brew_install_lines "$REPO_ROOT/Brewfile" formula
 	brew_install_lines "$REPO_ROOT/Caskfile" cask
 	mas_install_lines "$REPO_ROOT/Masfile"
@@ -138,12 +158,18 @@ bootstrap_macos() {
 		echo "One or more packages failed to install; continuing with dotfiles." >&2
 	fi
 
-	"$REPO_ROOT/stow"
+	if ! "$REPO_ROOT/stow"; then
+		echo "warning: stow failed; continuing with remaining bootstrap steps" >&2
+		INSTALL_FAILED=1
+	fi
 
 	if [ "$APPLY_DEFAULTS" -eq 1 ]; then
+		echo "Applying macOS defaults..."
 		if ! "$REPO_ROOT/macos/defaults"; then
 			echo "warning: one or more macOS defaults failed to apply" >&2
 			INSTALL_FAILED=1
+		else
+			echo "Applied macOS defaults."
 		fi
 	fi
 

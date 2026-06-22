@@ -28,6 +28,15 @@ stylua.toml
 
 # XDG state/cache data should not be adopted into dotfiles.
 ^/\.local/share($|/)
+^/\.local/state($|/)
+
+# Dependency installs are runtime artifacts, not home dotfiles.
+node_modules
+(^|/)node_modules($|/)
+
+# Helper scripts in stow packages should not become ~/defaults, etc.
+defaults
+^/defaults$
 
 # our own script
 stow
