@@ -14,6 +14,39 @@ Use `jj` instead of `git` for all version control operations.
 - No staging area - all changes are part of working copy commit
 - `jj new` creates a new commit on top, making previous commit immutable
 
+### Working-copy & squash hazards (read before history surgery)
+
+These three habits prevent the most expensive jj failures — a polluted commit, a lost
+description, and a stray empty `@` — that cascade from each other.
+
+1. **Park `@` where edits should land BEFORE writing files.** jj auto-snapshots the
+   working copy into whatever `@` points at. If `@` sits on an empty *planned* commit
+   (e.g. a `stage 1` placeholder) and you create files, they snapshot **into that
+   commit**, polluting it. To put new files in their own commit first:
+
+   ```bash
+   jj new --insert-after <spec> -m "docs: the new commit"   # @ lands here; the old child reparents automatically
+   # NOW write the files -> they snapshot into THIS commit, not the planned one
+   jj new                                                    # optional: leave a fresh empty @ so the next edit doesn't grow this commit
+   ```
+
+   Already polluted a commit? Carve files out with `jj split <rev> <paths...>` — do NOT
+   squash them out of `@` (see next point).
+
+2. **Never squash the *entire* contents out of `@`.** `jj squash --from @ --into Y`
+   that empties `@` makes jj **abandon** the now-empty working-copy commit — taking its
+   description with it — and spawn a stray `(no description set)` `@`. Symptoms: "my
+   commit lost its description", "a stray empty `@` appeared", "the planned commit
+   dropped out of the chain". To move content out of `@` use `jj split`; to move files
+   between two non-`@` commits use a path-scoped squash:
+   `jj squash --from <src> --into <dst> <paths...>`.
+
+3. **Confirm every mutation; don't background jj.** `squash`/`split`/`describe` print
+   what they changed — if you saw no output, assume it **didn't run**. After a squash,
+   verify with `jj diff -r <dst> --stat` (moved files appear) and `jj diff -r <src>
+   --stat` (they're gone). `jj op log` shows each operation's `args:`; `jj undo` reverts
+   the last one.
+
 ## Non-Interactive Usage (Required)
 
 **Always use non-interactive forms** - interactive commands open editors/diff tools.
@@ -98,6 +131,35 @@ jj edit <commit>             # Edit a specific commit
 jj next                      # Move to child commit
 jj prev                      # Move to parent commit
 ```
+
+### Revsets & Templates (silent-wrong-answer traps)
+
+Both surfaces are version-sensitive (verified on jj 0.42). Getting the form wrong
+returns the *wrong* answer silently, not an error.
+
+```bash
+# Revsets — description() matches the WHOLE description, not a substring:
+jj log -r 'description("stage 1:")'            # EMPTY — exact-match only
+jj log -r 'description(substring:"stage 1:")'  # correct, case-sensitive
+jj log -r 'description(substring-i:"stage 1")' # correct, case-insensitive
+jj log -r 'children(X) ~ Y'                     # "child of X that is NOT Y" — difference is ~, not &
+```
+
+Change-id prefixes go **stale** after any rewrite — a captured prefix can stop resolving
+just because the commit was rewritten. Re-resolve before reusing.
+
+```bash
+# Templates — call methods on self; use shortest() for ids you'll paste back:
+jj log -T 'self.change_id().shortest(4) ++ " " ++ self.commit_id().shortest(8) ++ if(self.empty()," [E]"," [+]") ++ " | " ++ self.description().first_line() ++ "\n"'
+```
+
+- `commit_id()` alone is the full 40-char hash (jj rejects a half-pasted one as a
+  nonexistent revision). `commit_id().short()` = 12 chars; `commit_id().shortest(N)` =
+  minimal **unique** prefix — that's the pasteable form.
+- `description`/`empty` are **methods on `self`** in commit templates (`self.empty()`),
+  not bare functions.
+- In `jj evolog` the entry type is `CommitEvolutionEntry`: reach the commit via
+  `commit.commit_id()`, not `self.commit_id()`.
 
 ### Syncing with Remote
 
@@ -214,7 +276,15 @@ jj squash --from <source-rev> --into <target-rev>
 
 # Squash range of commits into one:
 jj squash --from <oldest>::<newest> --into <target>
+
+# Move only specific paths (leaves the rest in the source):
+jj squash --from <source-rev> --into <target-rev> <paths...>
 ```
+
+Caveats: if the source is `@` and the squash empties it, jj abandons it and spawns a
+stray empty `@` (see "Working-copy & squash hazards"). `-u` /
+`--use-destination-message` **discards the source message** and keeps the destination's
+— only pass it when you mean that.
 
 ### Edit Any Commit in History
 
@@ -271,6 +341,8 @@ jj op log --limit 5
 # note <before-squash-op>
 
 # 2. Squash one logical slice at a time, not the whole stack.
+#    --use-destination-message is intentional here: we want the target's message, not the source's.
+#    --keep-emptied avoids abandoning the source if the slice empties it.
 jj squash --ignore-immutable --from <source> --into <target> --keep-emptied --use-destination-message <files...>
 
 # 3. Inspect conflicted revisions and files.
