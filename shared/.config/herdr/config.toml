@@ -1,36 +1,61 @@
+onboarding = false
 # herdr configuration
-# Matches the ghostty/tmux setup: colors follow the active USGC terminal theme,
+# Matches the ghostty/tmux setup: colors follow the active terminal theme, and
 # keybindings mirror the tmux prefix workflow.
 
 [theme]
-# Render herdr from the host terminal's ANSI palette. ghostty sets that palette
-# from the active USGC-RETICLE-IT (dark) / USGC-HIGHK-IT (light) theme, so herdr
-# tracks whatever scheme ghostty is currently showing.
+# Use a custom terminal-adaptive palette: Ghostty provides Alabaster in light
+# mode and USGC-RETICLE-IT in dark mode, while Herdr uses the live ANSI colors
+# exposed by the terminal. The overrides below remove the low-contrast gray
+# chrome combinations from the stock `terminal` Herdr theme.
 name = "terminal"
+auto_switch = true
+light_name = "terminal"
+dark_name = "terminal"
 
 [theme.custom]
-# Keep the USGC gold as the highlight accent. "yellow" resolves to the live
-# palette's yellow (#FFC200 in RETICLE), so it stays correct across light/dark.
-accent = "yellow"
+# Keep most UI chrome on the terminal default foreground/background so it tracks
+# Alabaster/USGC automatically. Use an explicit high-contrast focus color for
+# Herdr chrome: navigator rows use accent as the selection background, while
+# workspace/agent lists use surface colors for the focused row. Keep those row
+# backgrounds pale so Herdr's default foreground remains readable in both modes.
+panel_bg = "reset"
+surface0 = "#b9dcff"
+surface1 = "#dcebff"
+surface_dim = "#dcebff"
+overlay0 = "reset"
+overlay1 = "#000000"
+text = "reset"
+subtext0 = "reset"
+accent = "#005fcc"
 
 [keys]
 # Prefix matches tmux's C-Space (replaces herdr's default ctrl+b).
 prefix = "ctrl+space"
 
-# Overrides to match tmux muscle memory. Everything not listed already lines up
-# with the tmux bindings at herdr's defaults:
-#   focus_pane_{left,down,up,right} = prefix+{h,j,k,l}
-#   split_vertical   = prefix+v      (tmux `bind v`  side-by-side)
-#   split_horizontal = prefix+minus  (tmux `bind -`  stacked)
-#   new_tab          = prefix+c      (tmux `bind c`)
-#   close_pane       = prefix+x      (tmux `bind x`)
-#   close_tab        = prefix+shift+x(tmux `bind X`)
-#   workspace_picker = prefix+w      (tmux `bind w`)
-detach = "prefix+d"            # tmux default prefix d
-zoom = "prefix+enter"          # tmux `bind Enter resize-pane -Z`
-reload_config = "prefix+r"     # tmux `bind r source-file`
-resize_mode = "prefix+shift+r" # moved off prefix+r to free reload
+# Tmux-oriented bindings. Herdr supports one binding per action, so where tmux
+# has aliases this picks the binding from tmux.conf that best matches intent.
+help = "prefix+?"
+detach = "prefix+d"              # tmux default prefix d
+reload_config = "prefix+r"       # tmux `bind r source-file`
+workspace_picker = "prefix+w"    # tmux session picker
+new_workspace = "prefix+shift+s" # tmux `bind S` new session equivalent
+new_tab = "prefix+c"             # tmux `bind c`
+previous_tab = "prefix+p"        # tmux default previous-window
+next_tab = "prefix+n"            # tmux default next-window
+switch_tab = "prefix+1..9"       # tmux window indexes
+close_pane = "prefix+x"          # tmux `bind x`
+close_tab = "prefix+shift+x"     # tmux `bind X`
+focus_pane_left = "prefix+h"
+focus_pane_down = "prefix+j"
+focus_pane_up = "prefix+k"
+focus_pane_right = "prefix+l"
+split_vertical = "prefix+|"      # tmux `bind |` side-by-side split
+split_horizontal = "prefix+minus" # tmux `bind -` stacked split
+zoom = "prefix+enter"            # tmux `bind Enter resize-pane -Z`
+edit_scrollback = "prefix+y"     # tmux copy-mode binding
+resize_mode = "prefix+shift+r"   # keep prefix+r reserved for reload
 
 [ui]
-# Match the theme accent for borders, highlights, and navigation UI.
-accent = "yellow"
+# Let [theme.custom].accent drive borders, highlights, and navigation UI.
+agent_panel_scope = "all"
