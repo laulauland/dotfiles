@@ -100,7 +100,7 @@
       "EnterPlanMode",
       "ExitPlanMode"
     ],
-    "defaultMode": "default"
+    "defaultMode": "auto"
   },
   "hooks": {
     "WorktreeCreate": [
