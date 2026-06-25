@@ -1,0 +1,30 @@
+id = "laulauland.pando-workspace"
+name = "Pando workspaces"
+version = "0.1.0"
+min_herdr_version = "0.7.0"
+description = "Create and remove pando copy-on-write workspaces from Herdr."
+platforms = ["linux", "macos"]
+
+[[actions]]
+id = "new"
+title = "New Pando workspace from here"
+contexts = ["workspace", "global"]
+command = ["./bin/pando-workspace", "open", "workspace"]
+
+[[actions]]
+id = "new-tab"
+title = "New Pando workspace from here (tab)"
+contexts = ["workspace", "global"]
+command = ["./bin/pando-workspace", "open", "tab"]
+
+[[panes]]
+id = "wizard"
+title = "New pando workspace"
+placement = "overlay"
+command = ["./bin/pando-workspace", "wizard"]
+
+[[actions]]
+id = "remove"
+title = "Remove pando workspace"
+contexts = ["workspace"]
+command = ["./bin/pando-workspace", "remove"]
