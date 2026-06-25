@@ -1,5 +1,4 @@
-import { CustomEditor, type ExtensionAPI, type ExtensionContext } from "@mariozechner/pi-coding-agent";
-import { truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
+import type { ExtensionAPI, ExtensionContext } from "@mariozechner/pi-coding-agent";
 
 type ProviderPatch = {
 	/** Exact pi provider name, e.g. "openai", "openai-codex", "anthropic". */
@@ -20,32 +19,6 @@ const FAST_PROVIDERS: ProviderPatch[] = [
 ];
 
 const STATUS_ID = "fast-mode";
-const EDITOR_LABEL = " FAST ";
-
-class FastModeEditor extends CustomEditor {
-	constructor(
-		tui: ConstructorParameters<typeof CustomEditor>[0],
-		theme: ConstructorParameters<typeof CustomEditor>[1],
-		keybindings: ConstructorParameters<typeof CustomEditor>[2],
-		private readonly isFastModeActive: () => boolean,
-		private readonly accent: (text: string) => string,
-	) {
-		super(tui, theme, keybindings);
-	}
-
-	render(width: number): string[] {
-		const lines = super.render(width);
-		if (!this.isFastModeActive()) return lines;
-
-		return lines.map((line, index) => {
-			let next = line.replace(/[─│╭╮╰╯]/g, (char) => this.accent(char));
-			if (index === lines.length - 1 && visibleWidth(next) >= EDITOR_LABEL.length) {
-				next = truncateToWidth(next, width - EDITOR_LABEL.length, "") + this.accent(EDITOR_LABEL);
-			}
-			return next;
-		});
-	}
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
 	return typeof value === "object" && value !== null && !Array.isArray(value);
@@ -93,11 +66,6 @@ export default function fastMode(pi: ExtensionAPI) {
 
 	pi.on("session_start", async (_event, ctx) => {
 		currentModel = ctx.model;
-		if (ctx.hasUI) {
-			ctx.ui.setEditorComponent((tui, theme, keybindings) =>
-				new FastModeEditor(tui, theme, keybindings, () => enabled, (text) => ctx.ui.theme.fg("accent", text)),
-			);
-		}
 		updateStatus(ctx);
 	});
 

@@ -23,11 +23,12 @@
     "down",
     "ctrl+n"
   ],
-  "app.model.cycleForward": "",
-  "app.model.cycleBackward": "",
+  "app.model.cycleForward": [],
+  "app.model.cycleBackward": [],
   "app.model.select": "ctrl+/",
-  "app.thinking.cycle": "",
-  "app.thinking.toggle": "",
+  "app.thinking.cycle": [],
+  "app.thinking.toggle": [],
+  "app.tools.expand": "ctrl+o",
   "app.message.followUp": [
     "ctrl+enter"
   ],
