@@ -25,6 +25,22 @@ return {
 						function() require("jj-review").refresh() end,
 						desc = "Refresh review comments",
 					},
+					-- `:.JJReview add` → range == 1, anchors to the cursor line.
+					-- (<leader>ca is LSP code action; review comment is <leader>cm.)
+					["<leader>cm"] = {
+						":.JJReview add<CR>",
+						desc = "Add review comment on line",
+					},
+				},
+				-- A leading `:` in a visual mapping auto-inserts `'<,'>`, so this
+				-- runs `:'<,'>JJReview add` → range == 2, anchors to the selection.
+				-- The selection highlight clears (leaving visual mode), but the line
+				-- range is already captured before the command runs.
+				x = {
+					["<leader>cm"] = {
+						":JJReview add<CR>",
+						desc = "Add review comment on selection",
+					},
 				},
 			})
 		end,
