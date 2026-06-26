@@ -19,6 +19,49 @@
           "vertical" : 0
         }
       }
+    },
+    {
+      "buttons" : {
+        "mappings" : [
+          {
+            "action" : {
+              "keyPress" : [
+                "control",
+                "shift",
+                "tab"
+              ]
+            },
+            "command" : false,
+            "control" : false,
+            "option" : false,
+            "scroll" : "right",
+            "shift" : false
+          },
+          {
+            "action" : {
+              "keyPress" : [
+                "control",
+                "tab"
+              ]
+            },
+            "command" : false,
+            "control" : false,
+            "option" : false,
+            "scroll" : "left",
+            "shift" : false
+          }
+        ]
+      },
+      "if" : {
+        "app" : "net.imput.helium",
+        "device" : {
+          "category" : "mouse",
+          "productID" : "0xb01d",
+          "productName" : "MX Ergo",
+          "serialNumber" : "D28F4F0BAB09E01A",
+          "vendorID" : "0x46d"
+        }
+      }
     }
   ]
 }
