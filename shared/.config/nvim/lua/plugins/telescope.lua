@@ -47,6 +47,44 @@ return {
 				error("Could not launch jj/git files:\n" .. tostring(jj_err) .. "\n" .. tostring(git_err))
 			end
 
+			-- Telescope's commands picker feedkeys `:Name ` with no range, so a
+			-- visual selection is dropped. Launch it remembering the selection and
+			-- prepend `'<,'>` so range-aware commands (e.g. JJReview add) anchor.
+			local function command_palette()
+				local mode = vim.fn.mode()
+				local range_prefix = ""
+				if mode == "v" or mode == "V" or mode == "\22" then
+					-- Leave visual so the '< and '> marks update to this selection.
+					vim.api.nvim_feedkeys(
+						vim.api.nvim_replace_termcodes("<Esc>", true, false, true),
+						"nx",
+						false
+					)
+					range_prefix = "'<,'>"
+				end
+
+				builtin.commands({
+					attach_mappings = function(prompt_bufnr)
+						local action_state = require("telescope.actions.state")
+						actions.select_default:replace(function()
+							local selection = action_state.get_selected_entry()
+							if selection == nil then
+								return
+							end
+							actions.close(prompt_bufnr)
+							local val = selection.value
+							local cmd = string.format(":%s%s ", range_prefix, val.name)
+							if val.nargs == "0" then
+								cmd = cmd .. vim.api.nvim_replace_termcodes("<cr>", true, false, true)
+							end
+							vim.cmd("stopinsert")
+							vim.api.nvim_feedkeys(cmd, "nt", false)
+						end)
+						return true
+					end,
+				})
+			end
+
 			telescope.setup({
 				defaults = {
 					color_devicons = false,
@@ -111,9 +149,9 @@ return {
 			local set_keymaps = require("utils").set_keymaps
 			set_keymaps({
 				n = {
-					["<S-C-p>"] = { function() builtin.commands() end, desc = "Open command finder" },
+					["<S-C-p>"] = { command_palette, desc = "Open command finder" },
 					["<C-p>"] = { function() builtin.find_files() end, desc = "Open fuzzy finder" },
-					["<leader><leader>"] = { function() builtin.commands() end, desc = "Command palette" },
+					["<leader><leader>"] = { command_palette, desc = "Command palette" },
 					["<leader>b"] = { function() builtin.buffers() end, desc = "Open buffers" },
 					["<leader>ff"] = { function() builtin.find_files() end, desc = "Open fuzzy finder" },
 					["<leader>fF"] = { function() builtin.find_files({ hidden = true }) end, desc = "Open fuzzy finder ALL" },
@@ -123,6 +161,9 @@ return {
 					["<leader>fh"] = { function() builtin.help_tags() end, desc = "Open help finder" },
 					["<leader>fm"] = { function() builtin.marks() end, desc = "Open mark finder" },
 					["<leader>fs"] = { function() builtin.lsp_dynamic_workspace_symbols() end, desc = "List all symbols", },
+				},
+				x = {
+					["<leader><leader>"] = { command_palette, desc = "Command palette" },
 				}
 			})
 
