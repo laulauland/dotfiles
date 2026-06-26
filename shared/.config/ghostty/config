@@ -1,6 +1,6 @@
 # theme = xcodedarkhc
 font-family = "Berkeley Mono"
-adjust-cell-height = 20%
+adjust-cell-height = 25%
 copy-on-select = clipboard
 macos-non-native-fullscreen = true
 macos-titlebar-style = transparent
