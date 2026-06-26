@@ -1,3 +1,9 @@
+[settings]
+# Token lives in the macOS keychain, so mise's default gh_cli_tokens
+# (reads ~/.config/gh/hosts.yml) finds nothing. Fall back to `git credential
+# fill`, which git routes to `gh auth git-credential` -> keychain.
+github.use_git_credentials = true
+
 [tools]
 bun = "latest"
 elixir = "latest"
