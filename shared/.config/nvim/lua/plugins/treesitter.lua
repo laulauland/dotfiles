@@ -9,6 +9,25 @@ return {
         install_dir = vim.fn.stdpath("data") .. "/site",
       })
 
+      -- The main branch dropped `ensure_installed`; parsers must be installed
+      -- explicitly or `vim.treesitter.get_node()` returns nil (which silently
+      -- breaks the <CR> incremental selection below). Install any missing ones
+      -- asynchronously on startup. Bundled parsers (lua, markdown, vim, ...)
+      -- get a site copy too, which is harmless and keeps them current.
+      local ensure = {
+        "bash", "css", "elixir", "erlang", "go", "gomod", "heex",
+        "html", "javascript", "json", "lua", "luadoc",
+        "markdown", "markdown_inline", "python", "rust", "toml",
+        "tsx", "typescript", "vim", "vimdoc", "yaml", "zig",
+      }
+      local installed = require("nvim-treesitter").get_installed()
+      local missing = vim.tbl_filter(function(lang)
+        return not vim.tbl_contains(installed, lang)
+      end, ensure)
+      if #missing > 0 then
+        require("nvim-treesitter").install(missing)
+      end
+
       local group = vim.api.nvim_create_augroup("UserTreesitter", { clear = true })
       vim.api.nvim_create_autocmd("FileType", {
         group = group,
@@ -39,10 +58,19 @@ return {
           er = er - 1
           ec = math.max(1, vim.fn.col({ er + 1, "$" }) - 1)
         end
-        vim.fn.setpos("'<", { 0, sr + 1, sc + 1, 0 })
-        vim.fn.setpos("'>", { 0, er + 1, ec, 0 })
+        -- Drive the selection by cursor movement rather than '<,'> marks + gv.
+        -- A marks+gv reselect issued from inside a visual-mode mapping gets
+        -- clobbered when Neovim reasserts the pre-mapping selection on return,
+        -- leaving the stack one grow ahead of what is actually highlighted.
+        -- Leaving visual, re-entering with `v`, then extending the cursor to the
+        -- node end survives that (this is what nvim-treesitter's old module did).
         sel_in_progress = true
-        vim.cmd("silent! normal! gv")
+        if vim.fn.mode():match("[vV\22]") then
+          vim.cmd("normal! \27")
+        end
+        vim.fn.setpos(".", { 0, sr + 1, sc + 1, 0 })
+        vim.cmd("normal! v")
+        vim.fn.setpos(".", { 0, er + 1, ec, 0 })
         sel_in_progress = false
       end
 
