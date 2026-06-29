@@ -15,6 +15,7 @@ const JJ_INTERACTIVE_PATTERN = new RegExp(JJ_PREFIX.source + /jj\s+(commit|ci|re
 const HAS_MESSAGE_FLAG = /(-m\s|--message\s|-m"|--message=|-m'|--stdin)/;
 const HAS_INTERACTIVE_FLAG = /(\s(-i|--interactive|--tool)\s|\s(-i|--interactive|--tool)$)/;
 const HAS_LIST_FLAG = /(-l|--list)(\s|$)/;
+const HAS_HELP_FLAG = /(^|\s)(-h|--help)(\s|$)/;
 
 function checkGitCommand(command: string): string | null {
 	if (GIT_COMMANDS_PATTERN.test(command)) {
@@ -23,7 +24,53 @@ function checkGitCommand(command: string): string | null {
 	return null;
 }
 
-function checkJJInteractiveCommands(command: string): string | null {
+function splitShellSegments(command: string): string[] {
+	const segments: string[] = [];
+	let current = "";
+	let quote: "'" | '"' | null = null;
+	let escaped = false;
+
+	for (let i = 0; i < command.length; i++) {
+		const char = command[i];
+		const next = command[i + 1];
+
+		if (escaped) {
+			current += char;
+			escaped = false;
+			continue;
+		}
+		if (char === "\\") {
+			current += char;
+			escaped = true;
+			continue;
+		}
+		if (quote) {
+			current += char;
+			if (char === quote) quote = null;
+			continue;
+		}
+		if (char === "'" || char === '"') {
+			current += char;
+			quote = char;
+			continue;
+		}
+		if (char === ";" || char === "\n" || char === "|" || char === "&") {
+			if (current.trim()) segments.push(current.trim());
+			current = "";
+			if ((char === "|" && next === "|") || (char === "&" && next === "&")) i++;
+			continue;
+		}
+		current += char;
+	}
+
+	if (current.trim()) segments.push(current.trim());
+	return segments;
+}
+
+function checkJJInteractiveSegment(command: string): string | null {
+	// Help output is non-interactive and should always be allowed.
+	if (HAS_HELP_FLAG.test(command)) return null;
+
 	if (JJ_DIFFEDIT_PATTERN.test(command)) {
 		return "jj diffedit always opens a diff editor. Use jj restore for non-interactive alternatives.";
 	}
@@ -68,6 +115,14 @@ function checkJJInteractiveCommands(command: string): string | null {
 		return "Interactive jj command blocked (-i/--interactive/--tool opens a diff editor).";
 	}
 
+	return null;
+}
+
+function checkJJInteractiveCommands(command: string): string | null {
+	for (const segment of splitShellSegments(command)) {
+		const error = checkJJInteractiveSegment(segment);
+		if (error) return error;
+	}
 	return null;
 }
 
