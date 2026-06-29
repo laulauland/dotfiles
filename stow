@@ -2,7 +2,7 @@
 set -euo pipefail
 
 OPERATING_SYSTEM=$(uname)
-HOSTNAME=$(hostname -s 2>/dev/null || hostname)
+HOSTNAME=$(hostname -s 2>/dev/null || uname -n 2>/dev/null || echo unknown)
 
 run_stow() {
 	if ! command -v stow >/dev/null 2>&1; then
