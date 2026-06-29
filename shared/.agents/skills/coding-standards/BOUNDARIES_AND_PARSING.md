@@ -29,9 +29,8 @@ Every external, serialized, persisted, or framework-shaped value is less structu
 ## Strong defaults
 
 - Use the repository's established schema library when it satisfies the contract.
-- In Effect codebases, use Effect Schema for refined values and codecs.
-- Generic schema helpers should be Standard Schema compatible.
-- If no schema convention exists outside Effect, prefer Zod 4.
+- Effect Schema is the default for refined values, boundary parsing, and codecs. The user uses Effect Schema everywhere Effect is present, which is nearly always — reach for it first.
+- Use a non-Effect schema library only when the project uses no Effect at all. In that case prefer Zod 4 and keep generic schema helpers Standard Schema compatible.
 - Mutating command/request object parsers reject unknown fields by default.
 - Concrete parsers are named `parseX`.
 - Smart constructors from already typed pieces are named `makeX` or `createX`.

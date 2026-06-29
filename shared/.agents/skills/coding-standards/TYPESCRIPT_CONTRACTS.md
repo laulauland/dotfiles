@@ -314,7 +314,7 @@ Comments explain invariants, trade-offs, safety, and non-obvious domain rules. A
 
 This section is loaded with TypeScript contracts for now; split it into a disclosed toolchain reference only if Vite+/toolchain detail grows beyond what ordinary TypeScript-contract work needs.
 
-For new TypeScript projects, prefer Vite+ as formatter/linter/type checker/test runner/task interface.
+The toolchain is usually repo-specific: detect and follow the repository's established lint, format, type-check, and test tooling first. When a project has not established one, the fallback default is Vite+ as the formatter/linter/type checker/test runner/task interface, with Bun as the runtime and package manager.
 
 In Vite+ projects:
 

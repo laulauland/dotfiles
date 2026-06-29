@@ -2,6 +2,17 @@
 
 Async code needs clear ownership: cancellation lifetime, promise lifetime, concurrency, retries, transactions, and durable progress. Hidden waterfalls and fire-and-forget work are correctness bugs, not style issues.
 
+## Effect is the default model
+
+The user writes Effect, so the default async model is Effect's, and the `AbortSignal` + `Promise` guidance throughout the rest of this file is the non-Effect fallback and the boundary-translation form.
+
+- **Cancellation is interruption.** Effects are interruptible by default; an interrupted fiber unwinds through `onInterrupt`, `ensuring`, and scoped finalizers. Do not thread `AbortSignal` through Effect code — interruption propagates structurally. Bridge to `AbortSignal` only at non-Effect boundaries such as `fetch`, where Effect supplies the signal.
+- **Concurrency is structured.** Use `Effect.forEach(items, f, { concurrency })`, `Effect.all`, and `Effect.fork` within a `Scope`. Choose the `concurrency` bound from the real bottleneck, never a magic number.
+- **Detached work is a forked fiber** owned by a scope or daemon (`Effect.forkScoped`, `Effect.forkDaemon`) that owns lifetime, interruption, and failure logging — not a floating promise.
+- **Retries, timeouts, and schedules** use `Effect.retry`/`Effect.timeout` with `Schedule`, composed with interruption, rather than hand-rolled loops.
+
+The durability, idempotency, retry-safety, and atomic-transition rules below are engine-agnostic and apply whether or not the code is Effect-based.
+
 ## Vocabulary
 
 **Caller-Owned Cancellation Lifetime** — Lower-level modules accept and propagate the caller's `AbortSignal` instead of inventing hidden operation lifetimes.
@@ -17,6 +28,8 @@ Async code needs clear ownership: cancellation lifetime, promise lifetime, concu
 **Atomic Transition Guard** — A persistence-level guarded update/transaction that applies a lifecycle transition only from legal prior states.
 
 ## Non-negotiables
+
+In Effect these hold through interruption and structured concurrency; outside Effect they hold through `AbortSignal` propagation and explicitly owned promises.
 
 - A received cancellation signal reaches every downstream cancellable operation.
 - Lower-level modules do not replace the caller's cancellation lifetime with a hidden `AbortController` or timeout.
@@ -208,6 +221,8 @@ Use a durable workflow, saga, or equivalent explicit orchestration record when a
 - multiple transaction boundaries.
 
 Durable multi-step work externalizes progress, retry, and compensation state. It does not rely on an in-memory call stack surviving.
+
+Choose the durable-orchestration engine per project rather than fixing one: Cloudflare Workflows on Cloudflare, an Effect-based workflow/cluster stack in Effect-cluster deployments, or the platform's established durable orchestrator. The selection criteria above are engine-independent.
 
 Do not introduce a workflow just for layering when ordinary calls/transactions are enough.
 

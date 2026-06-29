@@ -112,7 +112,7 @@ When correctness depends on SQL, schema constraints, transactions, migrations, o
 
 For Drizzle persistence tests that do not depend on Cloudflare runtime semantics:
 
-- use in-memory `better-sqlite3`;
+- use an in-memory SQLite engine such as `better-sqlite3`, or the repo's Effect SQL layer over the same engine in Effect-based repositories;
 - run the real Drizzle migrations before the suite;
 - exercise the production External Adapter Module through its service-facing interface.
 

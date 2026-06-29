@@ -33,6 +33,8 @@ If the existing repo has no reporting/correlation mechanism for the touched path
 
 ## Strong defaults
 
+- Default to Effect's `Logger` and built-in tracing, exported to OpenTelemetry via `@effect/opentelemetry`.
+- Wide structured log events — one rich event per request/job/operation carrying many safe fields — are an accepted alternative to span-based tracing; emit them through the Effect logging layer. Either way, the same safe-field and redaction rules apply.
 - Use Effect's `Redacted.Redacted` in Effect codebases.
 - Outside Effect, use a small local `Redacted<T>` wrapper, usually in `prelude.ts`, when the project lacks one.
 - Prefer structured fields over prose-only logs.

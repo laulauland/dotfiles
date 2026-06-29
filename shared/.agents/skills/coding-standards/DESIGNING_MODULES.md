@@ -93,6 +93,7 @@ Despite the word "service," pure domain behavior that does not depend on externa
 - Keep small ubiquitous generic helpers in `prelude.ts`; keep domain/service policy out of `prelude.ts`.
 - Use parsed, domain-specific authorization inputs such as `AdminUser`, `Session`, `Principal`, `DeployCredential`, or `CommandActor`; avoid generic `AccessContext` unless it is established architecture or deliberate domain vocabulary.
 - Inject/pass time, randomness, and ID generation when they affect service behavior.
+- Default to Effect's `DateTime` for time values and the Effect `Clock` service as the current-time source; outside Effect, a `Clock` capability over native `Date`. The `Instant` in examples denotes this default time value.
 - Use Web Crypto or runtime-equivalent crypto randomness for production randomness; do not use `Math.random()` for security, identifiers, sampling, fairness, or consequential user-visible outcomes.
 
 ## Interface design

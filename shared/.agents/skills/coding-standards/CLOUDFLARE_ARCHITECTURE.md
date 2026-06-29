@@ -32,6 +32,7 @@ Cloudflare platform objects are infrastructure. Keep raw bindings at composition
 - New Worker projects use the Cloudflare Vite integration and root `cloudflare.config.ts` as the primary configuration source.
 - Enable Node compatibility for Cloudflare Workers projects.
 - Generate Worker environment declarations from deployment configuration; keep hand-written compatibility declarations tiny and removable.
+- Effect-based Cloudflare HTTP apps use the established Effect HTTP stack (such as `@effect/platform` HttpApi/HttpRouter); this is the default given the user's Effect-everywhere stack.
 - New non-Effect multi-route Cloudflare HTTP apps use Hono unless the repo has another established framework or the Worker is tiny/pass-through/static/direct Agent routing.
 - New stateful-object modules use the Agents SDK `Agent` abstraction unless a documented lower-level/dependency/interoperability/performance reason justifies raw Durable Objects.
 - Agent-backed classes are named for their domain role: `TenantWorkspace`, `DocumentSession`, `ChatRoom`, not `SomethingAgent` by habit.

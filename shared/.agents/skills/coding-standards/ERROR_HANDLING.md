@@ -27,6 +27,8 @@ Expected failures are part of the contract. Defects are not. Keep that line shar
 
 ## Strong defaults
 
+The user's default ecosystem is Effect, so option 1 below applies to nearly all code. The non-Effect options are fallbacks for repositories that are not built on Effect.
+
 Failure representation order:
 
 1. In Effect-based responsibilities, use Effect's typed error channel and the established Effect tagged-error mechanism such as `Schema.TaggedErrorClass`.
