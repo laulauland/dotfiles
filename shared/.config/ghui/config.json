@@ -1,0 +1,12 @@
+{
+	"theme": "ghui",
+	"themeMode": "system",
+	"darkTheme": "ghui",
+	"lightTheme": "ayu-light",
+	"systemThemeAutoReload": false,
+	"showScrollbars": false,
+	"repoPaths": {
+		"fiberplane/:repo": "~/code/work/:repo",
+		"laulauland/:repo": "~/code/laulauland/:repo"
+	}
+}
