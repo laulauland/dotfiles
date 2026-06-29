@@ -9,6 +9,8 @@ Use these standards while designing and editing TypeScript. They encode the user
 
 This skill is standalone. Load the topic files that match the code you are touching; do not treat the top-level summary as the whole standard.
 
+This skill owns code-design taste. The process and execution layer, covering how to scope, sequence, delegate, and verify the work, lives in the `engineering-principles` skill. When a decision is about how you are working rather than how the code is shaped, load that skill instead.
+
 ## Core tenets
 
 - Correctness, safety, debuggability, boundary integrity, and test integrity come before convenience.

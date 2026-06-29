@@ -1,0 +1,9 @@
+# Encode Lessons in Structure
+
+When a fix recurs, encode it in a mechanism instead of writing the instruction again. Every correction, failed test, and surprising outcome is a signal. A textual instruction only works if the next reader notices it, remembers it, and complies. A structural mechanism enforces the rule without anyone's cooperation.
+
+The trigger is catching yourself writing the same instruction a second time. Ask whether it can become something stronger than text, and pick the strongest rung the situation allows, because agents copy whatever the surrounding code already does and a weak guard becomes the next template. The strongest rung is a state the type system cannot represent, so the mistake does not compile, which is exactly the "make illegal states unrepresentable" move in `coding-standards/DOMAIN_MODELING.md`. Below that is a banned API or a lint rule that fails the check, then a canonical helper everyone reaches for, then a runtime check. Choose the highest one that fits, encode it, and delete the prose instruction. If the rule genuinely needs judgment and cannot be mechanized, make the instruction prominent and add an example of the failure it prevents.
+
+Route each lesson to the right layer. A one-off fact goes to memory through the `reflect` skill, which is where your durable notes live. A recurring fix becomes a skill edit or a lint rule. A systemic issue becomes a principle in this bundle. The failure modes are acknowledging without recording, recording without acting on it, and fixing one instance while leaving the pattern intact. Close the loop by applying the change now or filing a concrete todo, not by saying you will keep it in mind.
+
+This is the meta principle of the bundle. `BUILD_THE_LEVER.md` builds the tool that does the work in front of you. This builds the guard that stops the mistake from coming back.

@@ -6,6 +6,10 @@ The `coding-standards` skill is the source of truth for code design and style: n
 
 Headline non-negotiables, repeated here so they hold even before the skill loads: names carry essence (nouns for data, verbs for behavior) with no abbreviations, unit suffixes, and symmetrical related names; parse boundary input before it reaches core logic; expected failures return as typed values rather than throws; and fake data never enters API/service/persistence code without a `FIXME:` marker.
 
+## Engineering Principles
+
+The `engineering-principles` skill is the process layer that sits next to `coding-standards`. Where coding-standards answers whether the code is well-designed, engineering-principles answers whether you are working on it the right way: bias to subtraction, build the lever, prove it works, fix root causes, sequence verifiable units, guard the context window, never block on the human, and encode recurring lessons in structure. Load it for non-trivial work in any language, including read-only investigation and debugging, not only when editing code.
+
 ## Command Line Tools
 
 - Use `fd` instead of `find`
