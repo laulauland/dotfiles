@@ -11,6 +11,8 @@ shell-integration-features=ssh-env,ssh-terminfo,title,sudo
 window-inherit-working-directory = true
 quick-terminal-animation-duration = 0
 
+theme = light:Alabaster, dark: Ghostty Default Style Dark
+
 # Follow Ghostty prerelease channel (required for newest features like key tables)
 auto-update-channel = tip
 
@@ -22,8 +24,6 @@ clipboard-write = allow
 keybind = alt+arrow_down=jump_to_prompt:+1
 keybind = alt+arrow_up=jump_to_prompt:-1
 
-
-theme = light:Alabaster, dark:USGC-RETICLE-IT
 
 config-file = mode/normal
 config-file = mode/tmux
