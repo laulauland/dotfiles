@@ -1,3 +1,3 @@
-# Mac App Store apps managed with `mas`.
-1091189122 Bear
-1607635845 Velja
+# Mac App Store apps are managed in shared/.config/mise/config.toml via mas: entries.
+# 1091189122 Bear
+# 1607635845 Velja

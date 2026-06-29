@@ -3,20 +3,259 @@
 # (reads ~/.config/gh/hosts.yml) finds nothing. Fall back to `git credential
 # fill`, which git routes to `gh auth git-credential` -> keychain.
 github.use_git_credentials = true
+experimental = true
+
+[bootstrap.packages]
+# Formulae needed before repo hooks, casks, Mac App Store apps, and tools run.
+"brew:entr" = "latest"
+"brew:fish" = "latest"
+"brew:fswatch" = "latest"
+"brew:git" = "latest"
+"brew:mas" = "latest"
+"brew:mise" = "latest"
+"brew:mosh" = "latest"
+"brew:parallel" = "latest"
+"brew:poppler" = "latest"
+"brew:qemu" = "latest"
+"brew:qpdf" = "latest"
+"brew:stow" = "latest"
+"brew:watchman" = "latest"
+
+# GUI apps that mise can install directly with its brew-cask manager.
+"brew-cask:1password" = "latest"
+"brew-cask:1password-cli" = "latest"
+"brew-cask:battery-buddy" = "latest"
+"brew-cask:chatgpt" = "latest"
+"brew-cask:claude" = "latest"
+"brew-cask:cleanshot" = "latest"
+"brew-cask:codex" = "latest"
+"brew-cask:commandq" = "latest"
+"brew-cask:contexts" = "latest"
+"brew-cask:cursor" = "latest"
+"brew-cask:displaylink" = "latest"
+"brew-cask:google-chrome" = "latest"
+"brew-cask:google-drive" = "latest"
+"brew-cask:handy" = "latest"
+"brew-cask:homerow" = "latest"
+"brew-cask:iina" = "latest"
+"brew-cask:iterm2" = "latest"
+"brew-cask:itsycal" = "latest"
+"brew-cask:jordanbaird-ice" = "latest"
+"brew-cask:karabiner-elements" = "latest"
+"brew-cask:keyboardcleantool" = "latest"
+"brew-cask:linearmouse" = "latest"
+"brew-cask:markedit" = "latest"
+"brew-cask:middle" = "latest"
+"brew-cask:mimestream" = "latest"
+"brew-cask:mitmproxy" = "latest"
+"brew-cask:monodraw" = "latest"
+"brew-cask:notion" = "latest"
+"brew-cask:notion-calendar" = "latest"
+"brew-cask:obsidian" = "latest"
+"brew-cask:pictogram" = "latest"
+"brew-cask:raycast" = "latest"
+"brew-cask:shortcat" = "latest"
+"brew-cask:signal" = "latest"
+"brew-cask:slack" = "latest"
+"brew-cask:sloth" = "latest"
+"brew-cask:stats" = "latest"
+"brew-cask:telegram" = "latest"
+"brew-cask:visual-studio-code" = "latest"
+"brew-cask:whatsapp" = "latest"
+"brew-cask:zed" = "latest"
+
+# Mac App Store apps. The post-packages hook runs the mas manager again
+# after brew:mas has been installed on first bootstrap.
+"mas:1091189122" = "latest"
+"mas:1607635845" = "latest"
+
+[bootstrap.hooks.post-packages]
+run = [
+  'if command -v mas >/dev/null 2>&1; then mise bootstrap packages apply --manager mas --yes; fi',
+  'if [ "$(uname)" = Darwin ] && command -v brew >/dev/null 2>&1 && [ -f "$HOME/code/laulauland/dotfiles/Caskfile" ]; then xargs brew install --cask < "$HOME/code/laulauland/dotfiles/Caskfile"; fi',
+]
+
+[bootstrap.repos]
+"~/code/laulauland/dotfiles" = { url = "git@github.com:laulauland/dotfiles.git", ref = "main" }
+
+[bootstrap.hooks.post-repos]
+run = 'if [ -x "$HOME/code/laulauland/dotfiles/stow" ]; then "$HOME/code/laulauland/dotfiles/stow"; fi'
+
+
+[bootstrap.macos.dock]
+autohide = true
+orientation = "left"
+magnification = true
+largesize = 85
+tilesize = 34
+show_recents = false
+mru_spaces = false
+
+[bootstrap.macos.finder]
+show_pathbar = true
+show_status_bar = false
+preferred_view_style = "column"
+
+[bootstrap.macos.keyboard]
+key_repeat = 1
+initial_key_repeat = 13
+press_and_hold = false
+fn_state = true
+
+[bootstrap.macos.trackpad]
+tap_to_click = true
+three_finger_drag = false
+
+[bootstrap.macos.defaults.NSGlobalDomain]
+NSAutomaticCapitalizationEnabled = false
+NSAutomaticDashSubstitutionEnabled = false
+NSAutomaticPeriodSubstitutionEnabled = false
+NSAutomaticQuoteSubstitutionEnabled = false
+NSAutomaticSpellingCorrectionEnabled = false
+WebAutomaticSpellingCorrectionEnabled = false
+AppleInterfaceStyleSwitchesAutomatically = true
+AppleMiniaturizeOnDoubleClick = false
+AppleShowScrollBars = "WhenScrolling"
+AppleSpacesSwitchOnActivate = false
+AppleEnableSwipeNavigateWithScrolls = false
+AppleEnableMouseSwipeNavigateWithScrolls = false
+NSWindowResizeTime = 0.001
+NSWindowShouldDragOnGesture = true
+AppleMeasurementUnits = "Centimeters"
+AppleMetricUnits = true
+AppleTemperatureUnit = "Celsius"
+"com.apple.sound.beep.feedback" = false
+"com.apple.sound.beep.flash" = false
+"com.apple.mouse.scaling" = 3.0
+"com.apple.scrollwheel.scaling" = 0.5
+"com.apple.trackpad.scaling" = 2.5
+
+[bootstrap.macos.defaults."com.apple.finder"]
+NewWindowTarget = "PfHm"
+NewWindowTargetPath = "file:///Users/lau/"
+ShowExternalHardDrivesOnDesktop = false
+ShowHardDrivesOnDesktop = false
+ShowMountedServersOnDesktop = false
+ShowRemovableMediaOnDesktop = false
+
+[bootstrap.macos.defaults."com.apple.dock"]
+expose-group-apps = true
+appswitcher-all-displays = true
+wvous-tl-corner = 3
+wvous-tr-corner = 2
+wvous-bl-corner = 4
+wvous-br-corner = 5
+wvous-tl-modifier = 0
+wvous-tr-modifier = 0
+wvous-bl-modifier = 0
+wvous-br-modifier = 0
+
+[bootstrap.macos.defaults."com.apple.AppleMultitouchTrackpad"]
+DragLock = false
+Dragging = false
+TrackpadRightClick = true
+TrackpadThreeFingerTapGesture = 2
+TrackpadThreeFingerHorizSwipeGesture = 2
+TrackpadThreeFingerVertSwipeGesture = 2
+TrackpadFourFingerHorizSwipeGesture = 2
+TrackpadFourFingerVertSwipeGesture = 2
+TrackpadTwoFingerDoubleTapGesture = 1
+TrackpadTwoFingerFromRightEdgeSwipeGesture = 3
+
+[bootstrap.macos.defaults."com.apple.driver.AppleBluetoothMultitouch.trackpad"]
+DragLock = false
+Dragging = false
+TrackpadRightClick = true
+TrackpadThreeFingerTapGesture = 2
+TrackpadThreeFingerHorizSwipeGesture = 2
+TrackpadThreeFingerVertSwipeGesture = 2
+TrackpadFourFingerHorizSwipeGesture = 2
+TrackpadFourFingerVertSwipeGesture = 2
+TrackpadTwoFingerDoubleTapGesture = 1
+TrackpadTwoFingerFromRightEdgeSwipeGesture = 3
+
+[bootstrap.macos.defaults."com.apple.WindowManager"]
+GloballyEnabled = false
+AutoHide = false
+HideDesktop = false
+StageManagerHideWidgets = false
+StandardHideWidgets = false
+
+[bootstrap.macos.defaults."com.apple.menuextra.clock"]
+Show24Hour = true
+ShowAMPM = true
+ShowDate = 2
+ShowSeconds = false
 
 [tools]
+# Language runtimes and package managers.
 bun = "latest"
 elixir = "latest"
 erlang = "latest"
 go = "latest"
 node = "latest"
 pnpm = "latest"
+python = "latest"
 rust = "latest"
+uv = "latest"
 zig = "latest"
 
+# Agent and editor tooling.
 "github:earendil-works/pi" = "latest"
 herdr = "latest"
-neovim = "latest"
+"aqua:neovim/neovim" = "latest"
 hunk = "latest"                                  # aqua:modem-dev/hunk — review-first diff viewer
-"github:kitlangton/ghui" = "latest"                # GitHub PR TUI ("open in editor" -> nvim)
+"github:kitlangton/ghui" = "latest"             # GitHub PR TUI ("open in editor" -> nvim)
 hyperfine = "latest"
+
+# Portable CLI tools formerly managed directly by Homebrew.
+"aqua:ast-grep/ast-grep" = "latest"
+"aqua:atuinsh/atuin" = "latest"
+"aqua:aws/aws-cli" = "latest"
+"aqua:sharkdp/bat" = "latest"
+"aqua:biomejs/biome" = "latest"
+"aqua:ClementTsang/bottom" = "latest"
+"aqua:aristocratos/btop" = "latest"
+"github:chipsenkbeil/choose" = "latest"
+"aqua:cloudflare/cloudflared" = "latest"
+"aqua:terrastruct/d2" = "latest"
+"aqua:Wilfred/difftastic" = "latest"
+"aqua:direnv/direnv" = "latest"
+"aqua:bootandy/dust" = "latest"
+"cargo:erdtree" = "latest"
+"asdf:mise-plugins/mise-eza" = "latest"
+"aqua:sharkdp/fd" = "latest"
+"asdf:mise-plugins/mise-ffmpeg" = "latest"
+"aqua:junegunn/fzf" = "latest"
+"aqua:cli/cli" = "latest"
+"aqua:orhun/git-cliff" = "latest"
+"aqua:dandavison/delta" = "latest"
+"aqua:extrawurst/gitui" = "latest"
+"aqua:charmbracelet/glow" = "latest"
+"aqua:charmbracelet/gum" = "latest"
+"pipx:huggingface-hub" = "latest"
+"cargo:hl" = "latest"
+"aqua:gohugoio/hugo" = "latest"
+"conda:imagemagick" = "latest"
+"aqua:jj-vcs/jj" = "latest"
+"aqua:idursun/jjui" = "latest"
+"aqua:PaulJuliusMartinez/jless" = "latest"
+"aqua:jqlang/jq" = "latest"
+"aqua:jesseduffield/lazydocker" = "latest"
+"aqua:jesseduffield/lazygit" = "latest"
+"cargo:lazyjj" = "latest"
+"github:ggml-org/llama.cpp" = "latest"
+"cargo:mergiraf" = "latest"
+"github:jgm/pandoc" = "latest"
+"aqua:BurntSushi/ripgrep" = "latest"
+"aqua:chmln/sd" = "latest"
+"cargo:snitch" = "latest"
+"aqua:starship/starship" = "latest"
+"aqua:JohnnyMorganz/StyLua" = "latest"
+"aqua:hashicorp/terraform" = "latest"
+"npm:tldr" = "latest"
+"aqua:tmux/tmux-builds" = "latest"
+"aqua:tree-sitter/tree-sitter" = "latest"
+"aqua:trufflesecurity/trufflehog" = "latest"
+"aqua:vi/websocat" = "latest"
+"aqua:ajeetdsouza/zoxide" = "latest"

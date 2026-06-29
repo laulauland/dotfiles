@@ -13,27 +13,39 @@ This is a dotfiles repository with two deployment paths:
 
 ### Initial Setup
 ```bash
-# Install workstation dependencies and dotfiles
+# Preferred: converge packages, clone/update this repo, apply dotfiles,
+# apply macOS defaults, and install mise tools
+mise bootstrap --yes
+
+# Legacy path: install workstation dependencies and dotfiles
 ./bootstrap
 
-# Also apply portable macOS System Settings defaults
+# Legacy path: --defaults is accepted for compatibility; mise applies defaults
+# by default now
 ./bootstrap --defaults
 
-# Also change the login shell to fish
+# Legacy path: also change the login shell to fish
 ./bootstrap --fish-shell
 ```
 
-This script installs platform dependencies, then deploys stow-managed home
-configuration:
+`mise bootstrap --yes` uses `shared/.config/mise/config.toml` as the main
+workstation manifest. It installs remaining Homebrew formulae, clones/updates
+this repository at `~/code/laulauland/dotfiles`, runs the stow deployment,
+installs supported casks and Mac App Store apps through mise, applies native
+`[bootstrap.macos.*]` defaults, and installs mise-managed tools.
 
-- macOS: Installs Homebrew packages from `Brewfile` and `Caskfile`, then deploys
-  `shared` + `macos` directories
-- macOS: Installs Mac App Store apps from `Masfile` when `mas` is available and
-  the user is signed in to the App Store
-- macOS with `--defaults`: also applies portable System Settings preferences
-  from `macos/defaults`
-- macOS with `--fish-shell`: adds Homebrew fish to `/etc/shells` if needed and
-  runs `chsh -s` for the current user
+The legacy `./bootstrap` script now only bootstraps Homebrew + mise, installs
+this repo's mise config as the global config, delegates macOS convergence to
+`mise bootstrap --yes --skip repos` because the checkout already exists, then
+runs `./stow` directly.
+
+- macOS: Uses mise bootstrap for remaining Homebrew packages, supported casks,
+  Mac App Store apps, native macOS defaults, and mise-managed tools. `./stow`
+  remains the explicit dotfile deployment mechanism.
+- macOS with `--defaults`: accepted for compatibility; native mise defaults are
+  already applied by default
+- macOS with `--fish-shell`: adds the Homebrew fish path to `/etc/shells` if
+  needed and runs `chsh -s` for the current user
 - Arch Linux: Deploys `shared` + `arch` directories
 - NixOS: Use `./nixos/switch`, which infers the host and runs `nixos-rebuild`
 
@@ -41,15 +53,15 @@ Linux desktop stow configuration is currently archived. NixOS hosts are managed
 from `nixos/`.
 
 ### Prerequisites
-- macOS bootstrap installs Homebrew if it is missing, then installs GNU Stow from
-  `Brewfile`. Installing Homebrew may prompt for sudo once; do not run the whole
-  bootstrap script with sudo.
+- macOS bootstrap installs Homebrew if it is missing, then installs mise before
+  delegating to `mise bootstrap`. Installing Homebrew may prompt for sudo once;
+  do not run the whole bootstrap script with sudo.
 - Mac App Store installs require `mas` and an App Store login.
 - Changing the login shell may prompt for sudo to update `/etc/shells`; do not
   run the whole bootstrap script with sudo.
 - `./stow` remains available when you only want to re-apply dotfiles
-- `./macos/defaults` remains available when you only want to re-apply macOS
-  System Settings preferences
+- `./macos/defaults` remains available as a legacy way to re-apply macOS System
+  Settings preferences; the preferred path is `mise bootstrap macos defaults apply`
 
 ## Architecture
 

@@ -3,14 +3,12 @@ set -euo pipefail
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
 OPERATING_SYSTEM=$(uname)
-APPLY_DEFAULTS=0
 CHANGE_SHELL=0
-INSTALL_FAILED=0
 
 while [ $# -gt 0 ]; do
 	case "$1" in
 	--defaults)
-		APPLY_DEFAULTS=1
+		# mise bootstrap applies [bootstrap.macos.*] defaults by default now.
 		shift
 		;;
 	--fish-shell)
@@ -29,113 +27,30 @@ install_homebrew() {
 		return
 	fi
 
-	if [ "$OPERATING_SYSTEM" != "Darwin" ]; then
-		echo "Homebrew is not installed."
-		exit 1
-	fi
-
 	echo "Homebrew install needs sudo once to create system directories."
 	sudo -v
-
 	echo "Installing Homebrew..."
 	NONINTERACTIVE=1 /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-
-	if [ -x /opt/homebrew/bin/brew ]; then
-		eval "$(/opt/homebrew/bin/brew shellenv)"
-	elif [ -x /usr/local/bin/brew ]; then
-		eval "$(/usr/local/bin/brew shellenv)"
-	fi
+	eval "$(/opt/homebrew/bin/brew shellenv 2>/dev/null || /usr/local/bin/brew shellenv)"
 }
 
-install_stow() {
-	if command -v stow >/dev/null 2>&1; then
-		return
-	fi
-
-	echo "Installing GNU Stow..."
-	brew install stow
+install_mise() {
+	command -v mise >/dev/null 2>&1 && return
+	echo "Installing mise..."
+	brew install mise
 }
 
-brew_install_lines() {
-	local file=$1
-	local mode=$2
-	local package
-
-	[ -f "$file" ] || return
-
-	while IFS= read -r package || [ -n "$package" ]; do
-		case "$package" in
-		"" | \#*) continue ;;
-		esac
-
-		echo "Installing $mode: $package"
-		if [ "$mode" = "cask" ]; then
-			if ! brew install --cask "$package"; then
-				echo "warning: failed to install cask: $package" >&2
-				INSTALL_FAILED=1
-			fi
-		else
-			if ! brew install "$package"; then
-				echo "warning: failed to install formula: $package" >&2
-				INSTALL_FAILED=1
-			fi
-		fi
-	done <"$file"
-}
-
-brew_tap_lines() {
-	local file=$1
-	local tap
-
-	[ -f "$file" ] || return
-
-	while IFS= read -r tap || [ -n "$tap" ]; do
-		case "$tap" in
-		"" | \#*) continue ;;
-		esac
-
-		echo "Tapping Homebrew repository: $tap"
-		if ! brew tap "$tap"; then
-			echo "warning: failed to tap Homebrew repository: $tap" >&2
-			INSTALL_FAILED=1
-		fi
-	done <"$file"
-}
-
-mas_install_lines() {
-	local file=$1
-	local app_id
-	local app_name
-
-	[ -f "$file" ] || return
-	command -v mas >/dev/null 2>&1 || return
-
-	while read -r app_id app_name || [ -n "$app_id" ]; do
-		case "$app_id" in
-		"" | \#*) continue ;;
-		esac
-
-		echo "Installing mas app: $app_id $app_name"
-		if ! mas install "$app_id"; then
-			echo "warning: failed to install mas app: $app_id $app_name" >&2
-			INSTALL_FAILED=1
-		fi
-	done <"$file"
+install_global_mise_config() {
+	mkdir -p "$HOME/.config/mise"
+	ln -sf "$REPO_ROOT/shared/.config/mise/config.toml" "$HOME/.config/mise/config.toml"
+	mise trust "$HOME/.config/mise/config.toml"
 }
 
 set_fish_shell() {
 	local fish_path
+	fish_path=$(command -v fish)
 
-	if ! fish_path=$(command -v fish); then
-		echo "warning: fish is not installed; cannot change login shell" >&2
-		INSTALL_FAILED=1
-		return
-	fi
-
-	if [ "$SHELL" = "$fish_path" ]; then
-		return
-	fi
-
+	[ "$SHELL" = "$fish_path" ] && return
 	if ! grep -qxF "$fish_path" /etc/shells; then
 		echo "Adding $fish_path to /etc/shells"
 		echo "$fish_path" | sudo tee -a /etc/shells >/dev/null
@@ -145,44 +60,15 @@ set_fish_shell() {
 	chsh -s "$fish_path"
 }
 
-bootstrap_macos() {
-	install_homebrew
-	brew update
-	install_stow
-	brew_tap_lines "$REPO_ROOT/Tapfile"
-	brew_install_lines "$REPO_ROOT/Brewfile" formula
-	brew_install_lines "$REPO_ROOT/Caskfile" cask
-	mas_install_lines "$REPO_ROOT/Masfile"
-
-	if [ "$INSTALL_FAILED" -ne 0 ]; then
-		echo "One or more packages failed to install; continuing with dotfiles." >&2
-	fi
-
-	if ! "$REPO_ROOT/stow"; then
-		echo "warning: stow failed; continuing with remaining bootstrap steps" >&2
-		INSTALL_FAILED=1
-	fi
-
-	if [ "$APPLY_DEFAULTS" -eq 1 ]; then
-		echo "Applying macOS defaults..."
-		if ! "$REPO_ROOT/macos/defaults"; then
-			echo "warning: one or more macOS defaults failed to apply" >&2
-			INSTALL_FAILED=1
-		else
-			echo "Applied macOS defaults."
-		fi
-	fi
-
-	if [ "$CHANGE_SHELL" -eq 1 ]; then
-		set_fish_shell
-	fi
-
-	exit "$INSTALL_FAILED"
-}
-
 case "$OPERATING_SYSTEM" in
 Darwin)
-	bootstrap_macos
+	install_homebrew
+	install_mise
+	install_global_mise_config
+	# This checkout already exists, so let mise converge everything except cloning it.
+	mise bootstrap --yes --skip repos "$@"
+	"$REPO_ROOT/stow"
+	[ "$CHANGE_SHELL" -eq 0 ] || set_fish_shell
 	;;
 Linux)
 	if [ -r /etc/os-release ] && grep -q '^ID=nixos$' /etc/os-release; then
