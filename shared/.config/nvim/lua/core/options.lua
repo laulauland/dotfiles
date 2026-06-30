@@ -1,27 +1,51 @@
 local in_tmux = vim.env.TMUX ~= nil and vim.env.TMUX ~= ""
+local termfeatures = vim.g.termfeatures or {}
 
-if in_tmux then
+-- OSC 52 clipboard reads are not widely supported and make every paste with
+-- `clipboard=unnamedplus` pause at "Awaiting OSC 52 response". Prefer native
+-- clipboard tools for a unified clipboard, and keep tmux as a last-resort
+-- fallback instead of forcing OSC 52.
+termfeatures.osc52 = false
+vim.g.termfeatures = termfeatures
+
+local function executable(command)
+    return vim.fn.executable(command) == 1
+end
+
+if executable("pbcopy") and executable("pbpaste") then
+    vim.g.clipboard = {
+        name = "macOS clipboard",
+        copy = {
+            ["+"] = { "pbcopy" },
+            ["*"] = { "pbcopy" },
+        },
+        paste = {
+            ["+"] = { "pbpaste" },
+            ["*"] = { "pbpaste" },
+        },
+    }
+elseif executable("wl-copy") and executable("wl-paste") then
+    vim.g.clipboard = {
+        name = "Wayland clipboard",
+        copy = {
+            ["+"] = { "wl-copy", "--foreground", "--type", "text/plain" },
+            ["*"] = { "wl-copy", "--foreground", "--primary", "--type", "text/plain" },
+        },
+        paste = {
+            ["+"] = { "wl-paste", "--no-newline" },
+            ["*"] = { "wl-paste", "--no-newline", "--primary" },
+        },
+    }
+elseif in_tmux and executable("tmux") then
     vim.g.clipboard = {
         name = "tmux",
         copy = {
-            ["+"] = {"tmux", "load-buffer", "-w", "-"},
-            ["*"] = {"tmux", "load-buffer", "-w", "-"},
+            ["+"] = { "tmux", "load-buffer", "-w", "-" },
+            ["*"] = { "tmux", "load-buffer", "-w", "-" },
         },
         paste = {
-            ["+"] = {"tmux", "save-buffer", "-"},
-            ["*"] = {"tmux", "save-buffer", "-"},
-        },
-    }
-else
-    vim.g.clipboard = {
-        name = "OSC 52",
-        copy = {
-            ["+"] = require("vim.ui.clipboard.osc52").copy("+"),
-            ["*"] = require("vim.ui.clipboard.osc52").copy("*"),
-        },
-        paste = {
-            ["+"] = require("vim.ui.clipboard.osc52").paste("+"),
-            ["*"] = require("vim.ui.clipboard.osc52").paste("*"),
+            ["+"] = { "tmux", "save-buffer", "-" },
+            ["*"] = { "tmux", "save-buffer", "-" },
         },
     }
 end
