@@ -8,8 +8,6 @@ onboarding = false
 # mode and USGC-RETICLE-IT in dark mode, while Herdr uses the live ANSI colors
 # exposed by the terminal. The overrides below remove the low-contrast gray
 # chrome combinations from the stock `terminal` Herdr theme.
-name = "one-dark"
-auto_switch = true
 light_name = "terminal"
 dark_name = "terminal"
 
