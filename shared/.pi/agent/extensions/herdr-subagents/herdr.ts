@@ -82,6 +82,18 @@ function commandLine(command: string, args: string[]): string {
   return [command, ...args].map(shellEscape).join(" ");
 }
 
+function shellReadyDelayMs(): number {
+  const raw = process.env.PI_SUBAGENT_SHELL_READY_DELAY_MS?.trim();
+  const parsed = raw ? Number.parseInt(raw, 10) : Number.NaN;
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : 2500;
+}
+
+async function waitForShellReady(): Promise<void> {
+  const delay = shellReadyDelayMs();
+  if (delay <= 0) return;
+  await new Promise((resolve) => setTimeout(resolve, delay));
+}
+
 export function isHerdrAvailable(): boolean {
   if (process.env.HERDR_ENV !== "1") return false;
   try {
@@ -109,26 +121,42 @@ export async function createAgentSurface(params: {
   const placement = params.placement ?? "stack";
 
   if (placement === "stack") {
-    const splitArgs = [
-      "pane",
-      "split",
-      params.splitTargetPaneId ?? process.env.HERDR_PANE_ID ?? "--current",
-      "--direction",
-      params.splitDirection ?? "right",
-      "--cwd",
-      params.cwd,
-      "--no-focus",
-    ];
-    for (const [key, value] of Object.entries(params.env)) {
-      splitArgs.push("--env", `${key}=${value}`);
+    const createSplit = async (targetPaneId: string | undefined, direction: "right" | "down"): Promise<HerdrSurface> => {
+      const splitArgs = [
+        "pane",
+        "split",
+        targetPaneId ?? process.env.HERDR_PANE_ID ?? "--current",
+        "--direction",
+        direction,
+        "--cwd",
+        params.cwd,
+        "--no-focus",
+      ];
+      for (const [key, value] of Object.entries(params.env)) {
+        splitArgs.push("--env", `${key}=${value}`);
+      }
+      const { stdout } = await execFileAsync(herdrBin(), splitArgs, { encoding: "utf8", maxBuffer: 1024 * 1024 });
+      return { ...extractPane(parseJsonResponse<HerdrAgentStartResult>(stdout, "pane split")), placement: "stack" as const };
+    };
+
+    let surface: HerdrSurface;
+    try {
+      surface = await createSplit(params.splitTargetPaneId, params.splitDirection ?? "right");
+    } catch (error: any) {
+      const message = error?.message ?? String(error);
+      const shouldFallback = message.includes("pane_not_found") || message.includes("pane not found");
+      if (!shouldFallback) throw error;
+      // The previous subagent pane can exit between target selection and split creation.
+      // Fall back to the parent pane so one fast-finishing child does not break a batch.
+      surface = await createSplit(process.env.HERDR_PANE_ID, "right");
     }
-    const { stdout } = await execFileAsync(herdrBin(), splitArgs, { encoding: "utf8", maxBuffer: 1024 * 1024 });
-    const surface = { ...extractPane(parseJsonResponse<HerdrAgentStartResult>(stdout, "pane split")), placement: "stack" as const };
+
     try {
       await execFileAsync(herdrBin(), ["pane", "rename", surface.paneId, params.name], { encoding: "utf8" });
     } catch {
       // Cosmetic only.
     }
+    await waitForShellReady();
     await execFileAsync(herdrBin(), ["pane", "run", surface.paneId, commandLine(params.command, params.args)], { encoding: "utf8" });
     return surface;
   }
@@ -146,6 +174,7 @@ export async function createAgentSurface(params: {
     } catch {
       // Cosmetic only.
     }
+    await waitForShellReady();
     await execFileAsync(herdrBin(), ["pane", "run", surface.paneId, commandLine(params.command, params.args)], { encoding: "utf8" });
     return surface;
   }

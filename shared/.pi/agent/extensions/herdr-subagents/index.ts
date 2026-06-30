@@ -57,12 +57,13 @@ const SubagentAction = Type.Union([
   Type.Literal("interrupt"),
   Type.Literal("list"),
   Type.Literal("status"),
+  Type.Literal("remove"),
 ]);
 
 const SubagentParams = Type.Object({
   action: SubagentAction,
-  id: Type.Optional(Type.String({ description: "Running subagent id for interrupt/status" })),
-  name: Type.Optional(Type.String({ description: "Display name for start, or exact running subagent name for interrupt/status" })),
+  id: Type.Optional(Type.String({ description: "Running subagent id for interrupt/status/remove" })),
+  name: Type.Optional(Type.String({ description: "Display name for start, or exact running subagent name for interrupt/status/remove" })),
   task: Type.Optional(Type.String({ description: "Task/prompt for action=start" })),
   agent: Type.Optional(Type.String({ description: "Optional agent definition name from .pi/agents or ~/.pi/agent/agents" })),
   systemPrompt: Type.Optional(Type.String({ description: "Role instructions appended to the child task, or used as child system prompt when the agent definition requests it" })),
@@ -120,6 +121,7 @@ interface RunningSubagent {
   activity?: SubagentActivityState;
   activityRead?: { ok: boolean; reason?: "missing" | "invalid" | "wrong-id"; error?: string };
   abortController?: AbortController;
+  removed?: boolean;
   statusState: SubagentStatusState;
   interactive: boolean;
 }
@@ -686,7 +688,7 @@ function resolveResultPresentation(result: SubagentResult, name: string): string
     : `Sub-agent "${name}" completed (${formatElapsed(result.elapsed)}).\n\n${result.summary}${sessionRef}`;
 }
 
-async function watchSubagent(running: RunningSubagent, signal: AbortSignal): Promise<SubagentResult> {
+async function watchSubagent(running: RunningSubagent, signal: AbortSignal): Promise<SubagentResult | null> {
   const { name, task, surface, startTime, sessionFile } = running;
   try {
     const result = await pollForExit(surface, AbortSignal.any([signal, getModuleAbortSignal()]), {
@@ -705,9 +707,11 @@ async function watchSubagent(running: RunningSubagent, signal: AbortSignal): Pro
     runningSubagents.delete(running.id);
     return { name, task, summary, sessionFile, exitCode: result.exitCode, elapsed, ...(result.errorMessage ? { errorMessage: result.errorMessage } : {}) };
   } catch (error: any) {
-    await closeSurface(surface);
+    const moduleWasAborted = getModuleAbortSignal().aborted;
+    if (!moduleWasAborted && !running.removed) await closeSurface(surface);
     runningSubagents.delete(running.id);
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    if (moduleWasAborted || running.removed) return null;
     if (signal.aborted) return { name, task, summary: "Subagent cancelled.", sessionFile, exitCode: 1, elapsed, error: "cancelled" };
     return { name, task, summary: `Subagent error: ${error?.message ?? String(error)}`, exitCode: 1, elapsed, error: error?.message ?? String(error), sessionFile };
   }
@@ -727,12 +731,38 @@ async function enqueueLaunch<T>(launch: () => Promise<T>): Promise<T> {
   }
 }
 
+async function handleRemove(params: SubagentParamsType) {
+  const resolved = resolveTarget(params);
+  if ("error" in resolved) return { content: [{ type: "text" as const, text: resolved.error }], details: { error: resolved.error }, isError: true };
+  const running = resolved.running;
+  running.removed = true;
+  running.abortController?.abort();
+  runningSubagents.delete(running.id);
+  await closeSurface(running.surface);
+  updateWidget();
+  return {
+    content: [{ type: "text" as const, text: `Removed subagent "${running.name}" and closed its pane.` }],
+    details: { id: running.id, name: running.name, action: "remove", status: "removed" },
+  };
+}
+
 async function handleStart(params: SubagentParamsType, ctx: ExtensionContext, pi: ExtensionAPI) {
   const required = requireStartParams(params);
   if ("error" in required) return { content: [{ type: "text" as const, text: required.error }], details: { error: required.error }, isError: true };
   if (!isHerdrAvailable()) return muxUnavailableResult();
 
-  const running = await enqueueLaunch(() => launchSubagent(params, ctx));
+  let running: RunningSubagent;
+  try {
+    running = await enqueueLaunch(() => launchSubagent(params, ctx));
+  } catch (error: any) {
+    const message = error?.message ?? String(error);
+    return {
+      content: [{ type: "text" as const, text: `Failed to launch subagent: ${message}` }],
+      details: { action: "start", error: message, status: "launch_failed" },
+      isError: true,
+    };
+  }
+
   const watcherAbort = new AbortController();
   running.abortController = watcherAbort;
   startWidgetRefresh();
@@ -741,7 +771,7 @@ async function handleStart(params: SubagentParamsType, ctx: ExtensionContext, pi
   watchSubagent(running, watcherAbort.signal)
     .then((result) => {
       updateWidget();
-      if (!runtimeAlive) return;
+      if (!result || !runtimeAlive) return;
       const presentation = resolveResultPresentation(result, running.name);
       pi.sendMessage({
         customType: "subagent_result",
@@ -803,9 +833,9 @@ export default function herdrSubagentsExtension(pi: ExtensionAPI): void {
     name: "subagent",
     label: "Subagent",
     description:
-      "Manage async Herdr-backed subagents. Use action=start to launch background work; action=interrupt to send Escape to a running child turn; action=list/status only for user-requested inspection or when you lost a child id. Results are delivered automatically as steer messages. Do not poll with list/status, sleep, tail logs, or fabricate results after starting a subagent.",
+      "Manage async Herdr-backed subagents. Use action=start to launch background work; action=interrupt to send Escape to a running child turn; action=remove to close and forget a running child; action=list/status only for user-requested inspection or when you lost a child id. Results are delivered automatically as steer messages. Do not poll with list/status, sleep, tail logs, or fabricate results after starting a subagent.",
     promptSnippet:
-      "Manage async Herdr-backed subagents. Use subagent({ action: 'start', name, task, ... }) to launch; subagent({ action: 'interrupt', id }) to cancel the active child turn; subagent({ action: 'list' }) or status only for occasional inspection. Results arrive automatically; do not poll or invent them.",
+      "Manage async Herdr-backed subagents. Use subagent({ action: 'start', name, task, ... }) to launch; subagent({ action: 'interrupt', id }) to cancel the active child turn; subagent({ action: 'remove', id }) to close and forget a child; subagent({ action: 'list' }) or status only for occasional inspection. Results arrive automatically; do not poll or invent them.",
     parameters: SubagentParams,
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       switch (params.action) {
@@ -813,6 +843,7 @@ export default function herdrSubagentsExtension(pi: ExtensionAPI): void {
         case "interrupt": return await handleInterrupt(params);
         case "list": return handleList();
         case "status": return handleStatus(params);
+        case "remove": return await handleRemove(params);
         default: return { content: [{ type: "text" as const, text: `Unknown subagent action: ${(params as any).action}` }], details: { error: "unknown action" }, isError: true };
       }
     },
@@ -835,6 +866,9 @@ export default function herdrSubagentsExtension(pi: ExtensionAPI): void {
       }
       if (details?.status === "interrupt_requested") {
         return new Text(theme.fg("accent", "▸") + " " + theme.fg("toolTitle", theme.bold(details.name ?? details.id ?? "subagent")) + theme.fg("dim", " — interrupt requested"), 0, 0);
+      }
+      if (details?.status === "removed") {
+        return new Text(theme.fg("accent", "▸") + " " + theme.fg("toolTitle", theme.bold(details.name ?? details.id ?? "subagent")) + theme.fg("dim", " — removed"), 0, 0);
       }
       const text = typeof result.content[0]?.text === "string" ? result.content[0].text : "";
       return new Text(theme.fg("dim", text), 0, 0);
