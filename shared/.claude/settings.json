@@ -8,6 +8,7 @@
     ],
     "defaultMode": "auto"
   },
+  "model": "claude-fable-5[1m]",
   "hooks": {
     "WorktreeCreate": [
       {
@@ -85,11 +86,27 @@
   },
   "enabledPlugins": {
     "slack@claude-plugins-official": true,
-    "figma@claude-plugins-official": true
+    "figma@claude-plugins-official": true,
+    "sideshow@sideshow": true
+  },
+  "extraKnownMarketplaces": {
+    "sideshow": {
+      "source": {
+        "source": "github",
+        "repo": "modem-dev/sideshow"
+      }
+    }
   },
   "alwaysThinkingEnabled": true,
   "effortLevel": "xhigh",
   "autoCompactWindow": 250000,
+  "pluginConfigs": {
+    "sideshow@sideshow": {
+      "options": {
+        "sideshowUrl": "http://localhost:8228"
+      }
+    }
+  },
   "tui": "fullscreen",
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
