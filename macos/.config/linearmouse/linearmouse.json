@@ -22,6 +22,23 @@
     },
     {
       "buttons" : {
+        "gesture" : {
+          "actions" : {
+            "down" : "appExpose",
+            "left" : "missionControl.spaceLeft",
+            "right" : "missionControl.spaceRight",
+            "up" : "missionControl"
+          },
+          "enabled" : false,
+          "threshold" : 50,
+          "trigger" : {
+            "button" : 2,
+            "command" : false,
+            "control" : false,
+            "option" : false,
+            "shift" : false
+          }
+        },
         "mappings" : [
           {
             "action" : {
@@ -48,6 +65,25 @@
             "control" : false,
             "option" : false,
             "scroll" : "left",
+            "shift" : false
+          },
+          {
+            "action" : {
+              "keyPress" : [
+                "option",
+                "space"
+              ]
+            },
+            "button" : {
+              "controlID" : 237,
+              "kind" : "logitechControl",
+              "productID" : 45085,
+              "serialNumber" : "D28F4F0BAB09E01A"
+            },
+            "command" : false,
+            "control" : false,
+            "hold" : true,
+            "option" : false,
             "shift" : false
           }
         ]
