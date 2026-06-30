@@ -77,7 +77,7 @@ description = "remove pando workspace"
 
 [ui]
 # Let [theme.custom].accent drive borders, highlights, and navigation UI.
-agent_panel_scope = "current"
+agent_panel_scope = "all"
 agent_panel_sort = "spaces"
 
 show_agent_labels_on_pane_borders = true
