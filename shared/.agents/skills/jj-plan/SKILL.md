@@ -95,7 +95,7 @@ stages. Layer on whichever shape fits:
 - **Adversarial spec verification** — once it looks done, have independent agents
   try to prove the stage violates its acceptance criteria or the spec. Mark the
   stage done only if they fail to break it. Use for high-stakes or subtle stages.
-- **Diagnose loop** — if the stage is a bug fix, run the `diagnose` skill
+- **Diagnose loop** — if the stage is a bug fix without a reliable reproduction, read `engineering-principles/DIAGNOSE_HARD_BUGS.md`
   (reproduce → hypothesise → instrument → fix → regression test) instead of plain
   implement.
 

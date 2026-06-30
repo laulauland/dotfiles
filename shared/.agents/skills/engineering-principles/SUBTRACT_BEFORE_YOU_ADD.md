@@ -4,6 +4,8 @@ When you change a system, remove what is dead or redundant first, then build on 
 
 Adding to a complex system compounds the complexity, so the order matters. Cut to the minimum before you invest in polishing, because polishing code you are about to delete is wasted effort, and a smaller base is cheaper to get right.
 
+A subtraction pass is complete when each removed piece is unused, redundant, or out of scope for the target state; the remaining callers or references have been updated; and the next addition is being made against the smaller surface rather than alongside dead weight.
+
 Design for the usage you actually observe, not for speculative edge cases. Every out-of-spec feature drags its own guards behind it. Persistence needs a parser to defend its inputs, retry-on-startup needs idempotency, a second code path needs a validator. This is the same reason your coding standards refuse backwards-compatibility, migration, and backfill scaffolding unless you ask for them. Those are additions that each pull in defensive weight, so do not add them speculatively. See the non-negotiables in `coding-standards/SKILL.md` on treating a new design as the target state rather than a migration plan.
 
 When a reference, a wrapper, or a config layer carries no content of its own, delete it rather than leaving a stub. This is the sequencing rule behind `LAZINESS_PROTOCOL.md`, and it runs before `FOUNDATIONAL_THINKING.md`. Remove dead weight first, then lay the foundation.

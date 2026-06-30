@@ -1,6 +1,6 @@
 ---
 name: reflect
-description: Capture what a finished task taught you so the next run does not relearn it. Use for "/reflect", "capture what we learned", "remember this for next time", or after a long or painful task that should leave a durable trace. Routes the lesson into the memory system by default and escalates to a skill edit only when the lesson is a repeatable procedure.
+description: Capture what a finished task taught you so the next run does not relearn it. Use for "/reflect", "capture what we learned", "remember this for next time", or explicit requests to save a durable lesson. Routes the lesson into the memory system by default and escalates to a skill edit only when the lesson is a repeatable procedure.
 ---
 
 # Reflect

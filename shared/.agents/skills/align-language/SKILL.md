@@ -17,6 +17,8 @@ If a question can be answered by exploring the codebase, explore the codebase in
 
 ## Domain awareness
 
+This is the active domain-language discipline: challenge terms, invent edge-case scenarios, check the code against the claimed model, and write glossary or decision updates down as they crystallise. Merely reading `CONTEXT.md` for vocabulary is not this skill.
+
 During codebase exploration, also look for existing documentation:
 
 ### File structure
@@ -73,7 +75,7 @@ When the user states how something works, check whether the code agrees. If you 
 
 When a term is resolved, update `CONTEXT.md` right there. Don't batch these up — capture them as they happen. Use the format in [CONTEXT-FORMAT.md](./CONTEXT-FORMAT.md).
 
-Don't couple `CONTEXT.md` to implementation details. Only include terms that are meaningful to domain experts.
+`CONTEXT.md` is a glossary, not a spec, scratch pad, or implementation-decision log. Do not couple it to implementation details. Only include terms that are meaningful to domain experts.
 
 ### Offer ADRs sparingly
 

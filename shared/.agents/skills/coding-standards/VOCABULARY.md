@@ -39,13 +39,13 @@ Use these exact terms in explanations, reviews, and code-facing design notes whe
 
 ## Module language
 
-**Module** — Anything with an interface and implementation: function, class, file, package, service slice, adapter, or stateful object.
+**Module** — Anything with an interface and implementation: function, class, file, package, service slice, adapter, or stateful object. Avoid substituting overloaded words such as component, service, API, or boundary when the design question is about module shape.
 
-**Interface** — Everything callers must know to use a module correctly: type signatures, invariants, ordering constraints, error modes, configuration, performance, and side effects.
+**Interface** — Everything callers must know to use a module correctly: type signatures, invariants, ordering constraints, error modes, configuration, performance, and side effects. Avoid using API or signature when those narrower words would hide obligations a caller still has to know.
 
 **Implementation** — What sits behind the interface.
 
-**Seam** — A place where behavior can vary without editing the caller at that point. The seam is where the interface lives.
+**Seam** — A place where behavior can vary without editing the caller at that point. The seam is where the interface lives. Prefer seam when the topic is testability or substitutability; boundary is reserved for domain, protocol, persistence, or runtime edges.
 
 **Service Module** — A dependency-bearing module in the **Imperative Shell** that coordinates a cohesive use case, workflow, or service capability. It composes **Domain Modules** and interfaces implemented by **External Adapter Modules** through explicit dependencies, sequences effects, owns use-case policy, classifies dependency failures, and returns typed outcomes. It receives parsed service/domain values, not raw framework, protocol, persistence, or third-party shapes. Pure domain behavior remains in Domain Modules even when other literature might call it a domain service.
 

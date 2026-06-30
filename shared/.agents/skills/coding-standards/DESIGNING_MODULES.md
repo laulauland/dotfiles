@@ -108,6 +108,8 @@ Ask:
 
 Avoid exposing internal steps as public surface just because tests want them.
 
+When a deepening candidate has several plausible interfaces, design it twice: sketch two or three materially different interfaces before choosing. Compare them by depth, locality, seam placement, dependency strategy, and caller examples. The exploration is complete when the rejected interfaces have named trade-offs and the chosen interface states what complexity it hides behind the seam.
+
 ## Dependencies and seams
 
 Prefer narrow dependency interfaces at the consumer:
@@ -164,7 +166,9 @@ Use the dependency category to choose the seam and test strategy:
 3. **Remote but owned** — your own service across a network. Define a port at the seam; production uses transport adapter, tests use in-memory/fake adapter.
 4. **True external** — third-party services. Inject a port; tests use a fake/mock adapter through that seam.
 
-One adapter is a hypothetical seam. Two adapters — usually production plus test, or two real runtimes — make it real.
+One adapter is a hypothetical seam. Two adapters — usually production plus test, or two real runtimes — make it real. A deep module may still have internal seams used by its own implementation or tests; do not expose those seams through the external interface just because tests use them.
+
+When deepening shallow modules, replace tests at the new interface instead of layering tests over the old internals. Old unit tests on shallow pieces become waste once behavior is covered through the deepened module's interface. Tests should describe observable behavior and survive internal refactors.
 
 ## Functional core and imperative shell
 

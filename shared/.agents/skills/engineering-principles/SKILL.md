@@ -31,6 +31,7 @@ Read the matching leaf before applying it.
 | Doing any non-trivial or repeated work that a script, codemod, or generator could do and prove | `BUILD_THE_LEVER.md` |
 | Finishing a task and about to declare it done | `PROVE_IT_WORKS.md` |
 | Debugging a symptom and tempted to patch where it surfaced | `FIX_ROOT_CAUSES.md` |
+| Diagnosing a hard bug or performance regression without a reliable reproduction | `DIAGNOSE_HARD_BUGS.md` |
 | Stacking commits or PRs across a sweep or migration | `SEQUENCE_VERIFIABLE_UNITS.md` |
 | Context is filling with large outputs, long files, or fan-out planning | `GUARD_THE_CONTEXT_WINDOW.md` |
 | Tempted to ask "should I do X?" on reversible work | `NEVER_BLOCK_ON_THE_HUMAN.md` |
