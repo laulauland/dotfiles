@@ -31,17 +31,19 @@ mise bootstrap --yes
 `mise bootstrap --yes` uses `shared/.config/mise/config.toml` as the main
 workstation manifest. It installs remaining Homebrew formulae, clones/updates
 this repository at `~/code/laulauland/dotfiles`, runs the stow deployment,
-installs supported casks and Mac App Store apps through mise, applies native
-`[bootstrap.macos.*]` defaults, and installs mise-managed tools.
+installs Homebrew formulae through mise, installs Homebrew casks from `Caskfile`
+via the post-packages hook, installs Mac App Store apps through mise, applies
+native `[bootstrap.macos.*]` defaults, and installs mise-managed tools.
 
 The legacy `./bootstrap` script now only bootstraps Homebrew + mise, installs
 this repo's mise config as the global config, delegates macOS convergence to
 `mise bootstrap --yes --skip repos` because the checkout already exists, then
 runs `./stow` directly.
 
-- macOS: Uses mise bootstrap for remaining Homebrew packages, supported casks,
-  Mac App Store apps, native macOS defaults, and mise-managed tools. `./stow`
-  remains the explicit dotfile deployment mechanism.
+- macOS: Uses mise bootstrap for remaining Homebrew formulae, Homebrew casks
+  listed in `Caskfile`, Mac App Store apps, native macOS defaults, and
+  mise-managed tools. `./stow` remains the explicit dotfile deployment
+  mechanism.
 - macOS with `--defaults`: accepted for compatibility; native mise defaults are
   already applied by default
 - macOS with `--fish-shell`: adds the Homebrew fish path to `/etc/shells` if

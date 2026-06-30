@@ -1,11 +1,52 @@
-# Casks not currently supported by mise's brew-cask manager.
-# Keep these on plain Homebrew until mise supports their artifact types/API shape.
+# Casks are managed by Homebrew, not mise's experimental brew-cask manager.
+# The mise post-packages hook installs this file with `brew install --cask`.
+# Casks that require sudo during upgrades, such as tailscale-app, are managed manually.
+1password
+1password-cli
+battery-buddy
+chatgpt
+claude
+cleanshot
+codex
+commandq
+contexts
+cursor
+displaylink
 font-hack
 font-inter
 font-iosevka
 font-monaspace
 font-symbols-only-nerd-font
 ghostty
+google-chrome
+google-drive
+handy
+homerow
+iina
+iterm2
+itsycal
+jordanbaird-ice
+karabiner-elements
+keyboardcleantool
+linearmouse
+markedit
+middle
+mimestream
+mitmproxy
+monodraw
+notion
+notion-calendar
+obsidian
 orbstack
-tailscale
+pictogram
+raycast
+shortcat
+signal
+slack
+sloth
+stats
+telegram
+visual-studio-code
+whatsapp
 wezterm@nightly
+zed

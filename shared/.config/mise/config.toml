@@ -21,48 +21,9 @@ experimental = true
 "brew:stow" = "latest"
 "brew:watchman" = "latest"
 
-# GUI apps that mise can install directly with its brew-cask manager.
-"brew-cask:1password" = "latest"
-"brew-cask:1password-cli" = "latest"
-"brew-cask:battery-buddy" = "latest"
-"brew-cask:chatgpt" = "latest"
-"brew-cask:claude" = "latest"
-"brew-cask:cleanshot" = "latest"
-"brew-cask:codex" = "latest"
-"brew-cask:commandq" = "latest"
-"brew-cask:contexts" = "latest"
-"brew-cask:cursor" = "latest"
-"brew-cask:displaylink" = "latest"
-"brew-cask:google-chrome" = "latest"
-"brew-cask:google-drive" = "latest"
-"brew-cask:handy" = "latest"
-"brew-cask:homerow" = "latest"
-"brew-cask:iina" = "latest"
-"brew-cask:iterm2" = "latest"
-"brew-cask:itsycal" = "latest"
-"brew-cask:jordanbaird-ice" = "latest"
-"brew-cask:karabiner-elements" = "latest"
-"brew-cask:keyboardcleantool" = "latest"
-"brew-cask:linearmouse" = "latest"
-"brew-cask:markedit" = "latest"
-"brew-cask:middle" = "latest"
-"brew-cask:mimestream" = "latest"
-"brew-cask:mitmproxy" = "latest"
-"brew-cask:monodraw" = "latest"
-"brew-cask:notion" = "latest"
-"brew-cask:notion-calendar" = "latest"
-"brew-cask:obsidian" = "latest"
-"brew-cask:pictogram" = "latest"
-"brew-cask:raycast" = "latest"
-"brew-cask:shortcat" = "latest"
-"brew-cask:signal" = "latest"
-"brew-cask:slack" = "latest"
-"brew-cask:sloth" = "latest"
-"brew-cask:stats" = "latest"
-"brew-cask:telegram" = "latest"
-"brew-cask:visual-studio-code" = "latest"
-"brew-cask:whatsapp" = "latest"
-"brew-cask:zed" = "latest"
+# GUI apps and other casks are installed by the post-packages Homebrew hook
+# from Caskfile. mise's brew-cask manager is still experimental and does not
+# coexist cleanly with Homebrew-managed Caskroom metadata.
 
 # Mac App Store apps. The post-packages hook runs the mas manager again
 # after brew:mas has been installed on first bootstrap.
@@ -72,7 +33,7 @@ experimental = true
 [bootstrap.hooks.post-packages]
 run = [
   'if command -v mas >/dev/null 2>&1; then mise bootstrap packages apply --manager mas --yes; fi',
-  'if [ "$(uname)" = Darwin ] && command -v brew >/dev/null 2>&1 && [ -f "$HOME/code/laulauland/dotfiles/Caskfile" ]; then xargs brew install --cask < "$HOME/code/laulauland/dotfiles/Caskfile"; fi',
+  'if [ "$(uname)" = Darwin ] && command -v brew >/dev/null 2>&1 && [ -f "$HOME/code/laulauland/dotfiles/Caskfile" ]; then grep -Ev "^[[:space:]]*(#|$)" "$HOME/code/laulauland/dotfiles/Caskfile" | xargs brew install --cask; fi',
 ]
 
 [bootstrap.repos]
@@ -239,6 +200,7 @@ hyperfine = "latest"
 "conda:imagemagick" = "latest"
 "aqua:jj-vcs/jj" = "latest"
 "aqua:idursun/jjui" = "latest"
+"cargo:jj-starship" = "latest"
 "aqua:PaulJuliusMartinez/jless" = "latest"
 "aqua:jqlang/jq" = "latest"
 "aqua:jesseduffield/lazydocker" = "latest"
