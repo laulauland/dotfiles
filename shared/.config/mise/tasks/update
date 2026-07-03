@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+#MISE description="Upgrade mise tools by resolving command names to mise plugins"
+#MISE raw_args=true
+set -euo pipefail
+
+usage() {
+  cat <<'EOF'
+Usage: mise update [mise upgrade options] <binary> [<binary> ...]
+
+Resolve each binary on PATH to its mise tool plugin and upgrade those tools.
+
+Examples:
+  mise update pi
+  mise update --dry-run pi jj rg
+EOF
+}
+
+if [[ $# -eq 0 || "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
+  usage
+  exit 0
+fi
+
+upgrade_args=()
+bins=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --)
+      shift
+      upgrade_args+=("$@")
+      break
+      ;;
+    --dry-run|--dry-run-code|--bump|--interactive|--inactive|--local|--raw|-n|-l|-i)
+      upgrade_args+=("$1")
+      shift
+      ;;
+    --jobs|-j|--minimum-release-age|--exclude|-x)
+      if [[ $# -lt 2 ]]; then
+        echo "mise update: missing value for $1" >&2
+        exit 2
+      fi
+      upgrade_args+=("$1" "$2")
+      shift 2
+      ;;
+    -*)
+      upgrade_args+=("$1")
+      shift
+      ;;
+    *)
+      bins+=("$1")
+      shift
+      ;;
+  esac
+done
+
+if [[ ${#bins[@]} -eq 0 ]]; then
+  usage >&2
+  exit 2
+fi
+
+tools=()
+for bin in "${bins[@]}"; do
+  tools+=("$(mise which "$bin" --plugin)")
+done
+
+exec mise upgrade "${upgrade_args[@]}" "${tools[@]}"
