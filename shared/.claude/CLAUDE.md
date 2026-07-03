@@ -21,6 +21,8 @@ The `engineering-principles` skill is the process layer that sits next to `codin
 
 Always use `jj` (Jujutsu), never `git`. The `jujutsu` skill has the command reference.
 
+**Always rebase, never merge:** when a branch or PR needs the latest main, rebase the stack onto `trunk()` and force-push — never create a "merge main into X" commit. Commits being pushed/immutable is not a reason to merge when Lau is the only author of the commits on that branch (no one else worked on it): use `--ignore-immutable` and force-push freely. If someone else has commits on the branch, stop and ask before rewriting. Resolve conflicts per conflicted revision so every intermediate commit stays marker-free, and verify with `jj git push --dry-run` before the real push.
+
 Custom aliases worth knowing (from `~/.config/jj/config.toml`):
 - `jj overview` — diff stats + last 3 commits (default command)
 - `jj l` — last 15 commits with color
