@@ -15,6 +15,8 @@ The `engineering-principles` skill is the process layer that sits next to `codin
 - Use `fd` instead of `find`
 - Use `rg` (ripgrep) instead of `grep`
 
+**grep→rg translation that fails at runtime:** `rg` recurses by default and `-r` is `--replace` (it takes a value), so `grep -rn` does NOT port to `rg -rn`. In a bundled flag the letters trailing `-r` become the replacement string: `rg -rn PATTERN` silently rewrites every match to `n`, `rg -rln PATTERN` rewrites to `ln`, and the intended `-l`/`-n` are lost — corrupted output with no line numbers, not a display glitch. Use `rg -n PATTERN` (recursion is implicit); reach for `-r` only when you actually mean `--replace`.
+
 ## Version Control
 
 Always use `jj` (Jujutsu), never `git`. The `jujutsu` skill has the command reference.
