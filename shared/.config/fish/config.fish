@@ -207,3 +207,5 @@ set -gx PATH $PATH /Users/laurynas/.lmstudio/bin
 
 # Pi
 fish_add_path "/Users/laurynas/.local/share/mise/installs/node/26.3.1/bin"
+
+source /Users/lau/.config/fish/daytona.completion_script.fish

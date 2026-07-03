@@ -54,6 +54,22 @@ export interface MonitorToolParams {
 }
 
 const monitors = new Map<string, RunningMonitor>();
+const changeListeners = new Set<() => void>();
+
+function emitMonitorChange(): void {
+  for (const listener of changeListeners) {
+    try {
+      listener();
+    } catch {
+      // Ignore stale UI listeners; monitor notifications are best-effort.
+    }
+  }
+}
+
+export function onMonitorChange(listener: () => void): () => void {
+  changeListeners.add(listener);
+  return () => changeListeners.delete(listener);
+}
 
 function makeId(): string {
   return randomBytes(4).toString("hex");
@@ -128,7 +144,7 @@ function handleLine(
     {
       customType: "monitor_event",
       content: `Monitor "${monitor.name}" matched ${source}:\n\n${line}`,
-      display: true,
+      display: false,
       details: {
         id: monitor.id,
         name: monitor.name,
@@ -142,6 +158,7 @@ function handleLine(
     },
     { triggerTurn: true, deliverAs: "steer" },
   );
+  emitMonitorChange();
 }
 
 export function startMonitor(params: MonitorStartParams, pi: ExtensionAPI): MonitorRecord {
@@ -176,6 +193,7 @@ export function startMonitor(params: MonitorStartParams, pi: ExtensionAPI): Moni
     matcher,
   };
   monitors.set(id, monitor);
+  emitMonitorChange();
 
   const buffers = { stdout: "", stderr: "" };
   child.stdout.on("data", (chunk: Buffer) => appendChunk({ monitor, chunk, source: "stdout", buffers, pi }));
@@ -187,6 +205,7 @@ export function startMonitor(params: MonitorStartParams, pi: ExtensionAPI): Moni
     if (includeStderr && buffers.stderr) handleLine(monitor, buffers.stderr, "stderr", pi);
     monitor.exited = { code, signal, at: Date.now() };
     monitors.delete(id);
+    emitMonitorChange();
     if (notifyOnExit) {
       safeSendMessage(
         pi,
@@ -203,6 +222,7 @@ export function startMonitor(params: MonitorStartParams, pi: ExtensionAPI): Moni
   child.on("error", (error) => {
     monitor.exited = { code: 1, signal: null, at: Date.now() };
     monitors.delete(id);
+    emitMonitorChange();
     safeSendMessage(
       pi,
       {
@@ -231,6 +251,7 @@ export function stopMonitor(params: { id?: string; name?: string }): MonitorReco
   const monitor = resolveTarget(params);
   if (!monitor) return null;
   monitor.process.kill("SIGTERM");
+  emitMonitorChange();
   return publicRecord(monitor);
 }
 
@@ -239,4 +260,5 @@ export function stopAllMonitors(): void {
     monitor.process.kill("SIGTERM");
   }
   monitors.clear();
+  emitMonitorChange();
 }

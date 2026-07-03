@@ -5,6 +5,7 @@ import { Type } from "typebox";
 import {
   getMonitor,
   listMonitors,
+  onMonitorChange,
   startMonitor,
   stopAllMonitors,
   stopMonitor,
@@ -32,6 +33,76 @@ const MonitorParams = Type.Object({
 });
 
 type MonitorParamsType = typeof MonitorParams.static;
+
+const MONITOR_WIDGET_ID = "monitor-status";
+const MONITOR_STATUS_ID = "monitor-status";
+const MAX_MONITOR_WIDGET_LINES = 12;
+
+function formatElapsed(startTime: number): string {
+  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - startTime) / 1000));
+  const minutes = Math.floor(elapsedSeconds / 60);
+  const seconds = elapsedSeconds % 60;
+  return `${minutes}:${seconds.toString().padStart(2, "0")}`;
+}
+
+function renderMonitorWidgetLines(ctx: ExtensionContext, width: number): string[] {
+  const monitors = listMonitors();
+  if (monitors.length === 0) return [];
+
+  const lines = [
+    truncateToWidth(
+      `${ctx.ui.theme.fg("accent", "●")} ${ctx.ui.theme.fg("accent", "Monitors")} ${ctx.ui.theme.fg("dim", `${monitors.length} running`)}`,
+      width,
+    ),
+  ];
+
+  for (const monitor of monitors) {
+    const latest = monitor.lastMatch ?? monitor.lastLine ?? "watching…";
+    lines.push(
+      truncateToWidth(
+        `├─ ${ctx.ui.theme.fg("accent", monitor.name)} ${ctx.ui.theme.fg("dim", `· ${formatElapsed(monitor.startTime)} · ${monitor.matchedEvents} matches / ${monitor.totalLines} lines`)}`,
+        width,
+      ),
+    );
+    lines.push(
+      truncateToWidth(
+        `│  ${ctx.ui.theme.fg("dim", `⎿ ${latest}`)}`,
+        width,
+      ),
+    );
+    if (lines.length >= MAX_MONITOR_WIDGET_LINES) break;
+  }
+
+  const last = lines.length - 1;
+  if (last > 0) lines[last] = lines[last]!.replace("├─", "└─").replace("│ ", "  ");
+  return lines.slice(0, MAX_MONITOR_WIDGET_LINES);
+}
+
+function updateMonitorWidget(ctx: ExtensionContext | null): void {
+  if (!ctx?.hasUI) return;
+
+  const monitors = listMonitors();
+  if (monitors.length === 0) {
+    ctx.ui.setWidget(MONITOR_WIDGET_ID, undefined);
+    ctx.ui.setStatus(MONITOR_STATUS_ID, undefined);
+    return;
+  }
+
+  ctx.ui.setStatus(
+    MONITOR_STATUS_ID,
+    `${monitors.length} monitor${monitors.length === 1 ? "" : "s"} running`,
+  );
+  ctx.ui.setWidget(
+    MONITOR_WIDGET_ID,
+    () => ({
+      invalidate() {},
+      render(width: number) {
+        return renderMonitorWidgetLines(ctx, width);
+      },
+    }),
+    { placement: "aboveEditor" },
+  );
+}
 
 function handleMonitor(params: MonitorParamsType, ctx: ExtensionContext, pi: ExtensionAPI) {
   switch (params.action as MonitorToolParams["action"]) {
@@ -85,7 +156,19 @@ function handleMonitor(params: MonitorParamsType, ctx: ExtensionContext, pi: Ext
 }
 
 export default function monitorExtension(pi: ExtensionAPI): void {
-  pi.on("session_shutdown", () => {
+  let activeCtx: ExtensionContext | null = null;
+
+  onMonitorChange(() => updateMonitorWidget(activeCtx));
+
+  pi.on("session_start", async (_event, ctx) => {
+    activeCtx = ctx;
+    updateMonitorWidget(activeCtx);
+  });
+
+  pi.on("session_shutdown", (_event, ctx) => {
+    activeCtx = null;
+    ctx.ui.setWidget(MONITOR_WIDGET_ID, undefined);
+    ctx.ui.setStatus(MONITOR_STATUS_ID, undefined);
     stopAllMonitors();
   });
 
