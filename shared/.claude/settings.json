@@ -10,46 +10,6 @@
   },
   "model": "claude-fable-5[1m]",
   "hooks": {
-    "WorktreeCreate": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/worktree-create-hook.sh",
-            "timeout": 120
-          }
-        ]
-      }
-    ],
-    "WorktreeRemove": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/worktree-remove-hook.sh"
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/git-to-jj-hook.sh"
-          },
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/jj-no-interactive-hook.sh"
-          },
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/pip-to-uv-hook.sh"
-          }
-        ]
-      }
-    ],
     "Notification": [
       {
         "matcher": "permission_prompt",
@@ -78,6 +38,58 @@
           }
         ]
       }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/scripts/git-to-jj-hook.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/scripts/jj-no-interactive-hook.sh"
+          },
+          {
+            "type": "command",
+            "command": "bash ~/.claude/scripts/pip-to-uv-hook.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "matcher": "*",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash '/Users/lau/.claude/hooks/herdr-agent-state.sh' session",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "WorktreeCreate": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/scripts/worktree-create-hook.sh",
+            "timeout": 120
+          }
+        ]
+      }
+    ],
+    "WorktreeRemove": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.claude/scripts/worktree-remove-hook.sh"
+          }
+        ]
+      }
     ]
   },
   "statusLine": {
@@ -85,9 +97,9 @@
     "command": "bash ~/.claude/scripts/statusline-wrapper.sh"
   },
   "enabledPlugins": {
-    "slack@claude-plugins-official": true,
     "figma@claude-plugins-official": true,
-    "sideshow@sideshow": true
+    "sideshow@sideshow": true,
+    "slack@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
     "sideshow": {
