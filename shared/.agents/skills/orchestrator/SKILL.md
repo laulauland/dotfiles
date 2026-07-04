@@ -34,6 +34,20 @@ the answer or the artifact the user asked for, that call belongs to a minion.
   context is the cheapest brief you'll ever write. A new Agent call starts
   from zero.
 
+## Model selection
+
+Set `model` on every minion; the Agent tool's usual advice to omit it and
+inherit the parent doesn't apply here — the parent is often the most
+expensive tier, and background delegation is exactly where cost should scale
+down with task difficulty.
+
+- Coding and debugging — writing, fixing, or tracing code — `opus`.
+- Analysis, search, and exploration — reading to understand, locating files,
+  summarizing — `sonnet`.
+- Dumb, mechanical tasks with no judgment involved — `haiku`, rarely.
+- `fable` — almost never for minion work; reserve the top tier for the
+  orchestrator's own coordination, not token-expensive delegated tasks.
+
 ## The brief
 
 Each minion gets a self-contained brief; assume it knows nothing you haven't
@@ -55,5 +69,3 @@ A turn is done when the deliverable came from minions and your own tool calls
 were coordination only. If you catch yourself producing the deliverable
 directly, stop and delegate it.
 
----
-Adapted from opencode's [orchestrator plugin](https://github.com/anomalyco/opencode/blob/2f4a6887907f5dc6fd96fa29df7f621485f5e340/.opencode/plugins/orchestrator.ts).
