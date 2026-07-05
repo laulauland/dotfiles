@@ -1,101 +1,9 @@
 {
+  "agentPushNotifEnabled": true,
+  "alwaysThinkingEnabled": true,
+  "autoCompactWindow": 250000,
   "cleanupPeriodDays": 3650,
-  "includeCoAuthoredBy": false,
-  "permissions": {
-    "deny": [
-      "EnterPlanMode",
-      "ExitPlanMode"
-    ],
-    "defaultMode": "auto"
-  },
-  "model": "sonnet",
-  "hooks": {
-    "Notification": [
-      {
-        "matcher": "permission_prompt",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/notification-hook.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "idle_prompt",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/notification-hook.sh"
-          }
-        ]
-      },
-      {
-        "matcher": "elicitation_dialog",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/notification-hook.sh"
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/git-to-jj-hook.sh"
-          },
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/jj-no-interactive-hook.sh"
-          },
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/pip-to-uv-hook.sh"
-          }
-        ]
-      }
-    ],
-    "SessionStart": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash '/Users/lau/.claude/hooks/herdr-agent-state.sh' session",
-            "timeout": 10
-          }
-        ]
-      }
-    ],
-    "WorktreeCreate": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/worktree-create-hook.sh",
-            "timeout": 120
-          }
-        ]
-      }
-    ],
-    "WorktreeRemove": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/worktree-remove-hook.sh"
-          }
-        ]
-      }
-    ]
-  },
-  "statusLine": {
-    "type": "command",
-    "command": "bash ~/.claude/scripts/statusline-wrapper.sh"
-  },
+  "effortLevel": "xhigh",
   "enabledPlugins": {
     "figma@claude-plugins-official": true,
     "sideshow@sideshow": true,
@@ -104,14 +12,113 @@
   "extraKnownMarketplaces": {
     "sideshow": {
       "source": {
-        "source": "github",
-        "repo": "modem-dev/sideshow"
+        "repo": "modem-dev/sideshow",
+        "source": "github"
       }
     }
   },
-  "alwaysThinkingEnabled": true,
-  "effortLevel": "xhigh",
-  "autoCompactWindow": 250000,
+  "hooks": {
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "command": "bash ~/.claude/scripts/notification-hook.sh",
+            "type": "command"
+          }
+        ],
+        "matcher": "permission_prompt"
+      },
+      {
+        "hooks": [
+          {
+            "command": "bash ~/.claude/scripts/notification-hook.sh",
+            "type": "command"
+          }
+        ],
+        "matcher": "idle_prompt"
+      },
+      {
+        "hooks": [
+          {
+            "command": "bash ~/.claude/scripts/notification-hook.sh",
+            "type": "command"
+          }
+        ],
+        "matcher": "elicitation_dialog"
+      }
+    ],
+    "PreToolUse": [
+      {
+        "hooks": [
+          {
+            "command": "bash ~/.claude/scripts/git-to-jj-hook.sh",
+            "type": "command"
+          },
+          {
+            "command": "bash ~/.claude/scripts/jj-no-interactive-hook.sh",
+            "type": "command"
+          },
+          {
+            "command": "bash ~/.claude/scripts/pip-to-uv-hook.sh",
+            "type": "command"
+          }
+        ],
+        "matcher": "Bash"
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "bash '/Users/lau/.claude/hooks/herdr-agent-state.sh' session",
+            "timeout": 10,
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      },
+      {
+        "hooks": [
+          {
+            "command": "bash '/Users/laurynas/.claude/hooks/herdr-agent-state.sh' session",
+            "timeout": 10,
+            "type": "command"
+          }
+        ],
+        "matcher": "*"
+      }
+    ],
+    "WorktreeCreate": [
+      {
+        "hooks": [
+          {
+            "command": "bash ~/.claude/scripts/worktree-create-hook.sh",
+            "timeout": 120,
+            "type": "command"
+          }
+        ]
+      }
+    ],
+    "WorktreeRemove": [
+      {
+        "hooks": [
+          {
+            "command": "bash ~/.claude/scripts/worktree-remove-hook.sh",
+            "type": "command"
+          }
+        ]
+      }
+    ]
+  },
+  "includeCoAuthoredBy": false,
+  "model": "sonnet",
+  "permissions": {
+    "defaultMode": "auto",
+    "deny": [
+      "EnterPlanMode",
+      "ExitPlanMode"
+    ]
+  },
   "pluginConfigs": {
     "sideshow@sideshow": {
       "options": {
@@ -119,11 +126,14 @@
       }
     }
   },
-  "tui": "fullscreen",
+  "skipAutoPermissionPrompt": true,
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
+  "statusLine": {
+    "command": "bash ~/.claude/scripts/statusline-wrapper.sh",
+    "type": "command"
+  },
   "theme": "auto",
-  "agentPushNotifEnabled": true,
-  "skipAutoPermissionPrompt": true,
+  "tui": "fullscreen",
   "voiceEnabled": true
 }
