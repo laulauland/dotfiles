@@ -12,7 +12,7 @@ This is a dotfiles repository with one active deployment model:
 
 ## Setup and Installation
 
-### Initial Setup
+### New Machine Bootstrap
 ```bash
 # Preferred macOS path: converge packages, clone/update this repo, apply
 # dotfiles, apply macOS defaults, and install mise tools
@@ -66,6 +66,53 @@ needed, installs the shared mise config, then runs
   only want to re-apply dotfiles.
 - `./macos/defaults` remains available as a legacy way to re-apply macOS System
   Settings preferences; the preferred path is `mise bootstrap macos defaults apply`
+
+## Configuration And Tooling Changes
+
+Tool and setup changes belong in `shared/.config/mise/config.toml` unless they
+are platform-specific.
+
+- Add portable CLI tools under `[tools]`.
+- Add macOS Homebrew formulae or Mac App Store apps under `[bootstrap.packages]`.
+- Keep Homebrew casks in `Caskfile`; the mise post-packages hook installs it.
+- Keep Arch pacman/yay prerequisites in `bootstrap` unless mise's package
+  manager support is a better fit.
+- Keep AUR-only packages out of mise's pacman manager; install them through an
+  explicit yay/bootstrap step.
+
+After changing tooling, verify with the relevant dry run or status command:
+
+```bash
+mise bootstrap status -E macos
+mise bootstrap status -E arch
+mise install --dry-run
+```
+
+## New Dotfile Configuration
+
+Put cross-platform configuration in `shared/`, macOS-only configuration in
+`macos/`, and Arch-only configuration in `arch/`.
+
+When adding a new dotfile directory or file, add a matching `[dotfiles]` entry:
+
+- Shared entries go in `shared/.config/mise/config.toml`.
+- macOS overlay entries go in `shared/.config/mise/config.macos.toml`.
+- Arch overlay entries go in `shared/.config/mise/config.arch.toml`.
+
+Prefer explicit entries over broad directory links. Do not link mutable state,
+caches, histories, generated installs, secrets, or host-local files such as:
+
+- `~/.local/share`
+- `~/.local/state`
+- `~/.config/fish/fish_variables`
+- app caches, logs, databases, and generated package/tool installs
+
+Validate dotfile changes before applying them:
+
+```bash
+mise dotfiles apply --dry-run -E macos
+mise dotfiles apply --dry-run -E arch
+```
 
 ## Architecture
 
@@ -127,7 +174,7 @@ jj sync              # Fetch from all remotes
 jj pushall           # Push to all configured remotes
 ```
 
-### Configuration Testing
+### Verification
 - Use `./bootstrap` from an existing checkout to install/update platform
   prerequisites, mise tools, and dotfiles
 - Use `mise bootstrap --yes -E macos` on macOS when you want the full declarative flow,
