@@ -4,64 +4,66 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This is a dotfiles repository with two deployment paths:
+This is a dotfiles repository with one active deployment model:
 
-- GNU Stow for macOS workstation and Arch server dotfiles.
-- NixOS flakes for declarative NixOS hosts.
+- mise bootstraps packages, tools, repositories, dotfile links, and macOS defaults.
+- `shared/` is always applied; `macos/` and `arch/` are platform-specific
+  dotfile overlays selected with mise environments.
 
 ## Setup and Installation
 
 ### Initial Setup
 ```bash
-# Preferred: converge packages, clone/update this repo, apply dotfiles,
-# apply macOS defaults, and install mise tools
-mise bootstrap --yes
+# Preferred macOS path: converge packages, clone/update this repo, apply
+# dotfiles, apply macOS defaults, and install mise tools
+mise bootstrap --yes -E macos
 
-# Legacy path: install workstation dependencies and dotfiles
+# Existing checkout: install platform prerequisites, install mise tools, and link dotfiles
 ./bootstrap
 
-# Legacy path: --defaults is accepted for compatibility; mise applies defaults
+# --defaults is accepted for compatibility; mise applies defaults
 # by default now
 ./bootstrap --defaults
 
-# Legacy path: also change the login shell to fish
+# Also change the login shell to fish
 ./bootstrap --fish-shell
 ```
 
 `mise bootstrap --yes` uses `shared/.config/mise/config.toml` as the main
 workstation manifest. It installs remaining Homebrew formulae, clones/updates
-this repository at `~/code/laulauland/dotfiles`, runs the stow deployment,
-installs Homebrew formulae through mise, installs Homebrew casks from `Caskfile`
-via the post-packages hook, installs Mac App Store apps through mise, applies
-native `[bootstrap.macos.*]` defaults, and installs mise-managed tools.
+this repository at `~/code/laulauland/dotfiles`, applies shared and platform
+dotfiles, installs Homebrew formulae through mise, installs Homebrew casks from
+`Caskfile` via the post-packages hook, installs Mac App Store apps through mise,
+applies native `[bootstrap.macos.*]` defaults, and installs mise-managed tools.
 
-The legacy `./bootstrap` script now only bootstraps Homebrew + mise, installs
-this repo's mise config as the global config, delegates macOS convergence to
-`mise bootstrap --yes --skip repos` because the checkout already exists, then
-runs `./stow` directly.
+The `./bootstrap` script is for an existing checkout. On macOS it bootstraps
+Homebrew + mise, installs this repo's mise config as the global config,
+delegates macOS convergence to `mise bootstrap --yes -E macos --skip repos`.
+On Arch Linux it installs the minimum pacman prerequisites, installs `yay` if
+needed, installs the shared mise config, then runs
+`mise bootstrap --yes -E arch --skip packages,repos,macos-defaults,macos-launchd-agents`.
 
 - macOS: Uses mise bootstrap for remaining Homebrew formulae, Homebrew casks
   listed in `Caskfile`, Mac App Store apps, native macOS defaults, and
-  mise-managed tools. `./stow` remains the explicit dotfile deployment
-  mechanism.
+  mise-managed tools and dotfiles.
 - macOS with `--defaults`: accepted for compatibility; native mise defaults are
   already applied by default
 - macOS with `--fish-shell`: adds the Homebrew fish path to `/etc/shells` if
   needed and runs `chsh -s` for the current user
-- Arch Linux: Deploys `shared` + `arch` directories
-- NixOS: Use `./nixos/switch`, which infers the host and runs `nixos-rebuild`
-
-Linux desktop stow configuration is currently archived. NixOS hosts are managed
-from `nixos/`.
+- Arch Linux: Uses pacman/yay for bootstrap prerequisites, mise for portable
+  tools, and mise dotfiles for `shared` + `arch`
 
 ### Prerequisites
 - macOS bootstrap installs Homebrew if it is missing, then installs mise before
   delegating to `mise bootstrap`. Installing Homebrew may prompt for sudo once;
   do not run the whole bootstrap script with sudo.
 - Mac App Store installs require `mas` and an App Store login.
+- Arch installs may prompt for sudo during `pacman -Syu --needed` and during the
+  initial `yay` build.
 - Changing the login shell may prompt for sudo to update `/etc/shells`; do not
   run the whole bootstrap script with sudo.
-- `./stow` remains available when you only want to re-apply dotfiles
+- Use `mise dotfiles apply -E macos` or `mise dotfiles apply -E arch` when you
+  only want to re-apply dotfiles.
 - `./macos/defaults` remains available as a legacy way to re-apply macOS System
   Settings preferences; the preferred path is `mise bootstrap macos defaults apply`
 
@@ -74,14 +76,9 @@ dotfiles/
 │   ├── .local/bin/   # Custom executable scripts (added to PATH)
 │   └── .config/      # Application configurations
 ├── macos/           # macOS-specific configurations
-├── arch/            # Arch server-specific stow overlay
-├── flake.nix        # NixOS flake entrypoint
-├── nixos/           # NixOS modules and host definitions
-├── archive/         # Archived configs such as the old Linux desktop stow layer
-├── snippets/        # Code snippets (TypeScript, etc.)
+├── arch/            # Arch server-specific dotfile overlay
 ├── bootstrap        # Dependency + dotfile bootstrap script
-├── macos/defaults   # Portable macOS System Settings preferences
-└── stow             # Dotfile deployment script
+└── macos/defaults   # Portable macOS System Settings preferences
 ```
 
 ### Key Configuration Areas
@@ -131,20 +128,20 @@ jj pushall           # Push to all configured remotes
 ```
 
 ### Configuration Testing
-- Use `./bootstrap` to install/update macOS dependencies and apply dotfiles
-- Use `./bootstrap --defaults` when a macOS machine should also receive System
-  Settings defaults
-- Use `./stow` to test only macOS and Arch stow changes
-- Use `./nixos/switch` on NixOS hosts
+- Use `./bootstrap` from an existing checkout to install/update platform
+  prerequisites, mise tools, and dotfiles
+- Use `mise bootstrap --yes -E macos` on macOS when you want the full declarative flow,
+  including repo clone/update and System Settings defaults
+- Use `mise dotfiles apply --dry-run -E macos` or
+  `mise dotfiles apply --dry-run -E arch` to inspect dotfile changes
 - No formal test suite - configuration changes are deployed directly
 
 ### File Organization
 - Cross-platform configs go in `shared/`
 - macOS-specific configs go in `macos/`
 - Arch server-specific configs go in `arch/`
-- NixOS host state goes in `nixos/hosts/<host>/`
-- Reusable NixOS modules go in `nixos/modules/`
-- Use stow's dotfiles feature (files prefixed with `dot-` become `.filename`)
+- Add symlink management to `shared/.config/mise/config.toml`; add platform
+  overlays to `config.macos.toml` or `config.arch.toml`.
 
 ## Special Considerations
 
@@ -159,7 +156,6 @@ jj pushall           # Push to all configured remotes
 - Shared base configuration reduces duplication
 
 ## Key Tools and Dependencies
-- GNU Stow (required for deployment)
 - Jujutsu (jj) for version control
 - Starship for shell prompt
 - Tmux with custom configuration

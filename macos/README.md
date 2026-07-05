@@ -1,8 +1,8 @@
 # macOS Workstation Notes
 
-This stow layer contains macOS-only application configuration. It is intended
-for preferences that are portable enough to recreate a working machine without
-committing app state, histories, tokens, caches, or databases.
+This dotfile overlay contains macOS-only application configuration. It is
+intended for preferences that are portable enough to recreate a working machine
+without committing app state, histories, tokens, caches, or databases.
 
 Raycast notes:
 

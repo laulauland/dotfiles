@@ -40,10 +40,44 @@ install_mise() {
 	brew install mise
 }
 
+is_arch() {
+	[ -r /etc/os-release ] && grep -q '^ID=arch$' /etc/os-release
+}
+
+install_arch_base() {
+	if ! command -v pacman >/dev/null 2>&1; then
+		echo "pacman is required for Arch bootstrap."
+		exit 1
+	fi
+
+	echo "Installing Arch bootstrap packages..."
+	sudo pacman -Syu --needed git base-devel fish mise
+}
+
+install_yay() {
+	command -v yay >/dev/null 2>&1 && return
+
+	local build_dir
+	build_dir=$(mktemp -d)
+	trap 'rm -rf "$build_dir"' RETURN
+
+	echo "Installing yay..."
+	git clone https://aur.archlinux.org/yay.git "$build_dir/yay"
+	(
+		cd "$build_dir/yay"
+		makepkg -si --noconfirm
+	)
+}
+
 install_global_mise_config() {
 	mkdir -p "$HOME/.config/mise"
 	ln -sf "$REPO_ROOT/shared/.config/mise/config.toml" "$HOME/.config/mise/config.toml"
+	ln -sf "$REPO_ROOT/shared/.config/mise/config.macos.toml" "$HOME/.config/mise/config.macos.toml"
+	ln -sf "$REPO_ROOT/shared/.config/mise/config.arch.toml" "$HOME/.config/mise/config.arch.toml"
+	ln -sfn "$REPO_ROOT/shared/.config/mise/tasks" "$HOME/.config/mise/tasks"
 	mise trust "$HOME/.config/mise/config.toml"
+	mise trust "$HOME/.config/mise/config.macos.toml"
+	mise trust "$HOME/.config/mise/config.arch.toml"
 }
 
 set_fish_shell() {
@@ -66,16 +100,24 @@ Darwin)
 	install_mise
 	install_global_mise_config
 	# This checkout already exists, so let mise converge everything except cloning it.
-	mise bootstrap --yes --skip repos "$@"
-	"$REPO_ROOT/stow"
+	mise bootstrap --yes -E macos --skip repos "$@"
 	[ "$CHANGE_SHELL" -eq 0 ] || set_fish_shell
 	;;
 Linux)
-	if [ -r /etc/os-release ] && grep -q '^ID=nixos$' /etc/os-release; then
-		exec "$REPO_ROOT/nixos/switch" "$@"
+	if ! is_arch; then
+		echo "Only Arch Linux is supported by this bootstrap path."
+		exit 1
+	fi
+	if [ "$(id -u)" -eq 0 ]; then
+		echo "Run this as the target user, not root."
+		exit 1
 	fi
 
-	"$REPO_ROOT/stow"
+	install_arch_base
+	install_yay
+	install_global_mise_config
+	mise bootstrap --yes -E arch --skip packages,repos,macos-defaults,macos-launchd-agents "$@"
+	[ "$CHANGE_SHELL" -eq 0 ] || set_fish_shell
 	;;
 *)
 	echo "Your operating system is not supported."

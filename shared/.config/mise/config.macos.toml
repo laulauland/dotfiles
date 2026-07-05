@@ -1,0 +1,6 @@
+[dotfiles]
+"~/.config/karabiner" = { source = "~/code/laulauland/dotfiles/macos/.config/karabiner", mode = "symlink-each" }
+"~/.config/linearmouse" = { source = "~/code/laulauland/dotfiles/macos/.config/linearmouse", mode = "symlink-each" }
+"~/.config/raycast" = { source = "~/code/laulauland/dotfiles/macos/.config/raycast", mode = "symlink-each" }
+"~/.config/zed" = { source = "~/code/laulauland/dotfiles/macos/.config/zed", mode = "symlink-each" }
+"~/.gitconfig-os" = "~/code/laulauland/dotfiles/macos/.gitconfig-os"

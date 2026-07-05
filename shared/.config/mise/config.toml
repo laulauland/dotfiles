@@ -4,9 +4,11 @@
 # fill`, which git routes to `gh auth git-credential` -> keychain.
 github.use_git_credentials = true
 experimental = true
+dotfiles.root = "~/code/laulauland/dotfiles"
+dotfiles.default_mode = "symlink"
 
 [bootstrap.packages]
-# Formulae needed before repo hooks, casks, Mac App Store apps, and tools run.
+# macOS packages needed before repo hooks, casks, Mac App Store apps, and tools run.
 "brew:btop" = "latest"
 "brew:entr" = "latest"
 "brew:ffmpeg" = "latest"
@@ -20,12 +22,15 @@ experimental = true
 "brew:poppler" = "latest"
 "brew:qemu" = "latest"
 "brew:qpdf" = "latest"
-"brew:stow" = "latest"
 "brew:watchman" = "latest"
 
 # GUI apps and other casks are installed by the post-packages Homebrew hook
 # from Caskfile. mise's brew-cask manager is still experimental and does not
 # coexist cleanly with Homebrew-managed Caskroom metadata.
+#
+# Arch uses ./bootstrap for pacman/yay prerequisites, then mise bootstrap for
+# dotfiles and the portable [tools] below. AUR packages stay out of mise's
+# pacman package manager.
 
 # Mac App Store apps. The post-packages hook runs the mas manager again
 # after brew:mas has been installed on first bootstrap.
@@ -41,9 +46,41 @@ run = [
 [bootstrap.repos]
 "~/code/laulauland/dotfiles" = { url = "git@github.com:laulauland/dotfiles.git", ref = "main" }
 
-[bootstrap.hooks.post-repos]
-run = 'if [ -x "$HOME/code/laulauland/dotfiles/stow" ]; then "$HOME/code/laulauland/dotfiles/stow"; fi'
+[dotfiles]
+"~/.agents" = { source = "~/code/laulauland/dotfiles/shared/.agents", mode = "symlink-each" }
+"~/.claude" = { source = "~/code/laulauland/dotfiles/shared/.claude", mode = "symlink-each" }
+"~/.codex" = { source = "~/code/laulauland/dotfiles/shared/.codex", mode = "symlink-each" }
+"~/.cursor" = { source = "~/code/laulauland/dotfiles/shared/.cursor", mode = "symlink-each" }
+"~/.pi" = { source = "~/code/laulauland/dotfiles/shared/.pi", mode = "symlink-each" }
+"~/.local/bin" = { source = "~/code/laulauland/dotfiles/shared/.local/bin", mode = "symlink-each" }
+"~/.ssh/rc" = "~/code/laulauland/dotfiles/shared/.ssh/rc"
+"~/.gitconfig" = "~/code/laulauland/dotfiles/shared/.gitconfig"
+"~/.gitconfig-work" = "~/code/laulauland/dotfiles/shared/.gitconfig-work"
 
+"~/.config/amp" = { source = "~/code/laulauland/dotfiles/shared/.config/amp", mode = "symlink-each" }
+"~/.config/bat" = { source = "~/code/laulauland/dotfiles/shared/.config/bat", mode = "symlink-each" }
+"~/.config/btop" = { source = "~/code/laulauland/dotfiles/shared/.config/btop", mode = "symlink-each" }
+"~/.config/cmux" = { source = "~/code/laulauland/dotfiles/shared/.config/cmux", mode = "symlink-each" }
+"~/.config/emacs" = { source = "~/code/laulauland/dotfiles/shared/.config/emacs", mode = "symlink-each" }
+"~/.config/ghostty" = { source = "~/code/laulauland/dotfiles/shared/.config/ghostty", mode = "symlink-each" }
+"~/.config/ghui" = { source = "~/code/laulauland/dotfiles/shared/.config/ghui", mode = "symlink-each" }
+"~/.config/herdr" = { source = "~/code/laulauland/dotfiles/shared/.config/herdr", mode = "symlink-each" }
+"~/.config/jj" = { source = "~/code/laulauland/dotfiles/shared/.config/jj", mode = "symlink-each" }
+"~/.config/jjui" = { source = "~/code/laulauland/dotfiles/shared/.config/jjui", mode = "symlink-each" }
+"~/.config/marimo" = { source = "~/code/laulauland/dotfiles/shared/.config/marimo", mode = "symlink-each" }
+"~/.config/mise" = { source = "~/code/laulauland/dotfiles/shared/.config/mise", mode = "symlink-each" }
+"~/.config/nvim" = { source = "~/code/laulauland/dotfiles/shared/.config/nvim", mode = "symlink-each" }
+"~/.config/opencode" = { source = "~/code/laulauland/dotfiles/shared/.config/opencode", mode = "symlink-each" }
+"~/.config/tmux" = { source = "~/code/laulauland/dotfiles/shared/.config/tmux", mode = "symlink-each" }
+"~/.config/wezterm" = { source = "~/code/laulauland/dotfiles/shared/.config/wezterm", mode = "symlink-each" }
+"~/.config/ripgrep" = "~/code/laulauland/dotfiles/shared/.config/ripgrep"
+"~/.config/starship.toml" = "~/code/laulauland/dotfiles/shared/.config/starship.toml"
+
+"~/.config/fish/colors" = { source = "~/code/laulauland/dotfiles/shared/.config/fish/colors", mode = "symlink-each" }
+"~/.config/fish/completions" = { source = "~/code/laulauland/dotfiles/shared/.config/fish/completions", mode = "symlink-each" }
+"~/.config/fish/conf.d" = { source = "~/code/laulauland/dotfiles/shared/.config/fish/conf.d", mode = "symlink-each" }
+"~/.config/fish/functions" = { source = "~/code/laulauland/dotfiles/shared/.config/fish/functions", mode = "symlink-each" }
+"~/.config/fish/config.fish" = "~/code/laulauland/dotfiles/shared/.config/fish/config.fish"
 
 [bootstrap.macos.dock]
 autohide = true
