@@ -14,7 +14,7 @@ Write these four sections, in order, as one continuous page:
 - **Background** — The existing system this change touches. The reader's starting knowledge is unknown, so write a deep background for beginners (mark it skippable for those already familiar), then a narrower background aimed directly at the change.
 - **Intuition** — The core intuition for the change. Convey the essence, not the full details. Ground it in concrete examples with toy data, and lean on figures and diagrams.
 - **Code** — A high-level walkthrough of the changes, grouped and ordered so they build on each other.
-- **Quiz** — Five questions that test whether the reader understood the substance of the PR. Medium difficulty: hard enough to require real understanding, but not gotchas. Multiple choice, each answer carrying feedback on why it is right or wrong.
+- **Quiz** — Five questions that test whether the reader understood the substance of the PR. Medium difficulty: hard enough to require real understanding, but not gotchas. Multiple choice, each answer carrying feedback on why it is right or wrong. See Distractor discipline under Quiz below.
 
 ## Writing
 
@@ -28,6 +28,22 @@ Pick a small number of diagram families and reuse them throughout to explain dif
 - A system diagram showing data flow or communication between components — always with example data in it.
 
 Use callouts for key concepts, definitions, and important edge cases.
+
+## Quiz
+
+A reader who doesn't understand the material should do no better than a coin flip — the correct answer must never be guessable from surface features alone. Eliminate these tells:
+
+- The correct answer is the longest, most detailed, or most hedged option, while distractors are short and absolute.
+- Distractors are obviously silly ("the chips aren't connected") rather than plausible misconceptions someone could actually hold about the change.
+- Hedging words ("tends to", "usually", "in most cases") cluster on the right answer.
+
+Rules:
+
+- All four options roughly equal in length and specificity.
+- Each distractor is a plausible wrong belief, not a strawman — think about what someone who half-understood the diff would guess.
+- Vary the position of the correct answer across the five questions.
+
+After drafting, reread each question ignoring correctness and confirm you can't pick the answer from style alone. Rewrite any option that fails this check.
 
 ## Output
 
