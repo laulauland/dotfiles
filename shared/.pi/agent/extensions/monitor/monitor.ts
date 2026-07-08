@@ -35,9 +35,18 @@ export interface MonitorRecord {
   };
 }
 
+interface MonitorEvent {
+  source: "stdout" | "stderr";
+  line: string;
+  matchedEvents: number;
+  totalLines: number;
+}
+
 interface RunningMonitor extends MonitorRecord {
   process: ChildProcessWithoutNullStreams;
   matcher: (line: string) => boolean;
+  pendingEvents: MonitorEvent[];
+  pendingFlush: ReturnType<typeof setTimeout> | null;
 }
 
 export interface MonitorToolParams {
@@ -54,6 +63,7 @@ export interface MonitorToolParams {
 }
 
 const monitors = new Map<string, RunningMonitor>();
+const suppressedMonitorIds = new Set<string>();
 const changeListeners = new Set<() => void>();
 
 function emitMonitorChange(): void {
@@ -88,7 +98,13 @@ function compileMatcher(filter: string | undefined, regex: boolean): (line: stri
 }
 
 function publicRecord(monitor: RunningMonitor): MonitorRecord {
-  const { process: _process, matcher: _matcher, ...record } = monitor;
+  const {
+    process: _process,
+    matcher: _matcher,
+    pendingEvents: _pendingEvents,
+    pendingFlush: _pendingFlush,
+    ...record
+  } = monitor;
   return record;
 }
 
@@ -125,12 +141,77 @@ function safeSendMessage(
   }
 }
 
+function isMonitorActive(monitor: RunningMonitor): boolean {
+  return monitors.get(monitor.id) === monitor;
+}
+
+function clearPendingWake(monitor: RunningMonitor): void {
+  if (monitor.pendingFlush) clearTimeout(monitor.pendingFlush);
+  monitor.pendingFlush = null;
+  monitor.pendingEvents = [];
+}
+
+function formatMonitorEventBatch(monitor: RunningMonitor, events: MonitorEvent[]): string {
+  if (events.length === 1) {
+    const event = events[0];
+    if (!event) return `Monitor "${monitor.name}" matched output.`;
+    return `Monitor "${monitor.name}" matched ${event.source}:\n\n${event.line}`;
+  }
+
+  const lines = events.map((event) => `[${event.source}] ${event.line}`);
+  return `Monitor "${monitor.name}" matched ${events.length} lines:\n\n${lines.join("\n")}`;
+}
+
+function flushPendingEvents(monitor: RunningMonitor, pi: ExtensionAPI): void {
+  if (monitor.pendingFlush) clearTimeout(monitor.pendingFlush);
+  monitor.pendingFlush = null;
+
+  if (!isMonitorActive(monitor)) {
+    clearPendingWake(monitor);
+    return;
+  }
+
+  const events = monitor.pendingEvents;
+  monitor.pendingEvents = [];
+  if (events.length === 0) return;
+
+  const lastEvent = events.at(-1);
+  safeSendMessage(
+    pi,
+    {
+      customType: "monitor_event",
+      content: formatMonitorEventBatch(monitor, events),
+      display: false,
+      details: {
+        id: monitor.id,
+        name: monitor.name,
+        command: monitor.command,
+        cwd: monitor.cwd,
+        source: lastEvent?.source ?? "output",
+        line: lastEvent?.line ?? "",
+        events,
+        eventCount: events.length,
+        matchedEvents: monitor.matchedEvents,
+        totalLines: monitor.totalLines,
+      },
+    },
+    { triggerTurn: true, deliverAs: "steer" },
+  );
+}
+
+function schedulePendingEventFlush(monitor: RunningMonitor, pi: ExtensionAPI): void {
+  if (monitor.pendingFlush) return;
+  monitor.pendingFlush = setTimeout(() => flushPendingEvents(monitor, pi), 250);
+}
+
 function handleLine(
   monitor: RunningMonitor,
   rawLine: string,
   source: "stdout" | "stderr",
   pi: ExtensionAPI,
 ): void {
+  if (!isMonitorActive(monitor)) return;
+
   const line = truncateLine(rawLine);
   monitor.totalLines += 1;
   monitor.lastLine = line;
@@ -139,30 +220,19 @@ function handleLine(
 
   monitor.matchedEvents += 1;
   monitor.lastMatch = line;
-  safeSendMessage(
-    pi,
-    {
-      customType: "monitor_event",
-      content: `Monitor "${monitor.name}" matched ${source}:\n\n${line}`,
-      display: false,
-      details: {
-        id: monitor.id,
-        name: monitor.name,
-        command: monitor.command,
-        cwd: monitor.cwd,
-        source,
-        line,
-        matchedEvents: monitor.matchedEvents,
-        totalLines: monitor.totalLines,
-      },
-    },
-    { triggerTurn: true, deliverAs: "steer" },
-  );
+  monitor.pendingEvents.push({
+    source,
+    line,
+    matchedEvents: monitor.matchedEvents,
+    totalLines: monitor.totalLines,
+  });
+  schedulePendingEventFlush(monitor, pi);
   emitMonitorChange();
 }
 
 export function startMonitor(params: MonitorStartParams, pi: ExtensionAPI): MonitorRecord {
   const id = makeId();
+  suppressedMonitorIds.delete(id);
   const name = params.name?.trim() || `monitor-${id}`;
   const regex = params.regex ?? false;
   const includeStderr = params.includeStderr ?? true;
@@ -191,6 +261,8 @@ export function startMonitor(params: MonitorStartParams, pi: ExtensionAPI): Moni
     totalLines: 0,
     process: child,
     matcher,
+    pendingEvents: [],
+    pendingFlush: null,
   };
   monitors.set(id, monitor);
   emitMonitorChange();
@@ -201,8 +273,11 @@ export function startMonitor(params: MonitorStartParams, pi: ExtensionAPI): Moni
     if (includeStderr) appendChunk({ monitor, chunk, source: "stderr", buffers, pi });
   });
   child.on("close", (code, signal) => {
+    if (!isMonitorActive(monitor)) return;
+
     if (buffers.stdout) handleLine(monitor, buffers.stdout, "stdout", pi);
     if (includeStderr && buffers.stderr) handleLine(monitor, buffers.stderr, "stderr", pi);
+    flushPendingEvents(monitor, pi);
     monitor.exited = { code, signal, at: Date.now() };
     monitors.delete(id);
     emitMonitorChange();
@@ -220,6 +295,9 @@ export function startMonitor(params: MonitorStartParams, pi: ExtensionAPI): Moni
     }
   });
   child.on("error", (error) => {
+    if (!isMonitorActive(monitor)) return;
+
+    clearPendingWake(monitor);
     monitor.exited = { code: 1, signal: null, at: Date.now() };
     monitors.delete(id);
     emitMonitorChange();
@@ -247,16 +325,26 @@ export function getMonitor(params: { id?: string; name?: string }): MonitorRecor
   return monitor ? publicRecord(monitor) : null;
 }
 
+export function isSuppressedMonitorId(id: string): boolean {
+  return suppressedMonitorIds.has(id);
+}
+
 export function stopMonitor(params: { id?: string; name?: string }): MonitorRecord | null {
   const monitor = resolveTarget(params);
   if (!monitor) return null;
+  const record = publicRecord(monitor);
+  monitors.delete(monitor.id);
+  suppressedMonitorIds.add(monitor.id);
+  clearPendingWake(monitor);
   monitor.process.kill("SIGTERM");
   emitMonitorChange();
-  return publicRecord(monitor);
+  return record;
 }
 
 export function stopAllMonitors(): void {
   for (const monitor of monitors.values()) {
+    suppressedMonitorIds.add(monitor.id);
+    clearPendingWake(monitor);
     monitor.process.kill("SIGTERM");
   }
   monitors.clear();

@@ -1,0 +1,4 @@
+#!/bin/sh
+# Keep mise-managed Herdr discoverable by `herdr --remote`.
+# Herdr ignores mise's shim when probing the remote host, but checks this path.
+exec mise exec -- herdr "$@"

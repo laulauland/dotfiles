@@ -4,6 +4,7 @@ import { Box, Text, truncateToWidth } from "@earendil-works/pi-tui";
 import { Type } from "typebox";
 import {
   getMonitor,
+  isSuppressedMonitorId,
   listMonitors,
   onMonitorChange,
   startMonitor,
@@ -37,6 +38,17 @@ type MonitorParamsType = typeof MonitorParams.static;
 const MONITOR_WIDGET_ID = "monitor-status";
 const MONITOR_STATUS_ID = "monitor-status";
 const MAX_MONITOR_WIDGET_LINES = 12;
+
+function isMonitorMessage(message: unknown): message is { customType?: string; details?: { id?: unknown } } {
+  return typeof message === "object" && message !== null && "customType" in message;
+}
+
+function isSuppressedMonitorMessage(message: unknown): boolean {
+  if (!isMonitorMessage(message)) return false;
+  if (message.customType !== "monitor_event" && message.customType !== "monitor_exit") return false;
+  const id = message.details?.id;
+  return typeof id === "string" && isSuppressedMonitorId(id);
+}
 
 function formatElapsed(startTime: number): string {
   const elapsedSeconds = Math.max(0, Math.floor((Date.now() - startTime) / 1000));
@@ -172,6 +184,12 @@ export default function monitorExtension(pi: ExtensionAPI): void {
     stopAllMonitors();
   });
 
+  pi.on("context", (event) => {
+    const messages = event.messages.filter((message) => !isSuppressedMonitorMessage(message));
+    if (messages.length === event.messages.length) return;
+    return { messages };
+  });
+
   pi.registerTool({
     name: "monitor",
     label: "Monitor",
@@ -211,12 +229,23 @@ export default function monitorExtension(pi: ExtensionAPI): void {
     render(width: number): string[] {
       const details = message.details as any;
       const name = details?.name ?? "monitor";
+      const events = Array.isArray(details?.events) ? details.events : [];
       const source = details?.source ?? "output";
       const line = typeof details?.line === "string" ? details.line : String(message.content ?? "");
+      const eventCount = typeof details?.eventCount === "number" ? details.eventCount : events.length || 1;
       const contentLines = [
-        `${theme.fg("accent", "•")} ${theme.fg("toolTitle", theme.bold(name))} ${theme.fg("dim", `matched ${source}`)}`,
-        theme.fg("toolOutput", truncateToWidth(line, Math.max(0, width - 6))),
+        `${theme.fg("accent", "•")} ${theme.fg("toolTitle", theme.bold(name))} ${theme.fg("dim", eventCount === 1 ? `matched ${source}` : `matched ${eventCount} lines`)}`,
       ];
+      if (events.length > 1 && options.expanded) {
+        for (const event of events.slice(0, 10)) {
+          const eventSource = typeof event?.source === "string" ? event.source : "output";
+          const eventLine = typeof event?.line === "string" ? event.line : "";
+          contentLines.push(theme.fg("toolOutput", truncateToWidth(`[${eventSource}] ${eventLine}`, Math.max(0, width - 6))));
+        }
+        if (events.length > 10) contentLines.push(theme.fg("dim", `… ${events.length - 10} more`));
+      } else {
+        contentLines.push(theme.fg("toolOutput", truncateToWidth(line, Math.max(0, width - 6))));
+      }
       if (options.expanded) {
         contentLines.push("", theme.fg("dim", `Command: ${details?.command ?? ""}`));
       } else {
