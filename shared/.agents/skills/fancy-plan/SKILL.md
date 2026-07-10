@@ -1,0 +1,1 @@
+/Users/lau/.agents/skills/fancy-plan/SKILL.md
