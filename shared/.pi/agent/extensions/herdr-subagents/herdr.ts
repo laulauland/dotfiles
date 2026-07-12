@@ -6,8 +6,6 @@ const execFileAsync = promisify(execFile);
 export interface HerdrSurface {
   paneId: string;
   tabId?: string;
-  terminalId?: string;
-  placement?: "stack" | "tab" | "split";
 }
 
 interface HerdrResponse<T> {
@@ -19,16 +17,6 @@ interface HerdrResponse<T> {
 interface HerdrPaneInfo {
   pane_id?: string;
   tab_id?: string;
-  terminal_id?: string;
-}
-
-interface HerdrAgentStartResult {
-  pane?: HerdrPaneInfo;
-  agent?: HerdrPaneInfo;
-  terminal?: HerdrPaneInfo;
-  pane_id?: string;
-  tab_id?: string;
-  terminal_id?: string;
 }
 
 interface HerdrTabCreateResult {
@@ -58,20 +46,12 @@ function parseJsonResponse<T>(raw: string, command: string): T {
   return parsed.result;
 }
 
-function extractPane(result: HerdrAgentStartResult): HerdrSurface {
-  const candidates = [result.pane, result.agent, result.terminal, result];
-  for (const candidate of candidates) {
-    if (candidate?.pane_id) return { paneId: candidate.pane_id, tabId: (candidate as any).tab_id ?? result.tab_id, terminalId: candidate.terminal_id };
-  }
-  throw new Error(`Could not find pane_id in Herdr agent start result: ${JSON.stringify(result).slice(0, 500)}`);
-}
-
 function extractTabRoot(result: HerdrTabCreateResult): HerdrSurface {
   const pane = result.root_pane;
   if (!pane?.pane_id) {
     throw new Error(`Could not find root_pane.pane_id in Herdr tab create result: ${JSON.stringify(result).slice(0, 500)}`);
   }
-  return { paneId: pane.pane_id, tabId: result.tab?.tab_id ?? pane.tab_id, terminalId: pane.terminal_id, placement: "tab" };
+  return { paneId: pane.pane_id, tabId: result.tab?.tab_id ?? pane.tab_id };
 }
 
 function shellEscape(value: string): string {
@@ -114,96 +94,39 @@ export async function createAgentSurface(params: {
   env: Record<string, string>;
   command: string;
   args: string[];
-  placement?: "stack" | "tab" | "split";
-  splitTargetPaneId?: string;
-  splitDirection?: "right" | "down";
 }): Promise<HerdrSurface> {
-  const placement = params.placement ?? "stack";
-
-  if (placement === "stack") {
-    const createSplit = async (targetPaneId: string | undefined, direction: "right" | "down"): Promise<HerdrSurface> => {
-      const splitArgs = [
-        "pane",
-        "split",
-        targetPaneId ?? process.env.HERDR_PANE_ID ?? "--current",
-        "--direction",
-        direction,
-        "--cwd",
-        params.cwd,
-        "--no-focus",
-      ];
-      for (const [key, value] of Object.entries(params.env)) {
-        splitArgs.push("--env", `${key}=${value}`);
-      }
-      const { stdout } = await execFileAsync(herdrBin(), splitArgs, { encoding: "utf8", maxBuffer: 1024 * 1024 });
-      return { ...extractPane(parseJsonResponse<HerdrAgentStartResult>(stdout, "pane split")), placement: "stack" as const };
-    };
-
-    let surface: HerdrSurface;
-    try {
-      surface = await createSplit(params.splitTargetPaneId, params.splitDirection ?? "right");
-    } catch (error: any) {
-      const message = error?.message ?? String(error);
-      const shouldFallback = message.includes("pane_not_found") || message.includes("pane not found");
-      if (!shouldFallback) throw error;
-      // The previous subagent pane can exit between target selection and split creation.
-      // Fall back to the parent pane so one fast-finishing child does not break a batch.
-      surface = await createSplit(process.env.HERDR_PANE_ID, "right");
-    }
-
-    try {
-      await execFileAsync(herdrBin(), ["pane", "rename", surface.paneId, params.name], { encoding: "utf8" });
-    } catch {
-      // Cosmetic only.
-    }
-    await waitForShellReady();
-    await execFileAsync(herdrBin(), ["pane", "run", surface.paneId, commandLine(params.command, params.args)], { encoding: "utf8" });
-    return surface;
-  }
-
-  if (placement === "tab") {
-    const tabArgs = ["tab", "create", "--cwd", params.cwd, "--label", params.name, "--no-focus"];
-    if (process.env.HERDR_WORKSPACE_ID) tabArgs.push("--workspace", process.env.HERDR_WORKSPACE_ID);
-    for (const [key, value] of Object.entries(params.env)) {
-      tabArgs.push("--env", `${key}=${value}`);
-    }
-    const { stdout } = await execFileAsync(herdrBin(), tabArgs, { encoding: "utf8", maxBuffer: 1024 * 1024 });
-    const surface = extractTabRoot(parseJsonResponse<HerdrTabCreateResult>(stdout, "tab create"));
-    try {
-      await execFileAsync(herdrBin(), ["pane", "rename", surface.paneId, params.name], { encoding: "utf8" });
-    } catch {
-      // Cosmetic only.
-    }
-    await waitForShellReady();
-    await execFileAsync(herdrBin(), ["pane", "run", surface.paneId, commandLine(params.command, params.args)], { encoding: "utf8" });
-    return surface;
-  }
-
-  const args = ["agent", "start", params.name, "--cwd", params.cwd];
-  if (process.env.HERDR_WORKSPACE_ID) args.push("--workspace", process.env.HERDR_WORKSPACE_ID);
-  if (process.env.HERDR_TAB_ID) args.push("--tab", process.env.HERDR_TAB_ID);
-  args.push("--split", "right", "--no-focus");
+  const tabArgs = ["tab", "create", "--cwd", params.cwd, "--label", params.name, "--no-focus"];
+  if (process.env.HERDR_WORKSPACE_ID) tabArgs.push("--workspace", process.env.HERDR_WORKSPACE_ID);
   for (const [key, value] of Object.entries(params.env)) {
-    args.push("--env", `${key}=${value}`);
+    tabArgs.push("--env", `${key}=${value}`);
   }
-  args.push("--", params.command, ...params.args);
 
-  const { stdout } = await execFileAsync(herdrBin(), args, { encoding: "utf8", maxBuffer: 1024 * 1024 });
-  return { ...extractPane(parseJsonResponse<HerdrAgentStartResult>(stdout, "agent start")), placement: "split" };
+  const { stdout } = await execFileAsync(herdrBin(), tabArgs, { encoding: "utf8", maxBuffer: 1024 * 1024 });
+  const surface = extractTabRoot(parseJsonResponse<HerdrTabCreateResult>(stdout, "tab create"));
+  try {
+    await waitForShellReady();
+    await execFileAsync(herdrBin(), ["pane", "run", surface.paneId, commandLine(params.command, params.args)], { encoding: "utf8" });
+    return surface;
+  } catch (error) {
+    await closeSurface(surface);
+    throw error;
+  }
 }
 
 export async function closeSurface(surface: HerdrSurface): Promise<void> {
+  if (surface.tabId) {
+    try {
+      await execFileAsync(herdrBin(), ["tab", "close", surface.tabId], { encoding: "utf8" });
+      return;
+    } catch {
+      // Fall through and try the root pane if the tab is already gone or unavailable.
+    }
+  }
+
   try {
     await execFileAsync(herdrBin(), ["pane", "close", surface.paneId], { encoding: "utf8" });
   } catch {
     // Best effort: the pane may already have exited or been closed by the user.
-  }
-  if (surface.placement === "tab" && surface.tabId) {
-    try {
-      await execFileAsync(herdrBin(), ["tab", "close", surface.tabId], { encoding: "utf8" });
-    } catch {
-      // Closing the root pane usually closes the tab already.
-    }
   }
 }
 

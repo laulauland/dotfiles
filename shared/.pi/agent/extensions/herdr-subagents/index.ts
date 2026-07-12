@@ -74,16 +74,10 @@ const SubagentParams = Type.Object({
   fork: Type.Optional(Type.Boolean({ description: "Start from a fork of the current session history" })),
   interactive: Type.Optional(Type.Boolean({ description: "When true, treat the child as user-driven and suppress parent wakeups for stall/recovery status transitions" })),
   autoExit: Type.Optional(Type.Boolean({ description: "When true, the child session shuts down automatically after its next completed agent turn. Bare starts default to true; interactive starts default to false." })),
-  placement: Type.Optional(Type.Union([
-    Type.Literal("stack"),
-    Type.Literal("tab"),
-    Type.Literal("split"),
-  ], { description: "Herdr placement for action=start. 'stack' creates the first child as a right split and later children as downward splits from the subagent column (default); 'tab' opens each child in its own no-focus tab; 'split' opens a right split in the parent tab." })),
 });
 
 type SubagentParamsType = typeof SubagentParams.static;
 type SubagentSessionMode = "standalone" | "lineage-only" | "fork";
-type HerdrPlacement = "stack" | "tab" | "split";
 type AgentSource = "global" | "project";
 
 interface AgentDefaults {
@@ -245,26 +239,6 @@ function resolveEffectiveInteractive(params: SubagentParamsType, agentDefs: Agen
 function resolveEffectiveSessionMode(params: SubagentParamsType, agentDefs: AgentDefaults | null): SubagentSessionMode {
   if (params.fork) return "fork";
   return agentDefs?.sessionMode ?? "standalone";
-}
-
-function resolveHerdrPlacement(params: SubagentParamsType): HerdrPlacement {
-  const explicit = params.placement;
-  if (explicit === "stack" || explicit === "tab" || explicit === "split") return explicit;
-  const env = process.env.PI_SUBAGENT_HERDR_PLACEMENT?.trim().toLowerCase();
-  if (env === "tab" || env === "split") return env;
-  return "stack";
-}
-
-function resolveStackSplitTarget(): { splitTargetPaneId?: string; splitDirection?: "right" | "down" } {
-  const parentTabId = process.env.HERDR_TAB_ID;
-  const stackAgents = [...runningSubagents.values()]
-    .filter((agent) => agent.surface.placement === "stack")
-    .filter((agent) => !parentTabId || agent.surface.tabId === parentTabId)
-    .sort((a, b) => b.startTime - a.startTime);
-
-  const previous = stackAgents[0];
-  if (previous) return { splitTargetPaneId: previous.surface.paneId, splitDirection: "down" };
-  return { splitTargetPaneId: process.env.HERDR_PANE_ID, splitDirection: "right" };
 }
 
 function resolveSubagentPaths(params: SubagentParamsType, agentDefs: AgentDefaults | null, ctxCwd: string): { effectiveCwd: string; localAgentDir: string | null; effectiveAgentDir: string } {
@@ -597,9 +571,7 @@ async function launchSubagent(params: SubagentParamsType, ctx: ExtensionContext)
   if (localAgentDir) env.PI_CODING_AGENT_DIR = localAgentDir;
   else if (process.env.PI_CODING_AGENT_DIR) env.PI_CODING_AGENT_DIR = process.env.PI_CODING_AGENT_DIR;
 
-  const placement = resolveHerdrPlacement(params);
-  const stackTarget = placement === "stack" ? resolveStackSplitTarget() : {};
-  const surface = await createAgentSurface({ name: required.name, cwd: effectiveCwd, env, command: "bash", args: [launchScriptFile], placement, ...stackTarget });
+  const surface = await createAgentSurface({ name: required.name, cwd: effectiveCwd, env, command: "bash", args: [launchScriptFile] });
   const running: RunningSubagent = {
     id,
     name: required.name,
@@ -641,7 +613,6 @@ function snapshotFor(running: RunningSubagent): Record<string, unknown> {
     elapsed: status.elapsedText,
     paneId: running.surface.paneId,
     tabId: running.surface.tabId,
-    placement: running.surface.placement,
     sessionFile: running.sessionFile,
     launchScriptFile: running.launchScriptFile,
     activityFile: running.activityFile,
@@ -741,7 +712,7 @@ async function handleRemove(params: SubagentParamsType) {
   await closeSurface(running.surface);
   updateWidget();
   return {
-    content: [{ type: "text" as const, text: `Removed subagent "${running.name}" and closed its pane.` }],
+    content: [{ type: "text" as const, text: `Removed subagent "${running.name}" and closed its tab.` }],
     details: { id: running.id, name: running.name, action: "remove", status: "removed" },
   };
 }
@@ -801,7 +772,7 @@ async function handleStart(params: SubagentParamsType, ctx: ExtensionContext, pi
 
   return {
     content: [{ type: "text" as const, text: `Sub-agent "${running.name}" launched in Herdr and is running in the background. Results will be delivered automatically as a steer message; do not poll or invent results.` }],
-    details: { action: "start", id: running.id, name: running.name, task: running.task, agent: running.agent, sessionFile: running.sessionFile, paneId: running.surface.paneId, tabId: running.surface.tabId, placement: running.surface.placement, launchScriptFile: running.launchScriptFile, status: "started" },
+    details: { action: "start", id: running.id, name: running.name, task: running.task, agent: running.agent, sessionFile: running.sessionFile, paneId: running.surface.paneId, tabId: running.surface.tabId, launchScriptFile: running.launchScriptFile, status: "started" },
   };
 }
 
@@ -833,9 +804,9 @@ export default function herdrSubagentsExtension(pi: ExtensionAPI): void {
     name: "subagent",
     label: "Subagent",
     description:
-      "Manage async Herdr-backed subagents. Use action=start to launch background work; action=interrupt to send Escape to a running child turn; action=remove to close and forget a running child; action=list/status only for user-requested inspection or when you lost a child id. Results are delivered automatically as steer messages. Do not poll with list/status, sleep, tail logs, or fabricate results after starting a subagent.",
+      "Manage async Herdr-backed subagents. Each child runs in its own named Herdr tab. Use action=start to launch background work; action=interrupt to send Escape to a running child turn; action=remove to close and forget a running child; action=list/status only for user-requested inspection or when you lost a child id. Results are delivered automatically as steer messages. Do not poll with list/status, sleep, tail logs, or fabricate results after starting a subagent.",
     promptSnippet:
-      "Manage async Herdr-backed subagents. Use subagent({ action: 'start', name, task, ... }) to launch; subagent({ action: 'interrupt', id }) to cancel the active child turn; subagent({ action: 'remove', id }) to close and forget a child; subagent({ action: 'list' }) or status only for occasional inspection. Results arrive automatically; do not poll or invent them.",
+      "Manage async Herdr-backed subagents. Each child runs in its own named Herdr tab. Use subagent({ action: 'start', name, task, ... }) to launch; subagent({ action: 'interrupt', id }) to cancel the active child turn; subagent({ action: 'remove', id }) to close and forget a child; subagent({ action: 'list' }) or status only for occasional inspection. Results arrive automatically; do not poll or invent them.",
     parameters: SubagentParams,
     async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
       switch (params.action) {
