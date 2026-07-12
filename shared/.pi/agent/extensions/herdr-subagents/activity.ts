@@ -1,15 +1,18 @@
 import { existsSync, mkdirSync, readFileSync, renameSync, unlinkSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 
+/** Lifecycle phases written to a subagent activity sidecar. */
 export type SubagentActivityPhase = "starting" | "active" | "waiting" | "done";
+/** The most specific active scope reported by the child. */
 export type SubagentActivityScope = "agent" | "turn" | "provider" | "streaming" | "tool";
-
+/** Events understood by the activity sidecar parser. */
 export type SubagentActivityEvent =
   | "session_start"
   | "input"
   | "before_agent_start"
   | "agent_start"
   | "agent_end"
+  | "agent_settled"
   | "turn_start"
   | "turn_end"
   | "before_provider_request"
@@ -21,9 +24,9 @@ export type SubagentActivityEvent =
   | "tool_result"
   | "tool_execution_end"
   | "caller_ping"
-  | "subagent_done"
   | "session_shutdown";
 
+/** Validated, serialized activity state for one child session. */
 export interface SubagentActivityState {
   version: 1;
   runningChildId: string;
@@ -47,19 +50,22 @@ export interface SubagentActivityState {
   toolEndedAt?: number;
 }
 
+/** Result of reading and validating a child activity sidecar. */
 export type ActivityReadResult =
   | { ok: true; activity: SubagentActivityState }
   | { ok: false; reason: "missing" | "invalid" | "wrong-id"; error?: string };
 
+/** Pi lifecycle reasons that can stop a child session. */
 export type SubagentShutdownReason = "quit" | "reload" | "new" | "resume" | "fork";
 
+/** Records child lifecycle events and periodically persists them. */
 export interface SubagentActivityRecorder {
   sessionStart(): void;
   input(): void;
   beforeAgentStart(): void;
   agentStart(): void;
-  agentEndWaiting(): void;
-  agentEndDone(): void;
+  agentInterrupted(): void;
+  agentSettled(): void;
   turnStart(turnIndex?: number): void;
   turnEnd(turnIndex?: number): void;
   beforeProviderRequest(): void;
@@ -71,20 +77,20 @@ export interface SubagentActivityRecorder {
   toolResult(toolCallId?: string, toolName?: string): void;
   toolExecutionEnd(toolCallId?: string, toolName?: string): void;
   callerPing(): void;
-  subagentDone(): void;
   sessionShutdown(reason: SubagentShutdownReason): void;
 }
 
 const ACTIVITY_UPDATE_THROTTLE_MS = 500;
 const MAX_WRITE_FAILURES = 3;
-const KNOWN_PHASES = new Set<SubagentActivityPhase>(["starting", "active", "waiting", "done"]);
-const KNOWN_SCOPES = new Set<SubagentActivityScope>(["agent", "turn", "provider", "streaming", "tool"]);
-const KNOWN_EVENTS = new Set<SubagentActivityEvent>([
+const KNOWN_PHASES = new Set<string>(["starting", "active", "waiting", "done"]);
+const KNOWN_SCOPES = new Set<string>(["agent", "turn", "provider", "streaming", "tool"]);
+const KNOWN_EVENTS = new Set<string>([
   "session_start",
   "input",
   "before_agent_start",
   "agent_start",
   "agent_end",
+  "agent_settled",
   "turn_start",
   "turn_end",
   "before_provider_request",
@@ -96,17 +102,18 @@ const KNOWN_EVENTS = new Set<SubagentActivityEvent>([
   "tool_result",
   "tool_execution_end",
   "caller_ping",
-  "subagent_done",
   "session_shutdown",
 ]);
 const MAX_ACTIVITY_STRING_LENGTH = 200;
 
+/** Return the activity sidecar path for a child id inside an artifact directory. */
 export function getSubagentActivityFile(artifactDir: string, runningChildId: string): string {
   return join(artifactDir, "subagent-activity", `${runningChildId}.json`);
 }
 
 function requireObject(value: unknown): Record<string, unknown> | null {
   if (value == null || typeof value !== "object" || Array.isArray(value)) return null;
+  // SAFETY: The null/object/array checks above establish the record boundary.
   return value as Record<string, unknown>;
 }
 
@@ -150,15 +157,15 @@ function validateActivity(value: unknown, expectedRunningChildId: string): Activ
   if (object.version !== 1) return invalidActivity("unsupported activity version");
   if (typeof object.runningChildId !== "string") return invalidActivity("runningChildId must be a string");
   if (object.runningChildId !== expectedRunningChildId) return { ok: false, reason: "wrong-id" };
-  if (typeof object.latestEvent !== "string" || !KNOWN_EVENTS.has(object.latestEvent as SubagentActivityEvent)) {
+  if (typeof object.latestEvent !== "string" || !KNOWN_EVENTS.has(object.latestEvent)) {
     return invalidActivity("unknown latestEvent");
   }
-  if (typeof object.phase !== "string" || !KNOWN_PHASES.has(object.phase as SubagentActivityPhase)) {
+  if (typeof object.phase !== "string" || !KNOWN_PHASES.has(object.phase)) {
     return invalidActivity("unknown activity phase");
   }
   if (
     object.activeScope != null &&
-    (typeof object.activeScope !== "string" || !KNOWN_SCOPES.has(object.activeScope as SubagentActivityScope))
+    (typeof object.activeScope !== "string" || !KNOWN_SCOPES.has(object.activeScope))
   ) {
     return invalidActivity("unknown activeScope");
   }
@@ -182,9 +189,11 @@ function validateActivity(value: unknown, expectedRunningChildId: string): Activ
   ].find((error) => error != null);
   if (validationError) return invalidActivity(validationError);
 
+  // SAFETY: Every required and optional field is checked above, and the finite unions are checked by their sets.
   return { ok: true, activity: object as unknown as SubagentActivityState };
 }
 
+/** Read and validate a child activity sidecar against the expected child id. */
 export function readSubagentActivityFile(
   activityFile: string,
   expectedRunningChildId: string,
@@ -202,6 +211,7 @@ export function readSubagentActivityFile(
   return validateActivity(parsed, expectedRunningChildId);
 }
 
+/** Atomically write a validated child activity sidecar. */
 export function writeSubagentActivityFile(activityFile: string, activity: SubagentActivityState): void {
   const dir = dirname(activityFile);
   mkdirSync(dir, { recursive: true });
@@ -213,9 +223,8 @@ export function writeSubagentActivityFile(activityFile: string, activity: Subage
   } catch (error) {
     try {
       unlinkSync(tempFile);
-    } catch (cleanupError) {
-      // Temp cleanup is best effort; preserve the original write/rename failure
-      void cleanupError;
+    } catch {
+      // Temp cleanup is best effort; preserve the original write/rename failure.
     }
     throw error;
   }
@@ -227,8 +236,8 @@ function createNoopRecorder(): SubagentActivityRecorder {
     input() {},
     beforeAgentStart() {},
     agentStart() {},
-    agentEndWaiting() {},
-    agentEndDone() {},
+    agentInterrupted() {},
+    agentSettled() {},
     turnStart() {},
     turnEnd() {},
     beforeProviderRequest() {},
@@ -240,7 +249,6 @@ function createNoopRecorder(): SubagentActivityRecorder {
     toolResult() {},
     toolExecutionEnd() {},
     callerPing() {},
-    subagentDone() {},
     sessionShutdown() {},
   };
 }
@@ -291,10 +299,11 @@ function markActive(
   delete activity.waitingSince;
 }
 
+/** Create a recorder that persists lifecycle changes for one child session. */
 export function createSubagentActivityRecorder(params: {
-  runningChildId?: string;
-  activityFile?: string;
-  now?: () => number;
+  readonly runningChildId?: string;
+  readonly activityFile?: string;
+  readonly now?: () => number;
 }): SubagentActivityRecorder {
   const runningChildId = params.runningChildId?.trim();
   const activityFile = params.activityFile?.trim();
@@ -409,15 +418,15 @@ export function createSubagentActivityRecorder(params: {
         markActive(current, "agent", observedAt);
       }, "immediate");
     },
-    agentEndWaiting() {
+    agentInterrupted() {
       record("agent_end", (current, observedAt) => {
         clearActiveState(current);
         current.phase = "waiting";
         current.waitingSince = observedAt;
       }, "immediate");
     },
-    agentEndDone() {
-      markDone("agent_end");
+    agentSettled() {
+      markDone("agent_settled");
     },
     turnStart(turnIndex) {
       record("turn_start", (current, observedAt) => {
@@ -499,9 +508,6 @@ export function createSubagentActivityRecorder(params: {
     },
     callerPing() {
       markDone("caller_ping");
-    },
-    subagentDone() {
-      markDone("subagent_done");
     },
     sessionShutdown(reason) {
       if (reason === "quit") markDone("session_shutdown");

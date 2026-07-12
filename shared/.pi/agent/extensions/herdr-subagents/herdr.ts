@@ -3,55 +3,55 @@ import { promisify } from "node:util";
 
 const execFileAsync = promisify(execFile);
 
+/** Identifies the Herdr tab and root pane owned by one subagent. */
 export interface HerdrSurface {
-  paneId: string;
-  tabId?: string;
-}
-
-interface HerdrResponse<T> {
-  id?: string;
-  result?: T;
-  error?: { code?: string; message?: string };
-}
-
-interface HerdrPaneInfo {
-  pane_id?: string;
-  tab_id?: string;
-}
-
-interface HerdrTabCreateResult {
-  root_pane?: HerdrPaneInfo;
-  tab?: { tab_id?: string };
+  readonly paneId: string;
+  readonly tabId?: string;
 }
 
 function herdrBin(): string {
   return process.env.HERDR_BIN_PATH || "herdr";
 }
 
-function parseJsonResponse<T>(raw: string, command: string): T {
-  let parsed: HerdrResponse<T>;
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function parseJsonResponse(raw: string, command: string): unknown {
+  let parsed: unknown;
   try {
-    parsed = JSON.parse(raw) as HerdrResponse<T>;
+    parsed = JSON.parse(raw);
   } catch (error) {
-    const detail = error instanceof Error ? error.message : String(error);
-    throw new Error(`Invalid Herdr JSON from ${command}: ${detail}. Output: ${raw.slice(0, 500)}`);
+    const detail = error instanceof Error ? error.message : "unknown parse error";
+    throw new Error(`Invalid Herdr JSON from ${command}: ${detail}`);
   }
 
-  if (parsed.error) {
-    throw new Error(`Herdr ${command} failed: ${parsed.error.message ?? parsed.error.code ?? "unknown error"}`);
+  if (!isRecord(parsed)) throw new Error(`Invalid Herdr response from ${command}: expected an object.`);
+  const error = isRecord(parsed.error) ? parsed.error : undefined;
+  if (error) {
+    const message = typeof error.message === "string" ? error.message : undefined;
+    const code = typeof error.code === "string" ? error.code : undefined;
+    throw new Error(`Herdr ${command} failed: ${message ?? code ?? "unknown error"}`);
   }
-  if (parsed.result == null) {
-    throw new Error(`Herdr ${command} returned no result. Output: ${raw.slice(0, 500)}`);
+  if (!("result" in parsed) || parsed.result == null) {
+    throw new Error(`Herdr ${command} returned no result.`);
   }
   return parsed.result;
 }
 
-function extractTabRoot(result: HerdrTabCreateResult): HerdrSurface {
-  const pane = result.root_pane;
-  if (!pane?.pane_id) {
-    throw new Error(`Could not find root_pane.pane_id in Herdr tab create result: ${JSON.stringify(result).slice(0, 500)}`);
+function extractTabRoot(result: unknown): HerdrSurface {
+  if (!isRecord(result)) throw new Error("Could not parse Herdr tab create result: expected an object.");
+  const root = isRecord(result.root_pane) ? result.root_pane : undefined;
+  const tab = isRecord(result.tab) ? result.tab : undefined;
+  const paneId = root?.pane_id;
+  const tabId = tab?.tab_id ?? root?.tab_id;
+  if (typeof paneId !== "string" || paneId.trim() === "") {
+    throw new Error("Could not find root_pane.pane_id in Herdr tab create result.");
   }
-  return { paneId: pane.pane_id, tabId: result.tab?.tab_id ?? pane.tab_id };
+  if (tabId !== undefined && typeof tabId !== "string") {
+    throw new Error("Invalid tab_id in Herdr tab create result.");
+  }
+  return { paneId, ...(typeof tabId === "string" ? { tabId } : {}) };
 }
 
 function shellEscape(value: string): string {
@@ -68,12 +68,27 @@ function shellReadyDelayMs(): number {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : 2500;
 }
 
-async function waitForShellReady(): Promise<void> {
+async function waitForShellReady(signal?: AbortSignal): Promise<void> {
   const delay = shellReadyDelayMs();
-  if (delay <= 0) return;
-  await new Promise((resolve) => setTimeout(resolve, delay));
+  if (delay <= 0) {
+    signal?.throwIfAborted();
+    return;
+  }
+
+  await new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, delay);
+    function onAbort(): void {
+      clearTimeout(timer);
+      reject(new Error("Aborted while waiting for Herdr shell"));
+    }
+    signal?.addEventListener("abort", onAbort, { once: true });
+  });
 }
 
+/** Return whether the current process can reach the Herdr control plane. */
 export function isHerdrAvailable(): boolean {
   if (process.env.HERDR_ENV !== "1") return false;
   try {
@@ -84,28 +99,39 @@ export function isHerdrAvailable(): boolean {
   }
 }
 
+/** Explain how to make Herdr available to the extension. */
 export function herdrSetupHint(): string {
   return "Start pi inside a Herdr-managed pane so HERDR_ENV=1 is present.";
 }
 
+/** Create a no-focus Herdr tab and run the child launcher in its root pane. */
 export async function createAgentSurface(params: {
-  name: string;
-  cwd: string;
-  env: Record<string, string>;
-  command: string;
-  args: string[];
+  readonly label: string;
+  readonly cwd: string;
+  readonly env: Readonly<Record<string, string>>;
+  readonly command: string;
+  readonly args: readonly string[];
+  readonly signal?: AbortSignal;
 }): Promise<HerdrSurface> {
-  const tabArgs = ["tab", "create", "--cwd", params.cwd, "--label", params.name, "--no-focus"];
+  const tabArgs = ["tab", "create", "--cwd", params.cwd, "--label", params.label, "--no-focus"];
   if (process.env.HERDR_WORKSPACE_ID) tabArgs.push("--workspace", process.env.HERDR_WORKSPACE_ID);
   for (const [key, value] of Object.entries(params.env)) {
     tabArgs.push("--env", `${key}=${value}`);
   }
 
-  const { stdout } = await execFileAsync(herdrBin(), tabArgs, { encoding: "utf8", maxBuffer: 1024 * 1024 });
-  const surface = extractTabRoot(parseJsonResponse<HerdrTabCreateResult>(stdout, "tab create"));
+  const { stdout } = await execFileAsync(herdrBin(), tabArgs, {
+    encoding: "utf8",
+    maxBuffer: 1024 * 1024,
+    signal: params.signal,
+  });
+  const surface = extractTabRoot(parseJsonResponse(stdout, "tab create"));
   try {
-    await waitForShellReady();
-    await execFileAsync(herdrBin(), ["pane", "run", surface.paneId, commandLine(params.command, params.args)], { encoding: "utf8" });
+    await waitForShellReady(params.signal);
+    await execFileAsync(herdrBin(), ["pane", "run", surface.paneId, commandLine(params.command, [...params.args])], {
+      encoding: "utf8",
+      maxBuffer: 1024 * 1024,
+      signal: params.signal,
+    });
     return surface;
   } catch (error) {
     await closeSurface(surface);
@@ -113,6 +139,31 @@ export async function createAgentSurface(params: {
   }
 }
 
+/** Focus the Herdr tab containing a subagent surface. */
+export async function focusSurface(surface: HerdrSurface): Promise<void> {
+  if (!surface.tabId) throw new Error("Subagent tab has no tab id");
+  await execFileAsync(herdrBin(), ["tab", "focus", surface.tabId], { encoding: "utf8" });
+}
+
+/** Report whether the subagent pane still contains a detected Pi agent. */
+export async function surfaceExists(surface: HerdrSurface): Promise<boolean> {
+  try {
+    const { stdout } = await execFileAsync(herdrBin(), ["pane", "get", surface.paneId], { encoding: "utf8" });
+    const result = parseJsonResponse(stdout, "pane get");
+    if (!isRecord(result) || !isRecord(result.pane)) return false;
+    return result.pane.agent === "pi";
+  } catch {
+    return false;
+  }
+}
+
+/** Send a follow-up prompt to an existing interactive subagent pane. */
+export async function sendPrompt(surface: HerdrSurface, prompt: string): Promise<void> {
+  if (!(await paneExists(surface))) throw new Error(`Subagent pane ${surface.paneId} is no longer available`);
+  await execFileAsync(herdrBin(), ["pane", "run", surface.paneId, prompt], { encoding: "utf8" });
+}
+
+/** Close the owned Herdr tab, falling back to its root pane when necessary. */
 export async function closeSurface(surface: HerdrSurface): Promise<void> {
   if (surface.tabId) {
     try {
@@ -130,22 +181,25 @@ export async function closeSurface(surface: HerdrSurface): Promise<void> {
   }
 }
 
+/** Send Escape to request interruption without closing the subagent surface. */
 export async function sendEscape(surface: HerdrSurface): Promise<void> {
   await execFileAsync(herdrBin(), ["pane", "send-keys", surface.paneId, "esc"], { encoding: "utf8" });
 }
 
-export async function readScreen(surface: HerdrSurface, lines = 50): Promise<string> {
+/** Read recent unwrapped text from the subagent pane. */
+export async function readScreen(
+  surface: HerdrSurface,
+  lines = 50,
+  options: { readonly signal?: AbortSignal } = {},
+): Promise<string> {
   const { stdout } = await execFileAsync(
     herdrBin(),
-    ["pane", "read", surface.paneId, "--source", "recent-unwrapped", "--lines", String(lines)],
-    { encoding: "utf8", maxBuffer: 1024 * 1024 },
+    ["pane", "read", surface.paneId, "--source", "recent-unwrapped", "--lines", String(lines), "--format", "text"],
+    { encoding: "utf8", maxBuffer: 1024 * 1024, signal: options.signal },
   );
-  try {
-    const result = parseJsonResponse<{ text?: string; output?: string; content?: string }>(stdout, "pane read");
-    return result.text ?? result.output ?? result.content ?? stdout;
-  } catch {
-    return stdout;
-  }
+  // `pane read --format text` is the intentional plain-text Herdr boundary;
+  // the other control-plane commands are validated as JSON envelopes above.
+  return stdout;
 }
 
 async function paneExists(surface: HerdrSurface): Promise<boolean> {
@@ -157,32 +211,39 @@ async function paneExists(surface: HerdrSurface): Promise<boolean> {
   }
 }
 
+/** Describes how the child watcher observed completion. */
 export interface PollResult {
-  reason: "done" | "sentinel" | "error";
-  exitCode: number;
-  errorMessage?: string;
+  readonly reason: "done" | "sentinel" | "settled";
+  readonly exitCode: number;
+  readonly errorMessage?: string;
 }
 
-function interpretExitSidecar(data: any): PollResult {
-  if (data?.type === "error") {
-    const errorMessage = typeof data.errorMessage === "string" && data.errorMessage.trim() !== ""
-      ? data.errorMessage
-      : "Subagent exited with stopReason=error (no errorMessage in sidecar).";
-    return { reason: "error", exitCode: 1, errorMessage };
+function interpretExitSidecar(data: unknown): PollResult {
+  if (!isRecord(data)) {
+    return { reason: "done", exitCode: 1, errorMessage: "Invalid subagent exit sidecar: expected an object." };
   }
-  return { reason: "done", exitCode: 0 };
+  const record = data;
+  if (record.type === "error") {
+    const errorMessage = typeof record.errorMessage === "string" && record.errorMessage.trim() !== ""
+      ? record.errorMessage
+      : "Subagent settled with stopReason=error (no errorMessage in sidecar).";
+    return { reason: "settled", exitCode: 1, errorMessage };
+  }
+  if (record.type === "settled") return { reason: "settled", exitCode: 0 };
+  return { reason: "done", exitCode: 1, errorMessage: "Invalid subagent exit sidecar: unknown type." };
 }
 
+/** Wait for a child completion sidecar or the launch-script sentinel. */
 export async function pollForExit(
   surface: HerdrSurface,
   signal: AbortSignal,
   options: {
-    interval: number;
-    sessionFile?: string;
-    onTick?: (elapsed: number) => void;
-    existsSync: (path: string) => boolean;
-    readFileSync: (path: string, encoding: "utf8") => string;
-    rmSync: (path: string, options: { force: boolean }) => void;
+    readonly interval: number;
+    readonly sessionFile?: string;
+    readonly onTick?: (elapsed: number) => void;
+    readonly existsSync: (path: string) => boolean;
+    readonly readFileSync: (path: string, encoding: "utf8") => string;
+    readonly rmSync: (path: string, options: { force: boolean }) => void;
   },
 ): Promise<PollResult> {
   const start = Date.now();
@@ -191,17 +252,25 @@ export async function pollForExit(
 
     if (options.sessionFile) {
       const exitFile = `${options.sessionFile}.exit`;
-      try {
-        if (options.existsSync(exitFile)) {
-          const data = JSON.parse(options.readFileSync(exitFile, "utf8"));
-          options.rmSync(exitFile, { force: true });
-          return interpretExitSidecar(data);
+      if (options.existsSync(exitFile)) {
+        let data: unknown;
+        try {
+          data = JSON.parse(options.readFileSync(exitFile, "utf8"));
+        } catch (error) {
+          const detail = error instanceof Error ? error.message : "unknown parse error";
+          return { reason: "done", exitCode: 1, errorMessage: `Invalid subagent exit sidecar: ${detail}` };
         }
-      } catch {}
+        try {
+          options.rmSync(exitFile, { force: true });
+        } catch {
+          // Completion has still been observed; the watcher owns one read of the sidecar.
+        }
+        return interpretExitSidecar(data);
+      }
     }
 
     try {
-      const screen = await readScreen(surface, 5);
+      const screen = await readScreen(surface, 5, { signal });
       const match = screen.match(/__SUBAGENT_DONE_(\d+)__/);
       if (match) return { reason: "sentinel", exitCode: Number.parseInt(match[1], 10) };
     } catch {

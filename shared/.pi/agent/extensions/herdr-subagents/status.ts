@@ -2,26 +2,37 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
+/** Time without a valid activity snapshot before a child is considered stalled. */
 export const SNAPSHOT_STALLED_AFTER_MS = 60_000;
+/** Default number of status transitions shown in one message. */
 export const DEFAULT_STATUS_LINE_LIMIT = 4;
+/** Maximum display width for a child task name. */
 export const MAX_STATUS_NAME_LENGTH = 72;
+/** Maximum display width for one status line. */
 export const MAX_STATUS_LINE_LENGTH = 120;
 
 const EXTENSION_ROOT = dirname(fileURLToPath(import.meta.url));
 const DEFAULT_STATUS_CONFIG_PATH = join(EXTENSION_ROOT, "config.json");
 const STATUS_CONFIG_EXAMPLE_PATH = join(EXTENSION_ROOT, "config.json.example");
 
+/** Display states for a subagent status snapshot. */
 export type SubagentStatusKind = "starting" | "active" | "waiting" | "stalled" | "running";
+/** Status source families supported by the formatter. */
 export type SubagentStatusSource = "pi" | "claude";
+/** State transitions that produce a parent notification. */
 export type SubagentStatusTransition = "stalled" | "recovered" | null;
+/** Validation states for the activity sidecar. */
 export type StatusSnapshotState = "unseen" | "present" | "missing" | "invalid" | "wrong-id";
+/** Activity phases consumed by status classification. */
 export type StatusActivityPhase = "starting" | "active" | "waiting" | "done";
 
+/** Parsed status configuration. */
 export interface StatusConfig {
   enabled: boolean;
   lineLimit: number;
 }
 
+/** One observation from a child activity sidecar. */
 export type StatusObservation =
   | {
       snapshot: "present";
@@ -40,6 +51,7 @@ export type StatusObservation =
       snapshotError?: string;
     };
 
+/** Mutable-in-time state used to classify one running subagent. */
 export interface SubagentStatusState {
   source: SubagentStatusSource;
   startTimeMs: number;
@@ -61,6 +73,7 @@ export interface SubagentStatusState {
   currentKind: SubagentStatusKind;
 }
 
+/** Display-ready status classification for one observation time. */
 export interface StatusSnapshot {
   kind: SubagentStatusKind;
   elapsedMs: number;
@@ -78,6 +91,7 @@ export interface StatusSnapshot {
   statusLabel: string | null;
 }
 
+/** Status lines retained after applying the configured display limit. */
 export interface CappedStatusLines {
   visibleLines: string[];
   overflow: number;
@@ -87,10 +101,15 @@ function invalidStatusConfig(source: string, message: string): never {
   throw new Error(`Invalid subagent status config in ${source}: ${message}`);
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
 function requireObject(value: unknown, source: string, fieldName: string): Record<string, unknown> {
   if (value == null || typeof value !== "object" || Array.isArray(value)) {
     invalidStatusConfig(source, `${fieldName} must be an object`);
   }
+  // SAFETY: invalidStatusConfig never returns; the remaining value is a non-array object.
   return value as Record<string, unknown>;
 }
 
@@ -119,6 +138,7 @@ function truncateText(text: string, maxLength: number): string {
   return `${text.slice(0, maxLength - 1)}…`;
 }
 
+/** Normalize and bound a task name for status output. */
 export function normalizeStatusName(name: string): string {
   const collapsed = name.replace(/\s+/g, " ").trim() || "subagent";
   return truncateText(collapsed, MAX_STATUS_NAME_LENGTH);
@@ -137,6 +157,7 @@ function activityLabel(snapshot: Pick<StatusSnapshot, "activityLabel" | "activeS
   return snapshot.activityLabel ?? snapshot.activeScope;
 }
 
+/** Parse the strict status configuration shape at the config boundary. */
 export function parseStatusConfig(rawConfig: unknown, source = "config.json"): StatusConfig {
   const config = requireObject(rawConfig, source, "root");
   const status = requireObject(config.status, source, "status");
@@ -153,15 +174,15 @@ function readStatusConfigFile(configPath: string, examplePath: string): { source
   try {
     return { sourcePath: configPath, rawConfig: readFileSync(configPath, "utf8") };
   } catch (error) {
-    const errno = error as NodeJS.ErrnoException;
-    if (errno.code !== "ENOENT") throw error;
+    const code = isRecord(error) && typeof error.code === "string" ? error.code : undefined;
+    if (code !== "ENOENT") throw error;
   }
 
   try {
     return { sourcePath: examplePath, rawConfig: readFileSync(examplePath, "utf8") };
   } catch (error) {
-    const errno = error as NodeJS.ErrnoException;
-    if (errno.code === "ENOENT") {
+    const code = isRecord(error) && typeof error.code === "string" ? error.code : undefined;
+    if (code === "ENOENT") {
       throw new Error(
         `Missing subagent status config. Expected ${configPath} or ${examplePath}.`,
       );
@@ -170,6 +191,7 @@ function readStatusConfigFile(configPath: string, examplePath: string): { source
   }
 }
 
+/** Load and parse the configured status file, falling back to its checked-in example. */
 export function loadStatusConfig(
   configPath = DEFAULT_STATUS_CONFIG_PATH,
   examplePath = STATUS_CONFIG_EXAMPLE_PATH,
@@ -178,7 +200,7 @@ export function loadStatusConfig(
 
   let parsed: unknown;
   try {
-    parsed = JSON.parse(rawConfig) as unknown;
+    parsed = JSON.parse(rawConfig);
   } catch (error) {
     const detail = error instanceof Error ? error.message : String(error);
     throw new Error(`Invalid JSON in subagent config ${sourcePath}: ${detail}`);
@@ -187,6 +209,7 @@ export function loadStatusConfig(
   return parseStatusConfig(parsed, sourcePath);
 }
 
+/** Format a non-negative duration for compact status output. */
 export function formatElapsedDuration(ms: number): string {
   const totalSeconds = Math.max(0, Math.floor(ms / 1000));
   if (totalSeconds < 60) return `${totalSeconds}s`;
@@ -198,9 +221,10 @@ export function formatElapsedDuration(ms: number): string {
   return `${minutes}m`;
 }
 
+/** Create initial classification state for a new subagent. */
 export function createStatusState(params: {
-  source: SubagentStatusSource;
-  startTimeMs: number;
+  readonly source: SubagentStatusSource;
+  readonly startTimeMs: number;
 }): SubagentStatusState {
   const initialKind = params.source === "claude" ? "running" : "starting";
   return {
@@ -225,6 +249,7 @@ export function createStatusState(params: {
   };
 }
 
+/** Apply a validated activity observation without regressing newer state. */
 export function observeStatus(
   state: SubagentStatusState,
   observation: StatusObservation,
@@ -287,6 +312,7 @@ export function observeStatus(
   };
 }
 
+/** Locally display an interrupt request until the child publishes newer activity. */
 export function forceStatusAfterInterrupt(state: SubagentStatusState, now: number): SubagentStatusState {
   if (state.source === "claude") return state;
 
@@ -336,6 +362,7 @@ function classifyProblemState(state: SubagentStatusState, now: number): Pick<Sta
   return { kind: lastHealthyKind, statusLabel: problemLabel };
 }
 
+/** Classify the current state for display at the supplied time. */
 export function classifyStatus(state: SubagentStatusState, now: number): StatusSnapshot {
   const elapsedMs = Math.max(0, now - state.startTimeMs);
   const elapsedText = formatElapsedDuration(elapsedMs);
@@ -410,6 +437,7 @@ export function classifyStatus(state: SubagentStatusState, now: number): StatusS
   };
 }
 
+/** Classify a state and record any stalled/recovered transition. */
 export function advanceStatusState(
   state: SubagentStatusState,
   now: number,
@@ -454,6 +482,7 @@ function formatStalledDetail(snapshot: StatusSnapshot): string {
   return `stalled${duration}${detail}`;
 }
 
+/** Render one bounded status line for parent-agent display. */
 export function formatStatusLine(name: string, snapshot: StatusSnapshot): string {
   const boundedName = normalizeStatusName(name);
 
@@ -482,6 +511,7 @@ export function formatStatusLine(name: string, snapshot: StatusSnapshot): string
   return boundStatusLine(`${boundedName} running ${snapshot.elapsedText}, ${formatStalledDetail(snapshot)}.`);
 }
 
+/** Render a bounded line describing a status transition. */
 export function formatTransitionLine(
   name: string,
   snapshot: StatusSnapshot,
@@ -497,6 +527,7 @@ export function formatTransitionLine(
   return formatStatusLine(boundedName, snapshot);
 }
 
+/** Cap visible status lines and report the number omitted. */
 export function capStatusLines(lines: string[], lineLimit: number): CappedStatusLines {
   const visibleLines = lines.slice(0, lineLimit);
   return {
@@ -505,6 +536,7 @@ export function capStatusLines(lines: string[], lineLimit: number): CappedStatus
   };
 }
 
+/** Render a bounded aggregate status message. */
 export function formatStatusAggregate(lines: string[], lineLimit: number): string {
   const { visibleLines, overflow } = capStatusLines(lines, lineLimit);
   const bulletLines = visibleLines.map((line) => `• ${line}`);

@@ -1,5 +1,8 @@
 {
   "name": "herdr-subagents",
   "private": true,
-  "type": "module"
+  "type": "module",
+  "scripts": {
+    "test": "bun test ./tests/*.test.ts"
+  }
 }
