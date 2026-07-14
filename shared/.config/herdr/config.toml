@@ -11,6 +11,8 @@ onboarding = false
 light_name = "terminal"
 dark_name = "terminal"
 
+name = "terminal"
+auto_switch = false
 [theme.custom]
 # Keep most UI chrome on the terminal default foreground/background so it tracks
 # Alabaster/USGC automatically. Use an explicit high-contrast focus color for
