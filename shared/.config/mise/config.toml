@@ -47,7 +47,7 @@ run = [
 "~/code/laulauland/dotfiles" = { url = "git@github.com:laulauland/dotfiles.git", ref = "main" }
 
 [dotfiles]
-"~/.agents" = { source = "~/code/laulauland/dotfiles/shared/.agents", mode = "symlink-each" }
+"~/.agents/skills" = "~/code/laulauland/dotfiles/shared/.agents/skills"
 "~/.claude" = { source = "~/code/laulauland/dotfiles/shared/.claude", mode = "symlink-each" }
 "~/.codex" = { source = "~/code/laulauland/dotfiles/shared/.codex", mode = "symlink-each" }
 "~/.cursor" = { source = "~/code/laulauland/dotfiles/shared/.cursor", mode = "symlink-each" }

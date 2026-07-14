@@ -1,4 +1,5 @@
 [dotfiles]
+"~/.config/aerospace" = { source = "~/code/laulauland/dotfiles/macos/.config/aerospace", mode = "symlink-each" }
 "~/.config/karabiner" = { source = "~/code/laulauland/dotfiles/macos/.config/karabiner", mode = "symlink-each" }
 "~/.config/linearmouse" = { source = "~/code/laulauland/dotfiles/macos/.config/linearmouse", mode = "symlink-each" }
 "~/.config/raycast" = { source = "~/code/laulauland/dotfiles/macos/.config/raycast", mode = "symlink-each" }

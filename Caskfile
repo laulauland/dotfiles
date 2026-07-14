@@ -3,6 +3,7 @@
 # Casks that require sudo during upgrades, such as tailscale-app, are managed manually.
 1password
 1password-cli
+nikitabobko/tap/aerospace
 battery-buddy
 chatgpt
 claude
