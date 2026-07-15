@@ -8,7 +8,7 @@
     ],
     "defaultMode": "auto"
   },
-  "model": "sonnet",
+  "model": "claude-fable-5[1m]",
   "hooks": {
     "Notification": [
       {
@@ -122,6 +122,7 @@
   "alwaysThinkingEnabled": true,
   "effortLevel": "xhigh",
   "autoCompactWindow": 250000,
+  "fastMode": true,
   "pluginConfigs": {
     "sideshow@sideshow": {
       "options": {
@@ -135,6 +136,5 @@
   "theme": "auto",
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
-  "voiceEnabled": true,
-  "fastMode": true
+  "voiceEnabled": true
 }
