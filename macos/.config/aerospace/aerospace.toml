@@ -17,6 +17,19 @@ enable-normalization-opposite-orientation-for-nested-containers = false
 # Keep pointer and keyboard focus on the same display.
 on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 
+# Display-agnostic workspace roles:
+# - One display: every workspace falls back to the main display.
+# - Desk: workspace 1 stays on the left vertical secondary display;
+#   workspaces 2–5 stay on the main landscape display.
+# Do not use monitor IDs or the duplicate Dell model names: they can change when
+# the physical arrangement changes.
+[workspace-to-monitor-force-assignment]
+1 = ['secondary', 'main']
+2 = 'main'
+3 = 'main'
+4 = 'main'
+5 = 'main'
+
 [mode.main.binding]
 # Open a new Ghostty window.
 alt-enter = '''exec-and-forget osascript -e '
