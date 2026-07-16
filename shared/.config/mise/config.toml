@@ -6,7 +6,7 @@ github.use_git_credentials = true
 experimental = true
 # mise's built-in minimum_release_age default is 24h (supply-chain delay).
 # Tools listed here skip it and install fresh releases immediately.
-minimum_release_age_excludes = ["github:earendil-works/pi"]
+minimum_release_age_excludes = ["github:earendil-works/pi", "mise"]
 dotfiles.root = "~/code/laulauland/dotfiles"
 dotfiles.default_mode = "symlink"
 
