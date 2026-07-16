@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+for argument in "$@"; do
+    case "$argument" in
+    https://api.github.com/*)
+        exec gh api "${argument#https://api.github.com/}"
+        ;;
+    esac
+done
+
+exec "$CODEX_REAL_CURL" "$@"

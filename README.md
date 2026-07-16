@@ -46,7 +46,9 @@ pre-existing dotfile should be replaced, inspect the dry run and re-run with
 `./bootstrap --force-dotfiles`.
 
 Codex is installed by a mise post-tools hook using OpenAI's standalone
-installer so managed features such as `codex remote-control` converge too.
+installer so managed features such as `codex remote-control` converge too. The
+hook authenticates the installer's GitHub API lookup with the existing `gh`
+session.
 
 Useful focused commands:
 

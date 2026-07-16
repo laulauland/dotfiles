@@ -23,4 +23,5 @@ authenticated GitHub session (or `MISE_GITHUB_TOKEN`), installs `yay`, and
 installs Node, Rust, and Python so ecosystem-backed tools can resolve cleanly.
 Codex CLI is then installed through a mise post-tools hook using OpenAI's
 standalone installer. This provides the managed package layout required by
-`codex remote-control`.
+`codex remote-control`; its GitHub API lookup reuses the authenticated `gh`
+session established earlier in bootstrap.

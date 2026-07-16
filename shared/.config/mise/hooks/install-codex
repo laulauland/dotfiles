@@ -1,11 +1,16 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+hook_dir=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+real_curl=$(command -v curl)
 installer=$(mktemp)
 trap 'rm -f "$installer"' EXIT
 
-curl -fsSL https://chatgpt.com/codex/install.sh -o "$installer"
-CODEX_NON_INTERACTIVE=1 sh "$installer"
+"$real_curl" -fsSL https://chatgpt.com/codex/install.sh -o "$installer"
+CODEX_REAL_CURL="$real_curl" \
+    PATH="$hook_dir/codex-curl:$PATH" \
+    CODEX_NON_INTERACTIVE=1 \
+    sh "$installer"
 
 # Remove the obsolete npm-backed install after the standalone install succeeds.
 if mise ls npm:@openai/codex --installed --json 2>/dev/null | grep -q '"version"'; then
