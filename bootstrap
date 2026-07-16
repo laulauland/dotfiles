@@ -2,8 +2,14 @@
 set -euo pipefail
 
 REPO_ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
+EXPECTED_REPO_ROOT="$HOME/code/laulauland/dotfiles"
 OPERATING_SYSTEM=$(uname)
 CHANGE_SHELL=0
+
+if [ "$REPO_ROOT" != "$EXPECTED_REPO_ROOT" ]; then
+	echo "This checkout must be at $EXPECTED_REPO_ROOT (found $REPO_ROOT)."
+	exit 1
+fi
 
 while [ $# -gt 0 ]; do
 	case "$1" in
@@ -45,39 +51,23 @@ is_arch() {
 }
 
 install_arch_base() {
+	command -v mise >/dev/null 2>&1 && return
 	if ! command -v pacman >/dev/null 2>&1; then
 		echo "pacman is required for Arch bootstrap."
 		exit 1
 	fi
 
-	echo "Installing Arch bootstrap packages..."
-	sudo pacman -Syu --needed git base-devel fish mise
-}
-
-install_yay() {
-	command -v yay >/dev/null 2>&1 && return
-
-	local build_dir
-	build_dir=$(mktemp -d)
-	trap 'rm -rf "$build_dir"' RETURN
-
-	echo "Installing yay..."
-	git clone https://aur.archlinux.org/yay.git "$build_dir/yay"
-	(
-		cd "$build_dir/yay"
-		makepkg -si --noconfirm
-	)
+	echo "Installing the Arch bootstrap prerequisite..."
+	sudo pacman -Syu --needed --noconfirm mise
 }
 
 install_global_mise_config() {
+	local environment=$1
 	mkdir -p "$HOME/.config/mise"
 	ln -sf "$REPO_ROOT/shared/.config/mise/config.toml" "$HOME/.config/mise/config.toml"
-	ln -sf "$REPO_ROOT/shared/.config/mise/config.macos.toml" "$HOME/.config/mise/config.macos.toml"
-	ln -sf "$REPO_ROOT/shared/.config/mise/config.arch.toml" "$HOME/.config/mise/config.arch.toml"
-	ln -sfn "$REPO_ROOT/shared/.config/mise/tasks" "$HOME/.config/mise/tasks"
+	ln -sf "$REPO_ROOT/shared/.config/mise/config.$environment.toml" "$HOME/.config/mise/config.$environment.toml"
 	mise trust "$HOME/.config/mise/config.toml"
-	mise trust "$HOME/.config/mise/config.macos.toml"
-	mise trust "$HOME/.config/mise/config.arch.toml"
+	mise trust "$HOME/.config/mise/config.$environment.toml"
 }
 
 set_fish_shell() {
@@ -98,7 +88,7 @@ case "$OPERATING_SYSTEM" in
 Darwin)
 	install_homebrew
 	install_mise
-	install_global_mise_config
+	install_global_mise_config macos
 	# This checkout already exists, so let mise converge everything except cloning it.
 	mise bootstrap --yes -E macos --skip repos "$@"
 	[ "$CHANGE_SHELL" -eq 0 ] || set_fish_shell
@@ -114,10 +104,8 @@ Linux)
 	fi
 
 	install_arch_base
-	install_yay
-	install_global_mise_config
-	mise bootstrap --yes -E arch --skip packages,repos,macos-defaults,macos-launchd-agents "$@"
-	[ "$CHANGE_SHELL" -eq 0 ] || set_fish_shell
+	install_global_mise_config arch
+	mise bootstrap --yes -E arch --skip repos,macos-defaults,macos-launchd-agents "$@"
 	;;
 *)
 	echo "Your operating system is not supported."

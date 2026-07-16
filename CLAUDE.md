@@ -39,9 +39,9 @@ applies native `[bootstrap.macos.*]` defaults, and installs mise-managed tools.
 The `./bootstrap` script is for an existing checkout. On macOS it bootstraps
 Homebrew + mise, installs this repo's mise config as the global config,
 delegates macOS convergence to `mise bootstrap --yes -E macos --skip repos`.
-On Arch Linux it installs the minimum pacman prerequisites, installs `yay` if
-needed, installs the shared mise config, then runs
-`mise bootstrap --yes -E arch --skip packages,repos,macos-defaults,macos-launchd-agents`.
+On Arch Linux it installs mise through pacman, installs the shared + Arch mise
+configs, then runs
+`mise bootstrap --yes -E arch --skip repos,macos-defaults,macos-launchd-agents`.
 
 - macOS: Uses mise bootstrap for remaining Homebrew formulae, Homebrew casks
   listed in `Caskfile`, Mac App Store apps, native macOS defaults, and
@@ -50,16 +50,17 @@ needed, installs the shared mise config, then runs
   already applied by default
 - macOS with `--fish-shell`: adds the Homebrew fish path to `/etc/shells` if
   needed and runs `chsh -s` for the current user
-- Arch Linux: Uses pacman/yay for bootstrap prerequisites, mise for portable
-  tools, and mise dotfiles for `shared` + `arch`
+- Arch Linux: Uses pacman only to cross the initial mise boundary; mise owns
+  declared pacman packages, portable tools, the fish login shell, agent
+  dependencies, and dotfiles for `shared` + `arch`
 
 ### Prerequisites
 - macOS bootstrap installs Homebrew if it is missing, then installs mise before
   delegating to `mise bootstrap`. Installing Homebrew may prompt for sudo once;
   do not run the whole bootstrap script with sudo.
 - Mac App Store installs require `mas` and an App Store login.
-- Arch installs may prompt for sudo during `pacman -Syu --needed` and during the
-  initial `yay` build.
+- Arch installs may prompt for sudo while pacman installs mise and while mise
+  applies declared system packages or the login shell.
 - Changing the login shell may prompt for sudo to update `/etc/shells`; do not
   run the whole bootstrap script with sudo.
 - Use `mise dotfiles apply -E macos` or `mise dotfiles apply -E arch` when you
@@ -75,10 +76,10 @@ are platform-specific.
 - Add portable CLI tools under `[tools]`.
 - Add macOS Homebrew formulae or Mac App Store apps under `[bootstrap.packages]`.
 - Keep Homebrew casks in `Caskfile`; the mise post-packages hook installs it.
-- Keep Arch pacman/yay prerequisites in `bootstrap` unless mise's package
-  manager support is a better fit.
-- Keep AUR-only packages out of mise's pacman manager; install them through an
-  explicit yay/bootstrap step.
+- Keep Arch system packages in `config.arch.toml`; only mise itself belongs in
+  the pre-mise bootstrap.
+- If an AUR-only package is needed, add an idempotent mise bootstrap task that
+  installs and invokes `yay` at the point of use.
 
 After changing tooling, verify with the relevant dry run or status command:
 

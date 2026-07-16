@@ -1,8 +1,4 @@
 [settings]
-# Token lives in the macOS keychain, so mise's default gh_cli_tokens
-# (reads ~/.config/gh/hosts.yml) finds nothing. Fall back to `git credential
-# fill`, which git routes to `gh auth git-credential` -> keychain.
-github.use_git_credentials = true
 experimental = true
 # mise's built-in minimum_release_age default is 24h (supply-chain delay).
 # Tools listed here skip it and install fresh releases immediately.
@@ -10,49 +6,16 @@ minimum_release_age_excludes = ["github:earendil-works/pi", "mise"]
 dotfiles.root = "~/code/laulauland/dotfiles"
 dotfiles.default_mode = "symlink"
 
-[bootstrap.packages]
-# macOS packages needed before repo hooks, casks, Mac App Store apps, and tools run.
-"brew:btop" = "latest"
-"brew:entr" = "latest"
-"brew:ffmpeg" = "latest"
-"brew:fish" = "latest"
-"brew:fswatch" = "latest"
-"brew:git" = "latest"
-"brew:mas" = "latest"
-"brew:mise" = "latest"
-"brew:mosh" = "latest"
-"brew:parallel" = "latest"
-"brew:poppler" = "latest"
-"brew:qemu" = "latest"
-"brew:qpdf" = "latest"
-"brew:watchman" = "latest"
-
-# GUI apps and other casks are installed by the post-packages Homebrew hook
-# from Caskfile. mise's brew-cask manager is still experimental and does not
-# coexist cleanly with Homebrew-managed Caskroom metadata.
-#
-# Arch uses ./bootstrap for pacman/yay prerequisites, then mise bootstrap for
-# dotfiles and the portable [tools] below. AUR packages stay out of mise's
-# pacman package manager.
-
-# Mac App Store apps. The post-packages hook runs the mas manager again
-# after brew:mas has been installed on first bootstrap.
-"mas:1091189122" = "latest"
-"mas:1607635845" = "latest"
-
-[bootstrap.hooks.post-packages]
-run = [
-  'if command -v mas >/dev/null 2>&1; then mise bootstrap packages apply --manager mas --yes; fi',
-  'if [ "$(uname)" = Darwin ] && command -v brew >/dev/null 2>&1 && [ -f "$HOME/code/laulauland/dotfiles/Caskfile" ]; then grep -Ev "^[[:space:]]*(#|$)" "$HOME/code/laulauland/dotfiles/Caskfile" | xargs brew install --cask; fi',
-]
-
 [bootstrap.repos]
-"~/code/laulauland/dotfiles" = { url = "git@github.com:laulauland/dotfiles.git", ref = "main" }
+"~/code/laulauland/dotfiles" = { url = "https://github.com/laulauland/dotfiles.git", ref = "main" }
+
+[tasks.bootstrap]
+description = "Install runtime dependencies for managed agent extensions"
+run = 'bun install --cwd "$HOME/code/laulauland/dotfiles/shared/.pi/agent/extensions/web-tools" --frozen-lockfile --production'
 
 [dotfiles]
 "~/.agents/skills" = "~/code/laulauland/dotfiles/shared/.agents/skills"
 "~/.claude" = { source = "~/code/laulauland/dotfiles/shared/.claude", mode = "symlink-each" }
-"~/.codex" = { source = "~/code/laulauland/dotfiles/shared/.codex", mode = "symlink-each" }
 "~/.cursor" = { source = "~/code/laulauland/dotfiles/shared/.cursor", mode = "symlink-each" }
 "~/.pi" = { source = "~/code/laulauland/dotfiles/shared/.pi", mode = "symlink-each" }
 "~/.local/bin" = { source = "~/code/laulauland/dotfiles/shared/.local/bin", mode = "symlink-each" }
@@ -81,7 +44,6 @@ run = [
 
 "~/.config/fish/colors" = { source = "~/code/laulauland/dotfiles/shared/.config/fish/colors", mode = "symlink-each" }
 "~/.config/fish/completions" = { source = "~/code/laulauland/dotfiles/shared/.config/fish/completions", mode = "symlink-each" }
-"~/.config/fish/conf.d" = { source = "~/code/laulauland/dotfiles/shared/.config/fish/conf.d", mode = "symlink-each" }
 "~/.config/fish/functions" = { source = "~/code/laulauland/dotfiles/shared/.config/fish/functions", mode = "symlink-each" }
 "~/.config/fish/config.fish" = "~/code/laulauland/dotfiles/shared/.config/fish/config.fish"
 
@@ -239,6 +201,7 @@ hyperfine = "latest"
 "aqua:gohugoio/hugo" = "latest"
 "conda:imagemagick" = "latest"
 "aqua:jj-vcs/jj" = "latest"
+"cargo:jj-hunk" = "latest"
 "aqua:idursun/jjui" = "latest"
 "cargo:jj-starship" = "latest"
 "aqua:PaulJuliusMartinez/jless" = "latest"

@@ -27,15 +27,21 @@ After mise is available, the equivalent full macOS convergence command is:
 mise bootstrap --yes -E macos
 ```
 
-On a fresh Arch server, create and SSH in as the target user, clone this repo,
-then run:
+On a fresh Arch server, create and SSH in as the target user, then use the
+public HTTPS checkout to cross the initial bootstrap boundary:
 
 ```bash
+sudo pacman -Syu --needed git mise
+git clone https://github.com/laulauland/dotfiles.git ~/code/laulauland/dotfiles
+cd ~/code/laulauland/dotfiles
 ./bootstrap
 ```
 
 Do not run the whole bootstrap as root. The script uses sudo only for the parts
-that need it, such as `pacman` and shell changes.
+that need it. It installs mise through pacman; mise then owns Arch system
+packages, the fish login shell, portable tools, agent dependencies, and
+dotfiles. If a pre-existing dotfile should be replaced, inspect the dry run and
+re-run with `./bootstrap --force-dotfiles`.
 
 Useful focused commands:
 
@@ -54,10 +60,10 @@ are platform-specific.
 - Add portable CLI tools under `[tools]`.
 - Add macOS Homebrew formulae or Mac App Store apps under `[bootstrap.packages]`.
 - Keep Homebrew casks in `Caskfile`; the mise post-packages hook installs it.
-- Keep Arch pacman/yay prerequisites in `bootstrap` unless mise's package
-  manager support is a better fit.
-- Keep AUR-only packages out of mise's pacman manager; install them through an
-  explicit yay/bootstrap step.
+- Add Arch system packages under `[bootstrap.packages]` in
+  `shared/.config/mise/config.arch.toml`.
+- If an AUR-only package is needed, add an idempotent mise bootstrap task that
+  installs and invokes `yay` at the point of use.
 
 After changing tooling, verify with the relevant dry run or status command:
 

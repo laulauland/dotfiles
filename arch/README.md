@@ -4,16 +4,20 @@ This dotfile overlay is intentionally small and server-safe. `shared/` carries
 the portable shell, editor, tmux, jj, and agent configuration; `arch/` should
 only contain Arch-specific overrides.
 
-For a fresh Arch box, clone this repo and run:
+For a fresh Arch box, use the public checkout at the canonical path and run:
 
 ```bash
+sudo pacman -Syu --needed git mise
+git clone https://github.com/laulauland/dotfiles.git ~/code/laulauland/dotfiles
+cd ~/code/laulauland/dotfiles
 ./bootstrap
 ```
 
-The bootstrap script installs base pacman prerequisites, installs `yay` when it
-is missing, trusts the shared mise config, installs mise-managed tools, and then
-applies mise dotfiles for `shared/` plus `arch/`.
+The bootstrap script installs mise through pacman and seeds the active config.
+From there, mise installs the declared pacman packages and portable tools,
+switches the login shell to fish, installs managed agent dependencies, and
+applies dotfiles for `shared/` plus `arch/`.
 
-Keep AUR-only packages in an explicit yay/bootstrap step rather than in mise's
-pacman package manager. mise owns the portable toolchain; pacman/yay own system
-packages.
+There are currently no declared AUR packages, so `yay` is not installed. If one
+is added, keep its idempotent installation and invocation in a mise bootstrap
+task rather than adding another top-level setup path.

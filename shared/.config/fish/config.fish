@@ -167,7 +167,7 @@ function gmode --description 'Switch between Ghostty normal and tmux modes'
     end
 
     # Just manually edit the config file
-    set -l config_file "$HOME/Code/laulauland/dotfiles/shared/.config/ghostty/config"
+    set -l config_file "$HOME/code/laulauland/dotfiles/shared/.config/ghostty/config"
     if not test -f "$config_file"
         echo "Ghostty config not found: $config_file"
         return 1
@@ -198,11 +198,6 @@ end
 
 #zmx end
 
-# Added by LM Studio CLI (lms)
-set -gx PATH $PATH /Users/laurynas/.lmstudio/bin
-# End of LM Studio CLI section
-
-
-# Pi
-fish_add_path "/Users/laurynas/.local/share/mise/installs/node/26.3.1/bin"
-
+if test -d "$HOME/.lmstudio/bin"
+    fish_add_path "$HOME/.lmstudio/bin"
+end

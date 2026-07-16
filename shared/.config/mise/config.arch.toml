@@ -1,2 +1,12 @@
+[bootstrap.packages]
+"pacman:base-devel" = "latest"
+"pacman:fish" = "latest"
+"pacman:fuse-overlayfs" = "latest"
+"pacman:git" = "latest"
+"pacman:git-lfs" = "latest"
+
+[bootstrap.user]
+login_shell = "/usr/bin/fish"
+
 [dotfiles]
 "~/.gitconfig-os" = "~/code/laulauland/dotfiles/arch/.gitconfig-os"

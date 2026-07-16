@@ -1,3 +1,32 @@
+[settings]
+# The GitHub token lives in the macOS keychain. Fall back to git credentials,
+# which git routes through the configured gh credential helper.
+github.use_git_credentials = true
+
+[bootstrap.packages]
+"brew:btop" = "latest"
+"brew:entr" = "latest"
+"brew:ffmpeg" = "latest"
+"brew:fish" = "latest"
+"brew:fswatch" = "latest"
+"brew:git" = "latest"
+"brew:mas" = "latest"
+"brew:mise" = "latest"
+"brew:mosh" = "latest"
+"brew:parallel" = "latest"
+"brew:poppler" = "latest"
+"brew:qemu" = "latest"
+"brew:qpdf" = "latest"
+"brew:watchman" = "latest"
+"mas:1091189122" = "latest"
+"mas:1607635845" = "latest"
+
+[bootstrap.hooks.post-packages]
+run = [
+  'if command -v mas >/dev/null 2>&1; then mise bootstrap packages apply --manager mas --yes; fi',
+  'if command -v brew >/dev/null 2>&1 && [ -f "$HOME/code/laulauland/dotfiles/Caskfile" ]; then grep -Ev "^[[:space:]]*(#|$)" "$HOME/code/laulauland/dotfiles/Caskfile" | xargs brew install --cask; fi',
+]
+
 [dotfiles]
 "~/.config/aerospace" = { source = "~/code/laulauland/dotfiles/macos/.config/aerospace", mode = "symlink-each" }
 "~/.config/karabiner" = { source = "~/code/laulauland/dotfiles/macos/.config/karabiner", mode = "symlink-each" }
