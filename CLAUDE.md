@@ -54,6 +54,8 @@ fresh mise process for the remaining bootstrap phases and tools.
   declared pacman packages, portable tools, the fish login shell, agent
   dependencies, GitHub CLI authentication, `yay`, and dotfiles for `shared` +
   `arch`
+- Codex: Uses OpenAI's standalone installer from a mise post-tools hook because
+  remote control requires the managed standalone package layout
 
 ### Prerequisites
 - macOS bootstrap installs Homebrew if it is missing, then installs mise before

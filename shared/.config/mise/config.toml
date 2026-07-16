@@ -152,6 +152,10 @@ ShowAMPM = true
 ShowDate = 2
 ShowSeconds = false
 
+[bootstrap.hooks.post-tools]
+# Remote control requires the managed standalone layout under CODEX_HOME.
+run = ['bash "$HOME/code/laulauland/dotfiles/shared/.config/mise/hooks/install-codex"']
+
 [tools]
 # Language runtimes and package managers.
 bun = "latest"
@@ -166,7 +170,6 @@ uv = "latest"
 zig = "latest"
 
 # Agent and editor tooling.
-"npm:@openai/codex" = "latest"
 "github:earendil-works/pi" = "latest"
 herdr = "latest"
 "aqua:neovim/neovim" = "latest"

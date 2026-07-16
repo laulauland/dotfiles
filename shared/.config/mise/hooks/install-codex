@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+installer=$(mktemp)
+trap 'rm -f "$installer"' EXIT
+
+curl -fsSL https://chatgpt.com/codex/install.sh -o "$installer"
+CODEX_NON_INTERACTIVE=1 sh "$installer"
+
+# Remove the obsolete npm-backed install after the standalone install succeeds.
+if mise ls npm:@openai/codex --installed --json 2>/dev/null | grep -q '"version"'; then
+    mise uninstall --all --yes npm:@openai/codex
+fi

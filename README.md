@@ -45,6 +45,9 @@ before resolving GitHub-hosted tools. It also installs `yay` from the AUR. If a
 pre-existing dotfile should be replaced, inspect the dry run and re-run with
 `./bootstrap --force-dotfiles`.
 
+Codex is installed by a mise post-tools hook using OpenAI's standalone
+installer so managed features such as `codex remote-control` converge too.
+
 Useful focused commands:
 
 ```bash
