@@ -40,8 +40,8 @@ The `./bootstrap` script is for an existing checkout. On macOS it bootstraps
 Homebrew + mise, installs this repo's mise config as the global config,
 delegates macOS convergence to `mise bootstrap --yes -E macos --skip repos`.
 On Arch Linux it installs mise through pacman, installs the shared + Arch mise
-configs, then runs
-`mise bootstrap --yes -E arch --skip repos,macos-defaults,macos-launchd-agents`.
+configs, applies packages plus the GitHub/yay post-package hook, then starts a
+fresh mise process for the remaining bootstrap phases and tools.
 
 - macOS: Uses mise bootstrap for remaining Homebrew formulae, Homebrew casks
   listed in `Caskfile`, Mac App Store apps, native macOS defaults, and
@@ -52,7 +52,8 @@ configs, then runs
   needed and runs `chsh -s` for the current user
 - Arch Linux: Uses pacman only to cross the initial mise boundary; mise owns
   declared pacman packages, portable tools, the fish login shell, agent
-  dependencies, and dotfiles for `shared` + `arch`
+  dependencies, GitHub CLI authentication, `yay`, and dotfiles for `shared` +
+  `arch`
 
 ### Prerequisites
 - macOS bootstrap installs Homebrew if it is missing, then installs mise before
@@ -78,8 +79,8 @@ are platform-specific.
 - Keep Homebrew casks in `Caskfile`; the mise post-packages hook installs it.
 - Keep Arch system packages in `config.arch.toml`; only mise itself belongs in
   the pre-mise bootstrap.
-- If an AUR-only package is needed, add an idempotent mise bootstrap task that
-  installs and invokes `yay` at the point of use.
+- Arch bootstrap installs `yay` after mise-owned packages are available; invoke
+  it from an idempotent mise hook when an AUR package is needed.
 
 After changing tooling, verify with the relevant dry run or status command:
 

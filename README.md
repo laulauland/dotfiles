@@ -40,8 +40,10 @@ cd ~/code/laulauland/dotfiles
 Do not run the whole bootstrap as root. The script uses sudo only for the parts
 that need it. It installs mise through pacman; mise then owns Arch system
 packages, the fish login shell, portable tools, agent dependencies, and
-dotfiles. If a pre-existing dotfile should be replaced, inspect the dry run and
-re-run with `./bootstrap --force-dotfiles`.
+dotfiles. On Arch it installs GitHub CLI first and pauses for `gh auth login`
+before resolving GitHub-hosted tools. It also installs `yay` from the AUR. If a
+pre-existing dotfile should be replaced, inspect the dry run and re-run with
+`./bootstrap --force-dotfiles`.
 
 Useful focused commands:
 
@@ -62,8 +64,8 @@ are platform-specific.
 - Keep Homebrew casks in `Caskfile`; the mise post-packages hook installs it.
 - Add Arch system packages under `[bootstrap.packages]` in
   `shared/.config/mise/config.arch.toml`.
-- If an AUR-only package is needed, add an idempotent mise bootstrap task that
-  installs and invokes `yay` at the point of use.
+- Arch bootstrap installs `yay` after mise-owned system packages are available;
+  use it from an idempotent mise bootstrap hook when an AUR package is needed.
 
 After changing tooling, verify with the relevant dry run or status command:
 

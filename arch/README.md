@@ -18,6 +18,8 @@ From there, mise installs the declared pacman packages and portable tools,
 switches the login shell to fish, installs managed agent dependencies, and
 applies dotfiles for `shared/` plus `arch/`.
 
-There are currently no declared AUR packages, so `yay` is not installed. If one
-is added, keep its idempotent installation and invocation in a mise bootstrap
-task rather than adding another top-level setup path.
+Before portable tools are resolved, bootstrap installs GitHub CLI, requires an
+authenticated GitHub session (or `MISE_GITHUB_TOKEN`), installs `yay`, and
+installs Node, Rust, and Python so ecosystem-backed tools can resolve cleanly.
+Codex CLI is then installed through mise from the official `@openai/codex` npm
+package.

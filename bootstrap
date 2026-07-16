@@ -105,7 +105,10 @@ Linux)
 
 	install_arch_base
 	install_global_mise_config arch
-	mise bootstrap --yes -E arch --skip repos,macos-defaults,macos-launchd-agents "$@"
+	# Complete system packages and interactive GitHub/AUR setup first. Starting a
+	# fresh mise process afterwards ensures tool resolution sees the new gh token.
+	mise bootstrap --raw --yes -E arch --only packages
+	mise bootstrap --raw --yes -E arch --skip packages,repos,macos-defaults,macos-launchd-agents "$@"
 	;;
 *)
 	echo "Your operating system is not supported."

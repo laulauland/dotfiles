@@ -4,6 +4,14 @@
 "pacman:fuse-overlayfs" = "latest"
 "pacman:git" = "latest"
 "pacman:git-lfs" = "latest"
+"pacman:github-cli" = "latest"
+
+[bootstrap.hooks.post-packages]
+run = ['bash "$HOME/code/laulauland/dotfiles/shared/.config/mise/hooks/arch-post-packages"']
+
+[bootstrap.hooks.pre-tools]
+# Backend tools must exist before mise resolves npm, cargo, and pipx entries.
+run = ["mise install node rust python"]
 
 [bootstrap.user]
 login_shell = "/usr/bin/fish"

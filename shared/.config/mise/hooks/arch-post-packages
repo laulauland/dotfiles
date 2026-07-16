@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+has_github_token() {
+	[ -n "${MISE_GITHUB_TOKEN:-}" ] ||
+		[ -n "${GITHUB_API_TOKEN:-}" ] ||
+		[ -n "${GITHUB_TOKEN:-}" ]
+}
+
+ensure_github_auth() {
+	if has_github_token || gh auth status --hostname github.com >/dev/null 2>&1; then
+		return
+	fi
+
+	if [ ! -t 0 ]; then
+		echo "GitHub authentication is required before mise installs GitHub-hosted tools." >&2
+		echo "Run 'gh auth login --hostname github.com --git-protocol https --web' or set MISE_GITHUB_TOKEN." >&2
+		exit 1
+	fi
+
+	echo "Authenticate GitHub before installing GitHub-hosted tools."
+	gh auth login --hostname github.com --git-protocol https --web
+}
+
+install_yay() {
+	command -v yay >/dev/null 2>&1 && return
+
+	yay_build_dir=$(mktemp -d)
+	trap 'rm -rf "$yay_build_dir"' EXIT
+
+	echo "Installing yay from the Arch User Repository..."
+	git clone --depth 1 https://aur.archlinux.org/yay.git "$yay_build_dir/yay"
+	(
+		cd "$yay_build_dir/yay"
+		makepkg -si --noconfirm
+	)
+}
+
+ensure_github_auth
+install_yay

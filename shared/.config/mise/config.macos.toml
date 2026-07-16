@@ -9,6 +9,7 @@ github.use_git_credentials = true
 "brew:ffmpeg" = "latest"
 "brew:fish" = "latest"
 "brew:fswatch" = "latest"
+"brew:gh" = "latest"
 "brew:git" = "latest"
 "brew:mas" = "latest"
 "brew:mise" = "latest"
