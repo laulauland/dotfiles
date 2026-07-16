@@ -8,6 +8,12 @@ import { truncateToWidth, visibleWidth } from "@mariozechner/pi-tui";
 import { execSync } from "child_process";
 import { homedir } from "os";
 
+const FAST_MODE_EVENT = "fast-mode:changed";
+
+type FastModeChange = {
+	readonly enabled: boolean;
+};
+
 interface JjInfo {
 	changeId: string;
 	bookmarks: string;
@@ -104,6 +110,10 @@ function getJjInfo(): JjInfo | null {
 	return cachedJjInfo;
 }
 
+function isFastModeChange(value: unknown): value is FastModeChange {
+	return typeof value === "object" && value !== null && "enabled" in value && typeof value.enabled === "boolean";
+}
+
 function formatPath(path: string): string {
 	const home = homedir();
 	return path.startsWith(home) ? `~${path.slice(home.length)}` : path;
@@ -188,8 +198,16 @@ function formatUsage(): string[] {
 	return parts;
 }
 
-export default function (pi: ExtensionAPI) {
+/** Renders Jujutsu and session telemetry in Pi's single-line footer. */
+export default function footer(pi: ExtensionAPI) {
+	let fastModeEnabled = false;
 	let requestFooterRender: (() => void) | undefined;
+
+	pi.events.on(FAST_MODE_EVENT, (event: unknown) => {
+		if (!isFastModeChange(event)) return;
+		fastModeEnabled = event.enabled;
+		requestFooterRender?.();
+	});
 
 	const setupFooter = (ctx: ExtensionContext) => {
 		let disposed = false;
@@ -212,6 +230,7 @@ export default function (pi: ExtensionAPI) {
 
 					const jj = getJjInfo();
 					const leftParts = [
+						...(fastModeEnabled ? [theme.fg("accent", theme.bold("[fast]"))] : []),
 						...(jj ? [formatJjInfo(theme, jj)] : []),
 						theme.fg("dim", formatPath(snapshot.cwd)),
 						theme.fg("dim", formatUsage().join(" ")),
