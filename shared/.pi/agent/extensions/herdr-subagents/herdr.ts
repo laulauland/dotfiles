@@ -54,8 +54,18 @@ function extractTabRoot(result: unknown): HerdrSurface {
   return { paneId, ...(typeof tabId === "string" ? { tabId } : {}) };
 }
 
+function extractPane(result: unknown): HerdrSurface {
+  if (!isRecord(result)) throw new Error("Could not parse Herdr pane split result: expected an object.");
+  const pane = isRecord(result.pane) ? result.pane : result;
+  const paneId = pane.pane_id;
+  if (typeof paneId !== "string" || paneId.trim() === "") {
+    throw new Error("Could not find pane.pane_id in Herdr pane split result.");
+  }
+  return { paneId };
+}
+
 function shellEscape(value: string): string {
-  return "'" + value.replace(/'/g, "'\\''") + "'";
+  return `'${value.replace(/'/g, "'\\''")}'`;
 }
 
 function commandLine(command: string, args: string[]): string {
@@ -126,6 +136,57 @@ export async function createAgentSurface(params: {
   });
   const surface = extractTabRoot(parseJsonResponse(stdout, "tab create"));
   try {
+    await waitForShellReady(params.signal);
+    await execFileAsync(herdrBin(), ["pane", "run", surface.paneId, commandLine(params.command, [...params.args])], {
+      encoding: "utf8",
+      maxBuffer: 1024 * 1024,
+      signal: params.signal,
+    });
+    return surface;
+  } catch (error) {
+    await closeSurface(surface);
+    throw error;
+  }
+}
+
+/** Split the caller's current Herdr pane and run a child launcher without taking focus. */
+export async function createSplitSurface(params: {
+  readonly label: string;
+  readonly cwd: string;
+  readonly env: Readonly<Record<string, string>>;
+  readonly command: string;
+  readonly args: readonly string[];
+  readonly ratio?: number;
+  readonly signal?: AbortSignal;
+}): Promise<HerdrSurface> {
+  const splitArgs = [
+    "pane",
+    "split",
+    "--current",
+    "--direction",
+    "right",
+    "--ratio",
+    String(params.ratio ?? 0.35),
+    "--cwd",
+    params.cwd,
+    "--no-focus",
+  ];
+  for (const [key, value] of Object.entries(params.env)) {
+    splitArgs.push("--env", `${key}=${value}`);
+  }
+
+  const { stdout } = await execFileAsync(herdrBin(), splitArgs, {
+    encoding: "utf8",
+    maxBuffer: 1024 * 1024,
+    signal: params.signal,
+  });
+  const surface = extractPane(parseJsonResponse(stdout, "pane split"));
+  try {
+    await execFileAsync(herdrBin(), ["pane", "rename", surface.paneId, params.label], {
+      encoding: "utf8",
+      maxBuffer: 1024 * 1024,
+      signal: params.signal,
+    });
     await waitForShellReady(params.signal);
     await execFileAsync(herdrBin(), ["pane", "run", surface.paneId, commandLine(params.command, [...params.args])], {
       encoding: "utf8",
