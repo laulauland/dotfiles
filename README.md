@@ -50,6 +50,9 @@ installer so managed features such as `codex remote-control` converge too. The
 hook authenticates the installer's GitHub API lookup with the existing `gh`
 session.
 
+Claude Code is installed by the same post-tools phase using Anthropic's native
+standalone installer.
+
 Useful focused commands:
 
 ```bash

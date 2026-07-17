@@ -25,4 +25,5 @@ installs Node, Rust, and Python so ecosystem-backed tools can resolve cleanly.
 Codex CLI is then installed through a mise post-tools hook using OpenAI's
 standalone installer. This provides the managed package layout required by
 `codex remote-control`; its GitHub API lookup reuses the authenticated `gh`
-session established earlier in bootstrap.
+session established earlier in bootstrap. Claude Code is installed in the same
+phase using Anthropic's native standalone installer.

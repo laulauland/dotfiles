@@ -153,8 +153,11 @@ ShowDate = 2
 ShowSeconds = false
 
 [bootstrap.hooks.post-tools]
-# Remote control requires the managed standalone layout under CODEX_HOME.
-run = ['bash "$HOME/code/laulauland/dotfiles/shared/.config/mise/hooks/install-codex"']
+# Agent CLIs use their vendors' managed standalone layouts.
+run = [
+  'bash "$HOME/code/laulauland/dotfiles/shared/.config/mise/hooks/install-codex"',
+  'bash "$HOME/code/laulauland/dotfiles/shared/.config/mise/hooks/install-claude"',
+]
 
 [tools]
 # Language runtimes and package managers.

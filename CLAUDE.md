@@ -56,6 +56,8 @@ fresh mise process for the remaining bootstrap phases and tools.
   `arch`
 - Codex: Uses OpenAI's standalone installer from a mise post-tools hook because
   remote control requires the managed standalone package layout
+- Claude Code: Uses Anthropic's native standalone installer from the same
+  post-tools phase
 
 ### Prerequisites
 - macOS bootstrap installs Homebrew if it is missing, then installs mise before
