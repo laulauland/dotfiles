@@ -16,7 +16,8 @@ cd ~/code/laulauland/dotfiles
 The bootstrap script installs mise through pacman and seeds the active config.
 From there, mise installs the declared pacman packages and portable tools,
 switches the login shell to fish, installs managed agent dependencies, and
-applies dotfiles for `shared/` plus `arch/`.
+applies dotfiles for `shared/` plus `arch/`. The Arch package set includes Mosh;
+`mosh-server` starts on demand through SSH rather than as a persistent service.
 
 Before portable tools are resolved, bootstrap installs GitHub CLI, requires an
 authenticated GitHub session (or `MISE_GITHUB_TOKEN`), installs `yay`, and

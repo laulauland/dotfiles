@@ -5,6 +5,7 @@
 "pacman:git" = "latest"
 "pacman:git-lfs" = "latest"
 "pacman:github-cli" = "latest"
+"pacman:mosh" = "latest"
 
 [bootstrap.hooks.post-packages]
 run = ['bash "$HOME/code/laulauland/dotfiles/shared/.config/mise/hooks/arch-post-packages"']
