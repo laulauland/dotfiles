@@ -779,7 +779,7 @@ async function askWithQuestionnaire(
 				return;
 			}
 
-			if (matchesKey(data, Key.tab) && isOptionRow(row) && question.allowFreeform) {
+			if (matchesKey(data, Key.tab) && isOptionRow(row)) {
 				startInput(question, row.option);
 				return;
 			}

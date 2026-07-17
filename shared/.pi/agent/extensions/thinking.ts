@@ -1,48 +1,90 @@
-import type { AutocompleteItem } from "@mariozechner/pi-tui";
-import type { ExtensionAPI } from "@mariozechner/pi-coding-agent";
+import {
+	getSupportedThinkingLevels,
+	type ModelThinkingLevel,
+} from "@earendil-works/pi-ai";
+import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { AutocompleteItem } from "@earendil-works/pi-tui";
 
-type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh";
+function getThinkingLevelCompletions(
+	levels: readonly ModelThinkingLevel[],
+): AutocompleteItem[] {
+	return levels.map((level) => ({
+		value: level,
+		label: level,
+		description: `${level} reasoning`,
+	}));
+}
 
-const THINKING_LEVELS: ThinkingLevel[] = ["off", "minimal", "low", "medium", "high", "xhigh"];
-
-const COMPLETIONS: AutocompleteItem[] = THINKING_LEVELS.map((level) => ({
-	value: level,
-	label: level,
-	description: level === "xhigh" ? "extra high reasoning" : `${level} reasoning`,
-}));
-
-function parseLevel(args: string): ThinkingLevel | null {
+function parseThinkingLevel(
+	args: string,
+	levels: readonly ModelThinkingLevel[],
+): ModelThinkingLevel | undefined {
 	const normalized = args.trim().toLowerCase();
-	if (!normalized) return null;
-	if (normalized === "extra" || normalized === "extra-high" || normalized === "extra_high") return "xhigh";
-	if (THINKING_LEVELS.includes(normalized as ThinkingLevel)) return normalized as ThinkingLevel;
-	return null;
+	const requestedLevel =
+		normalized === "extra" ||
+		normalized === "extra-high" ||
+		normalized === "extra_high"
+			? "xhigh"
+			: normalized;
+
+	return levels.find((level) => level === requestedLevel);
 }
 
 export default function thinkingCommand(pi: ExtensionAPI) {
+	let availableLevels: readonly ModelThinkingLevel[] = [];
+
+	function updateAvailableLevels(
+		model: Parameters<typeof getSupportedThinkingLevels>[0] | undefined,
+	): void {
+		availableLevels = model ? getSupportedThinkingLevels(model) : [];
+	}
+
+	pi.on("session_start", (_event, ctx) => {
+		updateAvailableLevels(ctx.model);
+	});
+
+	pi.on("model_select", (event) => {
+		updateAvailableLevels(event.model);
+	});
+
 	pi.registerCommand("thinking", {
-		description: "Show or set thinking level: off, minimal, low, medium, high, xhigh",
+		description: "Show or set a thinking level supported by the active model",
 		getArgumentCompletions: (prefix: string): AutocompleteItem[] | null => {
 			const normalizedPrefix = prefix.trim().toLowerCase();
-			const matches = COMPLETIONS.filter((item) => item.value.startsWith(normalizedPrefix));
-			return matches.length > 0 ? matches : null;
+			const completions = getThinkingLevelCompletions(availableLevels).filter(
+				(item) => item.value.startsWith(normalizedPrefix),
+			);
+			return completions.length > 0 ? completions : null;
 		},
 		handler: async (args, ctx) => {
-			let requestedLevel = parseLevel(args);
+			const levels = ctx.model ? getSupportedThinkingLevels(ctx.model) : [];
+			if (levels.length === 0) {
+				ctx.ui.notify(
+					"No active model is available to configure thinking.",
+					"error",
+				);
+				return;
+			}
 
+			let requestedLevel = parseThinkingLevel(args, levels);
 			if (!args.trim()) {
 				const currentLevel = pi.getThinkingLevel();
 				const choice = await ctx.ui.select(
 					`Thinking level (current: ${currentLevel})`,
-					THINKING_LEVELS.map((level) => (level === currentLevel ? `${level} (current)` : level)),
+					levels.map((level) =>
+						level === currentLevel ? `${level} (current)` : level,
+					),
 				);
 				if (!choice) return;
-				requestedLevel = parseLevel(choice.replace(" (current)", ""));
+				requestedLevel = parseThinkingLevel(
+					choice.replace(" (current)", ""),
+					levels,
+				);
 			}
 
 			if (!requestedLevel) {
 				ctx.ui.notify(
-					`Unknown thinking level: ${args.trim()}. Use one of: ${THINKING_LEVELS.join(", ")}`,
+					`Unsupported thinking level: ${args.trim()}. Available: ${levels.join(", ")}`,
 					"error",
 				);
 				return;
