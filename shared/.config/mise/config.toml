@@ -11,7 +11,7 @@ dotfiles.default_mode = "symlink"
 
 [tasks.bootstrap]
 description = "Install runtime dependencies for managed agent extensions"
-run = 'bun install --cwd "$HOME/code/laulauland/dotfiles/shared/.pi/agent/extensions/web-tools" --frozen-lockfile --production'
+run = 'bun install --cwd "$HOME/.pi/agent/extensions/web-tools" --frozen-lockfile --production'
 
 [dotfiles]
 "~/.agents/skills" = "~/code/laulauland/dotfiles/shared/.agents/skills"
@@ -167,6 +167,7 @@ pnpm = "latest"
 python = "latest"
 rust = "latest"
 uv = "latest"
+usage = "latest"
 zig = "latest"
 
 # Agent and editor tooling.
