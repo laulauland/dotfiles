@@ -1,4 +1,5 @@
 local in_tmux = vim.env.TMUX ~= nil and vim.env.TMUX ~= ""
+local in_herdr = vim.env.HERDR_ENV == "1"
 local termfeatures = vim.g.termfeatures or {}
 
 -- OSC 52 clipboard reads are not widely supported and make every paste with
@@ -46,6 +47,27 @@ elseif in_tmux and executable("tmux") then
         paste = {
             ["+"] = { "tmux", "save-buffer", "-" },
             ["*"] = { "tmux", "save-buffer", "-" },
+        },
+    }
+elseif in_herdr then
+    -- Herdr forwards OSC 52 writes to its foreground client but deliberately
+    -- has no query/reply path. Map both registers to the supported `c` target;
+    -- terminal paste still supplies local clipboard contents without a query.
+    local osc52 = require("vim.ui.clipboard.osc52")
+    local copy = osc52.copy("+")
+    local empty_paste = function()
+        return { {}, "v" }
+    end
+
+    vim.g.clipboard = {
+        name = "Herdr OSC 52 (copy-only)",
+        copy = {
+            ["+"] = copy,
+            ["*"] = copy,
+        },
+        paste = {
+            ["+"] = empty_paste,
+            ["*"] = empty_paste,
         },
     }
 end
