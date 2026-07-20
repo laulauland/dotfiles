@@ -13,7 +13,30 @@ local function executable(command)
     return vim.fn.executable(command) == 1
 end
 
-if executable("pbcopy") and executable("pbpaste") then
+-- The remote transport must take precedence over clipboard tools on the host.
+-- For example, pbcopy over SSH writes to the remote Mac instead of the client.
+if in_herdr then
+    -- Herdr forwards OSC 52 writes to its foreground client but deliberately
+    -- has no query/reply path. Map both registers to the supported `c` target;
+    -- terminal paste still supplies local clipboard contents without a query.
+    local osc52 = require("vim.ui.clipboard.osc52")
+    local copy = osc52.copy("+")
+    local empty_paste = function()
+        return { {}, "v" }
+    end
+
+    vim.g.clipboard = {
+        name = "Herdr OSC 52 (copy-only)",
+        copy = {
+            ["+"] = copy,
+            ["*"] = copy,
+        },
+        paste = {
+            ["+"] = empty_paste,
+            ["*"] = empty_paste,
+        },
+    }
+elseif executable("pbcopy") and executable("pbpaste") then
     vim.g.clipboard = {
         name = "macOS clipboard",
         copy = {
@@ -47,27 +70,6 @@ elseif in_tmux and executable("tmux") then
         paste = {
             ["+"] = { "tmux", "save-buffer", "-" },
             ["*"] = { "tmux", "save-buffer", "-" },
-        },
-    }
-elseif in_herdr then
-    -- Herdr forwards OSC 52 writes to its foreground client but deliberately
-    -- has no query/reply path. Map both registers to the supported `c` target;
-    -- terminal paste still supplies local clipboard contents without a query.
-    local osc52 = require("vim.ui.clipboard.osc52")
-    local copy = osc52.copy("+")
-    local empty_paste = function()
-        return { {}, "v" }
-    end
-
-    vim.g.clipboard = {
-        name = "Herdr OSC 52 (copy-only)",
-        copy = {
-            ["+"] = copy,
-            ["*"] = copy,
-        },
-        paste = {
-            ["+"] = empty_paste,
-            ["*"] = empty_paste,
         },
     }
 end
