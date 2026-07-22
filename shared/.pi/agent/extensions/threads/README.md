@@ -1,13 +1,15 @@
 # pi-threads
 
-A [pi](https://github.com/badlogic/pi-mono) extension that provides tools for searching and reading past conversation sessions.
+A [Pi](https://pi.dev) extension that gives the agent tools for finding and reading past conversation sessions.
 
 ## Features
 
-- **`find_threads` tool**: Search through past conversations using ripgrep for sub-20ms search performance
-- **`read_thread` tool**: Read a specific conversation thread by ID or file path
-- **Custom rendering**: Compact and expanded views with proper theming
-- **Lazy parsing**: Only parse files that match search criteria
+- **`find_threads`** searches session JSONL content with the native [`@ff-labs/fff-node`](https://github.com/dmtrKovalenko/fff) engine and returns authoritative metadata from `SessionManager.listAll()`.
+- **`read_thread`** accepts a full or unambiguous partial session ID (or JSONL path) and reads the active branch through `SessionManager.open().getBranch()`.
+- Supports Pi's default storage, `PI_CODING_AGENT_SESSION_DIR`, `--session-dir`, and ephemeral `--no-session` processes.
+- Excludes the current thread by default.
+- Uses Pi's standard 50 KB / 2,000-line output limit. Complete truncated output is preserved in a temporary Markdown file.
+- Initializes FFF lazily and safely shares initialization between parallel tool calls.
 
 ## Installation
 
@@ -15,7 +17,7 @@ A [pi](https://github.com/badlogic/pi-mono) extension that provides tools for se
 pi install npm:pi-threads
 ```
 
-Or add to your `~/.pi/agent/settings.json`:
+Or add it to `~/.pi/agent/settings.json`:
 
 ```json
 {
@@ -25,41 +27,45 @@ Or add to your `~/.pi/agent/settings.json`:
 
 ## Tools
 
-### find_threads
+### `find_threads`
 
-Search through past conversation sessions.
+Search across projects or list recent sessions.
 
-**Parameters:**
-- `query` (optional): Text to search for in messages (uses ripgrep)
-- `cwd` (optional): Filter by working directory (partial match)
-- `limit` (optional): Maximum results to return (default: 10)
-- `sort` (optional): Sort order - "recent" (default), "oldest", or "relevance"
+| Parameter | Description |
+| --- | --- |
+| `query` | Optional literal text searched with FFF |
+| `cwd` | Optional partial working-directory filter |
+| `limit` | 1–100 results; default 10 |
+| `sort` | `recent`, `oldest`, or `relevance` |
+| `include_current` | Include the active session; default `false` |
 
-**Example usage by LLM:**
-```
-Find threads about "authentication" in the auth-service project
-```
+Example:
 
-### read_thread
-
-Read a specific conversation thread by ID or file path.
-
-**Parameters:**
-- `thread_id`: Thread ID (session UUID) or file path
-- `include_tool_results` (optional): Include tool call results in output (default: false)
-- `max_messages` (optional): Maximum messages to return (default: all)
-
-**Example usage by LLM:**
-```
-Read thread abc123-def456 to see the authentication implementation discussion
+```text
+Find threads about authentication in the auth-service project, then read the most relevant one.
 ```
 
-## Use Cases
+### `read_thread`
 
-- **Context retrieval**: "What did we decide about the API design last week?"
-- **Code archaeology**: "Find the thread where we implemented the caching layer"
-- **Continuation**: "What was the status of the refactoring work?"
-- **Knowledge transfer**: "Show me conversations about the payment integration"
+Read one thread's active branch.
+
+| Parameter | Description |
+| --- | --- |
+| `thread_id` | Full or unambiguous partial UUID, or JSONL path |
+| `include_tool_results` | Include tool results; default `false` |
+| `max_messages` | Return only the last N messages, up to 1,000 |
+
+## Architecture
+
+The Pi tool definitions are thin adapters over a `ThreadCatalog` module:
+
+1. The active session manager determines the storage root.
+2. `SessionManager.listAll()` provides IDs, names, timestamps, cwd values, and message counts.
+3. A lazy FFF index maps content matches back to session paths and supplies relevance counts.
+4. `SessionManager.open().getBranch()` resolves tree structure without guessing a leaf from JSONL order.
+5. Pi truncation utilities enforce bounded model context while retaining complete oversized output on disk.
+
+FFF resources are destroyed during session shutdown or when the storage root changes.
 
 ## License
 
