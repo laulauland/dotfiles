@@ -18,17 +18,18 @@ enable-normalization-opposite-orientation-for-nested-containers = false
 on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 
 # Display-agnostic workspace roles:
-# - One display: every workspace falls back to the main display.
-# - Desk: workspace 1 stays on the left vertical secondary display;
-#   workspaces 2–5 stay on the main landscape display.
-# Do not use monitor IDs or the duplicate Dell model names: they can change when
-# the physical arrangement changes.
+# - One display: every assigned workspace falls back to the main display.
+# - Desk: workspace 1 stays on the leftmost display, workspaces 2–5 stay on the
+#   main middle display, and workspace 10 stays on the rightmost display.
+# Monitor sequence numbers follow the physical left-to-right arrangement. Keep
+# the main display as a fallback when a numbered display is disconnected.
 [workspace-to-monitor-force-assignment]
-1 = ['secondary', 'main']
+1 = [1, 'main']
 2 = 'main'
 3 = 'main'
 4 = 'main'
 5 = 'main'
+10 = [3, 'main']
 
 [mode.main.binding]
 # Open a new Ghostty window.

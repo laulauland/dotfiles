@@ -222,3 +222,7 @@ if test -d "$HOME/.lmstudio/bin"
 end
 # opencode
 fish_add_path /Users/laurynas/.opencode/bin
+
+
+# Added by Antigravity CLI installer
+set -gx PATH "/Users/laurynas/.local/bin" $PATH

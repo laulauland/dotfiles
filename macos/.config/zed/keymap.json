@@ -130,10 +130,59 @@
 			"cmd-/": "agent::ToggleModelSelector"
 		}
 	},
- {
-  "context": "CommitEditor > Editor",
-  "bindings": {
-   "shift-escape": null
-  }
- }
+	{
+		"context": "CommitEditor > Editor",
+		"bindings": {
+			"shift-escape": null
+		}
+	},
+	{
+		"context": "Editor",
+		"use_key_equivalents": true,
+		"bindings": {
+			"cmd-shift-'": "editor::ToggleBreakpoint"
+		}
+	},
+	{
+		"context": "Workspace && debugger_session > Editor",
+		"use_key_equivalents": true,
+		"bindings": {
+			"cmd-'": "debugger::StepOver",
+			"cmd-;": "debugger::StepInto",
+			"cmd-shift-;": "debugger::StepOut",
+			"cmd-shift-\\": "debugger::Stop",
+			"cmd-\\": "debugger::Continue"
+		}
+	},
+	{
+		"context": "Workspace && debugger_running > Editor",
+		"use_key_equivalents": true,
+		"bindings": {
+			"cmd-\\": "debugger::Pause"
+		}
+	},
+	{
+		"context": "Workspace && debugger_session",
+		"use_key_equivalents": true,
+		"bindings": {
+			"cmd-'": "debugger::StepOver",
+			"cmd-;": "debugger::StepInto",
+			"cmd-shift-;": "debugger::StepOut",
+			"cmd-shift-\\": "debugger::Stop"
+		}
+	},
+	{
+		"context": "Workspace && debugger_stopped",
+		"use_key_equivalents": true,
+		"bindings": {
+			"cmd-\\": "debugger::Continue"
+		}
+	},
+	{
+		"context": "Workspace && debugger_running",
+		"use_key_equivalents": true,
+		"bindings": {
+			"cmd-\\": "debugger::Pause"
+		}
+	}
 ]
