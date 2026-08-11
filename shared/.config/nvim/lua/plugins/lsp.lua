@@ -214,26 +214,28 @@ return {
       local ensure_installed = vim.tbl_keys(servers or {})
       require("mason-tool-installer").setup({ ensure_installed = ensure_installed })
 
+      -- mason-lspconfig v2 no longer uses per-server handlers; servers are
+      -- enabled explicitly below via vim.lsp.enable with cmp capabilities.
       require("mason-lspconfig").setup({
         ensure_installed = {},
-        automatic_installation = false,
-        handlers = {
-          function(server_name)
-            local server = servers[server_name] or {}
-            server.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server.capabilities or {})
-             
-
-            
-            require("lspconfig")[server_name].setup(server)
-          end,
-        },
+        automatic_enable = false,
       })
 
-      -- Mojo's LSP ships with the Modular toolchain, not Mason, so it is not
-      -- listed in `servers` (mason-tool-installer cannot install it) and is
-      -- configured explicitly when the toolchain is present.
+      -- Merge cmp capabilities into each server's config (on top of the
+      -- defaults nvim-lspconfig ships in its lsp/*.lua files) and enable it.
+      for name, server in pairs(servers or {}) do
+        vim.lsp.config(name, {
+          capabilities = capabilities,
+          settings = server.settings,
+          init_options = server.init_options,
+        })
+        vim.lsp.enable(name)
+      end
+
+      -- Mojo's LSP ships with the pipx:mojo wheel, not Mason; nvim-lspconfig
+      -- provides its base config in lsp/mojo.lua, so enabling is enough.
       if vim.fn.executable("mojo-lsp-server") == 1 then
-        require("lspconfig").mojo.setup({ capabilities = capabilities })
+        vim.lsp.enable("mojo")
       end
 
     end,
