@@ -168,6 +168,15 @@ end
 # opencode
 fish_add_path "$HOME/.opencode/bin"
 
+# Mojo compiler: mise manages `mojo-lsp-server` via shims, but the compiler
+# binary inside the pipx:mojo wheel is not an exposed entry point.
+if type -q mise
+    set -l mojo_root (mise where pipx:mojo 2>/dev/null)
+    if test -n "$mojo_root"; and test -d "$mojo_root/mojo/bin"
+        fish_add_path "$mojo_root/mojo/bin"
+    end
+end
+
 # Ghostty mode switcher
 function gmode --description 'Switch between Ghostty normal and tmux modes'
     set -l choice (printf "normal\ntmux" | fzf --prompt="Ghostty mode > ")
@@ -211,6 +220,5 @@ end
 if test -d "$HOME/.lmstudio/bin"
     fish_add_path "$HOME/.lmstudio/bin"
 end
-
 # opencode
-fish_add_path /home/laurynas/.opencode/bin
+fish_add_path /Users/laurynas/.opencode/bin

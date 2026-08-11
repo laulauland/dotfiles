@@ -165,6 +165,9 @@ bun = "latest"
 elixir = "latest"
 erlang = "latest"
 go = "latest"
+# Modular's Mojo is distributed as a Python wheel (pipx backend);
+# provides `mojo` and `mojo-lsp-server`.
+"pipx:mojo" = "latest"
 node = "latest"
 pnpm = "latest"
 python = "latest"

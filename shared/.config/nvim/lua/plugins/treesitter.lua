@@ -14,9 +14,25 @@ return {
       -- breaks the <CR> incremental selection below). Install any missing ones
       -- asynchronously on startup. Bundled parsers (lua, markdown, vim, ...)
       -- get a site copy too, which is harmless and keeps them current.
+      -- Mojo is not in the upstream parser registry; register the community
+      -- grammar (tracks Mojo 1.0, ships nvim highlight queries) first.
+      vim.api.nvim_create_autocmd("User", {
+        pattern = "TSUpdate",
+        callback = function()
+          require("nvim-treesitter.parsers").mojo = {
+            install_info = {
+              url = "https://github.com/dmitry-salin/tree-sitter-mojo",
+              files = { "src/parser.c", "src/scanner.c" },
+              branch = "main",
+              queries = "nvim-queries/mojo",
+            },
+          }
+        end,
+      })
+
       local ensure = {
         "bash", "css", "elixir", "erlang", "go", "gomod", "heex",
-        "html", "javascript", "json", "lua", "luadoc",
+        "html", "javascript", "json", "lua", "luadoc", "mojo",
         "markdown", "markdown_inline", "python", "rust", "toml",
         "tsx", "typescript", "vim", "vimdoc", "yaml", "zig",
       }

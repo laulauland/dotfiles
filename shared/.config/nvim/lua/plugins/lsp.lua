@@ -221,7 +221,7 @@ return {
           function(server_name)
             local server = servers[server_name] or {}
             server.capabilities = vim.tbl_deep_extend("force", {}, capabilities, server.capabilities or {})
-            
+             
 
             
             require("lspconfig")[server_name].setup(server)
@@ -229,6 +229,12 @@ return {
         },
       })
 
+      -- Mojo's LSP ships with the Modular toolchain, not Mason, so it is not
+      -- listed in `servers` (mason-tool-installer cannot install it) and is
+      -- configured explicitly when the toolchain is present.
+      if vim.fn.executable("mojo-lsp-server") == 1 then
+        require("lspconfig").mojo.setup({ capabilities = capabilities })
+      end
 
     end,
   },
