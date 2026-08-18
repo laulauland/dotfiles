@@ -4,29 +4,21 @@ onboarding = false
 # keybindings mirror the tmux prefix workflow.
 
 [theme]
-# Use a custom terminal-adaptive palette: Ghostty provides Alabaster in light
-# mode and USGC-RETICLE-IT in dark mode, while Herdr uses the live ANSI colors
-# exposed by the terminal. The overrides below remove the low-contrast gray
-# chrome combinations from the stock `terminal` Herdr theme.
-light_name = "terminal"
-dark_name = "terminal"
+# Herdr chrome follows Ghostty's light/dark appearance via auto_switch, using
+# the one-light/one-dark built-in sibling pair (upstream #1307 makes the raw
+# `terminal` theme unreliable on Ghostty light). Pane content still follows
+# Ghostty's live ANSI colors; only chrome uses these palettes.
+name = "one-dark"
+auto_switch = true
+light_name = "one-light"
+dark_name = "one-dark"
 
-name = "terminal"
-auto_switch = false
 [theme.custom]
-# Keep most UI chrome on the terminal default foreground/background so it tracks
-# Alabaster/USGC automatically. Use an explicit high-contrast focus color for
-# Herdr chrome: navigator rows use accent as the selection background, while
-# workspace/agent lists use surface colors for the focused row. Keep those row
-# backgrounds pale so Herdr's default foreground remains readable in both modes.
+# Blend panels into the real terminal background so chrome sits on
+# Alabaster/Ghostty Dark instead of a themed slab. Accent stays as our
+# high-contrast anchor for borders/highlights.
 panel_bg = "reset"
-surface0 = "#b9dcff"
-surface1 = "#dcebff"
-surface_dim = "#dcebff"
-overlay0 = "reset"
-overlay1 = "#000000"
-text = "reset"
-subtext0 = "reset"
+sidebar_bg = "reset"
 accent = "#005fcc"
 
 [keys]

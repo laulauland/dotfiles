@@ -211,3 +211,6 @@ end
 if test -d "$HOME/.lmstudio/bin"
     fish_add_path "$HOME/.lmstudio/bin"
 end
+
+# opencode
+fish_add_path /home/laurynas/.opencode/bin

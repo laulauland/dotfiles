@@ -58,7 +58,7 @@ memory_mib = 512
 allow_unqualified_seccomp = true
 ```
 
-With this file, `pando create <name>` creates a VM automatically. Explicit CLI values override config. Use `--no-runtime` for a host-only exception. On macOS omit `allow_unqualified_seccomp`.
+With this file, `pando create <name>` creates a VM automatically. Explicit CLI values override config. Use `--no-runtime` for a host-only exception. VM runtimes are supported only on Linux x86_64/KVM in Pando 0.4; on macOS, leave runtime unconfigured and use host-only workspaces.
 
 Never add the Linux seccomp acknowledgement silently. It records that BoxLite 0.9.7's provider filter is disabled on the qualified Linux path; VM isolation, sealed mounts, resource limits, and disabled networking remain, but seccomp is not qualified.
 
@@ -71,7 +71,8 @@ Never add the Linux seccomp acknowledgement silently. It records that BoxLite 0.
 - Self-contained/non-colocated jj repos remain supported. Unusual symlinked, external, malformed, or overlapping store layouts fail closed.
 - Separate jj workspaces can edit concurrently with normal stale-workspace recovery. Avoid deliberately overlapping repository mutations across host and guest: BoxLite's virtiofs does not propagate advisory locks, and Pando's live suite qualifies only its tested concurrent-operation envelope.
 - On Linux, Pando installs the host `jj` into jj-backed guests during runtime creation, so use `pando exec <name> -- jj ...` directly. The temporary staging copy is removed before creation commits and does not remain in `/workspace`.
-- On macOS, a Linux guest cannot execute the host Mach-O `jj`; select an image that already provides guest-compatible `jj`.
+- Official 0.4 runtime support is Linux x86_64/KVM only. Apple Silicon release binaries remain host-only pending live HVF qualification.
+- Pando provisions `jj`, not project runtimes. Select an OCI image containing tools such as Bun, Node, or Cargo; networking is disabled, so dependencies must be inherited or available from an image-provided offline cache.
 - Networking is disabled; do not plan commands that require fetching dependencies unless they are already present in the workspace/image.
 - Guest root disk and workspace persist across `stop`; guest processes do not.
 - Host↔guest BSD `flock` and POSIX record locks are not coherent through BoxLite 0.9.7 virtiofs. Prefer atomic lock files/directories and avoid assuming advisory-lock interoperability.
@@ -102,4 +103,4 @@ State lives under `$PANDO_HOME` (default `~/.pando`):
 └── runtime/boxlite/
 ```
 
-Prefer `pando info <name> --json` and `pando list` over reading internal metadata. Runtime-enabled binaries are experimental and are not installed by normal Homebrew, mise, install-script, or GitHub release channels yet.
+Prefer `pando info <name> --json` and `pando list` over reading internal metadata. Linux x86_64 GitHub, Homebrew, install-script, and mise release artifacts include the optional runtime; host-only creation remains the default without runtime configuration.

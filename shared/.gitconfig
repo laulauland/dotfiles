@@ -70,3 +70,6 @@
 	required = true
 [core]
 	editor = nvim
+[safe]
+	directory = /tmp/pando-actions-runner-v040.Iqr2RW/_work/pando/pando
+	directory = /tmp/pando-actions-runner-v040.Iqr2RW/_work/pando/pando
