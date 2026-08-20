@@ -214,3 +214,7 @@ end
 
 # opencode
 fish_add_path /home/laurynas/.opencode/bin
+
+
+# Added by Antigravity CLI installer
+set -gx PATH "/Users/lau/.local/bin" $PATH
