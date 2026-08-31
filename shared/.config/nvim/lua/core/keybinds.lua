@@ -11,6 +11,24 @@ require("utils").set_keymaps(
 			["c"] = { '"_c' },
 			["s"] = { '"_s' },
 		},
+		x = {
+			["<leader>ha"] = {
+				function()
+					-- Hand the selection to herdr-annotate through a file:
+					-- works on headless servers where clipboard fallback doesn't.
+					vim.cmd('normal! "zy')
+					local base = os.getenv("XDG_RUNTIME_DIR")
+					if not base or base == "" then
+						base = vim.fn.fnamemodify(vim.fn.tempname(), ":h")
+					end
+					local dir = base .. "/herdr-annotate-" .. vim.loop.getuid()
+					vim.fn.mkdir(dir, "p", "0700")
+					vim.fn.writefile(vim.split(vim.fn.getreg("z"), "\n"), dir .. "/selection")
+					vim.fn.jobstart({ "herdr", "plugin", "action", "invoke", "annotate.capture" })
+				end,
+				desc = "Annotate in Herdr",
+			},
+		},
 		t = {
 			["<Esc><Esc>"] = { "<C-\\><C-n>" },
 			["<C-d>"] = { "<C-\\><C-n><C-d>zzA" },

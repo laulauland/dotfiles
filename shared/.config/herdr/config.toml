@@ -69,9 +69,37 @@ type = "plugin_action"
 command = "laulauland.pando-workspace.remove"
 description = "remove pando workspace"
 
+# herdr-annotate (lite) — terminal annotations. Over SSH, `prefix+a` is
+# unreliable (herdrdev/herdr#3380): trigger via
+# `ssh <host> herdr plugin action invoke annotate.capture` or the nvim
+# <leader>ha mapping instead.
+[[keys.command]]
+key = "prefix+a"
+type = "plugin_action"
+command = "annotate.capture"
+description = "annotate text"
+
+[[keys.command]]
+key = "prefix+shift+a"
+type = "plugin_action"
+command = "annotate.copy-context"
+description = "copy annotations as context"
+
+[[keys.command]]
+key = "prefix+m"
+type = "plugin_action"
+command = "annotate.manage"
+description = "manage annotations"
+
 [ui]
+# Keep selections alive after mouse-up so the herdr-annotate plugin can read
+# them over SSH (prefix+a clears the selection before the action runs; the
+# remote flow is `ssh <host> herdr plugin action invoke annotate.capture`).
+# Copy explicitly with Ctrl+C instead.
+copy_on_select = false
+
 # Let [theme.custom].accent drive borders, highlights, and navigation UI.
-agent_panel_sort = "spaces"
+agent_panel_sort = "priority"
 
 show_agent_labels_on_pane_borders = true
 [ui.toast]
@@ -82,5 +110,5 @@ pane_history = true
 
 # Pi renders its own reverse-video cursor. Keep the attached terminal's native
 # cursor visible over that cell so SSH/mosh clients use their local cursor color.
-reveal_hidden_cursor_for_cjk_ime = true
-cjk_ime_agents = ["pi"]
+# reveal_hidden_cursor_for_cjk_ime = true
+# cjk_ime_agents = ["pi"]
