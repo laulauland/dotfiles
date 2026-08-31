@@ -366,17 +366,20 @@ const withAnswerNotes = (answer: AskAnswer, notes: string): AskAnswer => {
 	};
 };
 
-const answerToDecision = (answer: AskAnswer, options: AskOption[], createdAt: string): AskDecision => ({
+const answerToDecision = (answer: AskAnswer, options: AskOption[], createdAt: string): AskDecision => {
+	const notes = answer.kind === "cancelled" ? undefined : answer.notes;
+	return {
 	version: 1,
 	question: answer.question,
 	context: answer.context,
 	kind: answer.kind,
 	answer: answer.answer,
 	...(answer.kind === "multi" && answer.selected.length > 0 ? { selected: answer.selected } : {}),
-	...(answer.kind !== "cancelled" && answer.notes ? { notes: answer.notes } : {}),
+	...(notes ? { notes } : {}),
 	options: options.map((option) => option.label),
 	createdAt,
-});
+	};
+};
 
 const summarizeAnswers = (answers: AskAnswer[]): string => {
 	if (answers.length === 0) return "User did not provide an answer.";
@@ -519,6 +522,7 @@ async function askWithQuestionnaire(
 		const checkedByQuestion = new Map<string, Set<number>>();
 		const notesByQuestion = new Map<string, string>();
 		const previewCache = new Map<string, Markdown>();
+		const previewHeights = new Map<string, number>();
 		const isMultiQuestion = questions.length > 1;
 		const submitTab = questions.length;
 		const totalTabs = isMultiQuestion ? questions.length + 1 : 1;
@@ -623,7 +627,9 @@ async function askWithQuestionnaire(
 			inputBaseOption = row.option;
 			inputMode = "notes";
 			notesQuestion = question;
-			editor.setText(notesFor(question) ?? answers.get(question.id)?.notes ?? "");
+			const existingAnswer = answers.get(question.id);
+			const existingNotes = existingAnswer && existingAnswer.kind !== "cancelled" ? existingAnswer.notes : undefined;
+			editor.setText(notesFor(question) ?? existingNotes ?? "");
 			refresh();
 		}
 
@@ -715,6 +721,15 @@ async function askWithQuestionnaire(
 				return;
 			}
 
+			// Tab opens "add details" on a focused option; otherwise it moves between tabs.
+			if (matchesKey(data, Key.tab)) {
+				const tabQuestion = currentQuestion();
+				const tabRow = currentRow();
+				if (tabQuestion && !tabQuestion.multiSelect && isOptionRow(tabRow)) {
+					startInput(tabQuestion, tabRow.option);
+					return;
+				}
+			}
 			if (isMultiQuestion && (matchesKey(data, Key.right) || matchesKey(data, Key.tab))) {
 				switchTab(1);
 				return;
@@ -779,10 +794,6 @@ async function askWithQuestionnaire(
 				return;
 			}
 
-			if (matchesKey(data, Key.tab) && isOptionRow(row)) {
-				startInput(question, row.option);
-				return;
-			}
 			if (matchesKey(data, Key.enter)) {
 				if (row?.kind === "other") startInput(question);
 				else if (isOptionRow(row)) answers.set(question.id, answerFromOption(question, row.option, undefined, notesFor(question)));
@@ -794,23 +805,43 @@ async function askWithQuestionnaire(
 		}
 
 		function renderPreview(question: AskQuestion, optionIndexForPreview: number, width: number): string[] {
-			const option = question.options[optionIndexForPreview];
 			const innerWidth = Math.max(1, width - 4);
 			if (previewWidth !== innerWidth) {
 				for (const markdown of previewCache.values()) markdown.invalidate();
+				previewHeights.clear();
 				previewWidth = innerWidth;
 			}
-			const preview = option?.preview;
-			if (!preview) return renderBorderedPreview([theme.fg("dim", "No preview available")], width, (text) => theme.fg("accent", text));
-			const key = `${question.id}:${optionIndexForPreview}`;
-			let markdown = previewCache.get(key);
-			if (!markdown) {
-				markdown = new Markdown(preview, 0, 0, markdownTheme);
-				previewCache.set(key, markdown);
+			// Measure every option's preview so the box keeps the height of the tallest
+			// render while moving between options (no layout shift).
+			let maxHeight = 1;
+			const markdownByKey = new Map<string, Markdown>();
+			question.options.forEach((option, index) => {
+				if (!option.preview) return;
+				const key = `${question.id}:${index}`;
+				let markdown = previewCache.get(key);
+				if (!markdown) {
+					markdown = new Markdown(option.preview, 0, 0, markdownTheme);
+					previewCache.set(key, markdown);
+				}
+				markdownByKey.set(key, markdown);
+				let height = previewHeights.get(key);
+				if (height === undefined) {
+					height = Math.min(markdown.render(innerWidth).length, MAX_PREVIEW_LINES);
+					previewHeights.set(key, height);
+				}
+				maxHeight = Math.max(maxHeight, height);
+			});
+			const padToHeight = (lines: string[]): string[] => {
+				while (lines.length < maxHeight) lines.push("");
+				return lines;
+			};
+			const focused = markdownByKey.get(`${question.id}:${optionIndexForPreview}`);
+			if (!focused) {
+				return renderBorderedPreview(padToHeight([theme.fg("dim", "No preview available")]), width, (text) => theme.fg("accent", text));
 			}
-			const rendered = markdown.render(innerWidth);
-			const lines = rendered.length > MAX_PREVIEW_LINES ? [...rendered.slice(0, MAX_PREVIEW_LINES - 1), theme.fg("dim", "… more preview …")] : rendered;
-			return renderBorderedPreview(lines, width, (text) => theme.fg("accent", text));
+			const rendered = focused.render(innerWidth);
+			const lines = rendered.length > maxHeight ? [...rendered.slice(0, maxHeight - 1), theme.fg("dim", "… more preview …")] : rendered;
+			return renderBorderedPreview(padToHeight(lines), width, (text) => theme.fg("accent", text));
 		}
 
 		function renderOptionRows(question: AskQuestion, rows: QuestionnaireRow[], width: number): string[] {
@@ -959,7 +990,8 @@ async function askWithQuestionnaire(
 			}
 
 			lines.push("");
-			const hasNotes = !question.multiSelect && isOptionRow(currentRow()) && Boolean(currentRow()?.option.preview);
+			const current = currentRow();
+			const hasNotes = !question.multiSelect && isOptionRow(current) && Boolean(current.option.preview);
 			const controls = question.multiSelect
 				? "↑↓ select · Space toggle · Enter choose/next"
 				: "↑↓ select · Enter choose · Tab add details";
