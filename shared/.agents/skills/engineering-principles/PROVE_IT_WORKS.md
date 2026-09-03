@@ -2,7 +2,7 @@
 
 Verify a finished task against the real artifact. Do not infer doneness from a proxy: not "it typechecks", not "the build passed", not a subagent's summary, not a file that looks newer than it did before.
 
-This is about proving a task is actually done. It is not about test design. For what a good test looks like, what a real seam is, and how much evidence a change needs, read `coding-standards/TESTING_AND_VERIFICATION.md`. This file is the step where you stop and check that the thing in front of you behaves.
+This is about proving a task is actually done. It is not about test design. For what a good test looks like, what a real seam is, and how much evidence a change needs, read `../apply-coding-standards/TESTING_AND_VERIFICATION.md`. This file is the step where you stop and check that the thing in front of you behaves.
 
 ## Why
 

@@ -1,6 +1,6 @@
 ---
 name: reflect
-description: Capture what a finished task taught you so the next run does not relearn it. Use for "/reflect", "capture what we learned", "remember this for next time", or explicit requests to save a durable lesson. Routes the lesson into the memory system by default and escalates to a skill edit only when the lesson is a repeatable procedure.
+description: Capture a finished task's durable lesson in memory, or promote a recurring procedure into its owning skill. Use when the user asks to remember, reflect on, or preserve what the task taught.
 ---
 
 # Reflect
@@ -36,7 +36,7 @@ When a harness exposes no agent-writable memory store, do not force the lesson i
 
 ## Escalating to a skill edit
 
-When the lesson is genuinely a procedure — a sequence to follow, a check to always run, a trap to always avoid — propose the specific skill and the specific edit, and confirm before making it. Prefer `engineering-principles` for execution lessons and `coding-standards` for code-design lessons. Keep the edit to the part the skill does not already own. A procedure stated once and contradicted later is noise; require that it has actually recurred.
+When the lesson is genuinely a procedure — a sequence to follow, a check to always run, a trap to always avoid — propose the specific skill and the specific edit, and confirm before making it. Prefer `engineering-principles` for execution lessons and `apply-coding-standards` for code-design lessons. Keep the edit to the part the skill does not already own. A procedure stated once and contradicted later is noise; require that it has actually recurred.
 
 ## Reply
 

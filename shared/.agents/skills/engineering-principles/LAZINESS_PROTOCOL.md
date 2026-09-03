@@ -6,6 +6,6 @@ The instinct to resist is reaching for an abstraction, a layer, or a new signal 
 
 Consolidate decisions. Do not make the same choice in several places. Put it behind one source of truth and pass the result as a simple value. When a task asks you to thread a new signal through schemas, pipelines, or call layers, stop and look for a more direct path before you start plumbing.
 
-This is the process-level companion to the design taste in `coding-standards/DESIGNING_MODULES.md`, which owns the deletion test and what makes a module deep. This file is about diff size and the bias to subtract. The sequencing of removal before construction is `SUBTRACT_BEFORE_YOU_ADD.md`. The reader-cost argument for fewer layers is `MINIMIZE_READER_LOAD.md`.
+This is the process-level companion to the design taste in `../apply-coding-standards/DESIGNING_MODULES.md`, which owns the deletion test and what makes a module deep. This file is about diff size and the bias to subtract. The sequencing of removal before construction is `SUBTRACT_BEFORE_YOU_ADD.md`. The reader-cost argument for fewer layers is `MINIMIZE_READER_LOAD.md`.
 
 The test is simple. If a human maintainer would find the result exhausting to hold in their head, it is the wrong solution no matter how clean each piece looks.

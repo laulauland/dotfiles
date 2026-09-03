@@ -7,6 +7,7 @@
 "pacman:github-cli" = "latest"
 "pacman:less" = "latest"
 "pacman:mosh" = "latest"
+"pacman:xsel" = "latest"
 
 [bootstrap.hooks.post-packages]
 run = ['bash "$HOME/code/laulauland/dotfiles/shared/.config/mise/hooks/arch-post-packages"']

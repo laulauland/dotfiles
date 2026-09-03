@@ -1,6 +1,6 @@
 ---
 name: pando
-description: Create and operate per-feature copy-on-write Pando workspaces, optionally backed by persistent BoxLite microVMs with native jj integration. Use for any mention of pando/pd or /pando, requests such as "create a /pando workspace for <rev>", isolated parallel work that should preserve build caches, or requests to run coding-agent hands inside a Pando VM.
+description: Isolate feature work in copy-on-write Pando workspaces, optionally backed by persistent BoxLite microVMs with native jj integration. Use when the user mentions Pando or pd, requests an isolated workspace, or wants coding-agent execution inside a Pando VM.
 ---
 
 # Pando

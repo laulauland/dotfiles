@@ -1,6 +1,6 @@
 ---
 name: align-language
-description: Interview-style session that aligns a plan with the existing domain vocabulary, sharpens terminology, and updates documentation (CONTEXT.md, ADRs) inline as decisions crystallise. Use when user wants to stress-test a plan against their project's language and documented decisions.
+description: Align a plan with the project's domain vocabulary through a one-question-at-a-time interview. Use to stress-test terminology and update CONTEXT.md or ADRs as decisions crystallize.
 ---
 
 <what-to-do>

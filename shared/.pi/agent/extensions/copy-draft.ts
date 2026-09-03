@@ -48,11 +48,24 @@ function writeWithCommand(candidate: ClipboardCommand, text: string): Promise<vo
 	});
 }
 
+const MAX_OSC52_ENCODED_LENGTH = 100_000;
+
+function emitOsc52(text: string): boolean {
+	const encoded = Buffer.from(text, "utf8").toString("base64");
+	if (encoded.length > MAX_OSC52_ENCODED_LENGTH) {
+		return false;
+	}
+	if (process.env.TMUX) {
+		// Passthrough so tmux forwards OSC 52 to the outer terminal.
+		process.stdout.write(`\x1bPtmux;\x1b\x1b]52;c;${encoded}\x07\x1b\\`);
+	} else {
+		process.stdout.write(`\x1b]52;c;${encoded}\x07`);
+	}
+	return true;
+}
+
 async function writeClipboard(text: string): Promise<string> {
 	const candidates = clipboardCommands();
-	if (candidates.length === 0) {
-		throw new Error(`No clipboard command configured for ${platform()}`);
-	}
 
 	let lastError: unknown;
 	for (const candidate of candidates) {
@@ -62,6 +75,11 @@ async function writeClipboard(text: string): Promise<string> {
 		} catch (error) {
 			lastError = error;
 		}
+	}
+
+	// Headless/remote fallback: ask the client terminal to copy via OSC 52.
+	if (emitOsc52(text)) {
+		return "OSC 52";
 	}
 
 	throw lastError instanceof Error ? lastError : new Error("Clipboard write failed");

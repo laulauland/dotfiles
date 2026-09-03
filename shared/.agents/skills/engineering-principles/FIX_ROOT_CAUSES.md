@@ -6,7 +6,7 @@ Symptom fixes accumulate, and each one makes the system harder to reason about w
 
 A root-cause pass is complete when the failure has a reproduction or a named reason one is unavailable, the causal chain reaches the earliest fixable cause you can change, the same shape has been searched for elsewhere, and the final proof exercises the original symptom.
 
-Resist the guard that silences a crash. Adding a nil check or a default to stop an exception is a symptom fix when the real question is why the value was missing. In Effect this shows up as a `catchAll` or a swallowed error that buries a defect inside the failure channel. That channel is for expected, typed failures, not for muffling a bug. The distinction is in `coding-standards/ERROR_HANDLING.md`, which keeps defects and expected failures apart.
+Resist the guard that silences a crash. Adding a nil check or a default to stop an exception is a symptom fix when the real question is why the value was missing. In Effect this shows up as a `catchAll` or a swallowed error that buries a defect inside the failure channel. That channel is for expected, typed failures, not for muffling a bug. The distinction is in `../apply-coding-standards/ERROR_HANDLING.md`, which keeps defects and expected failures apart.
 
 Fix the pattern, not the single instance. When you find the cause, search for the same shape elsewhere with `rg` and fix every occurrence, because the next one is already waiting. When you are stuck, instrument rather than guess. Add logging, read the actual error, and look at the real value instead of assuming it.
 
