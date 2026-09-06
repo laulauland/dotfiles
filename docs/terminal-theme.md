@@ -29,3 +29,22 @@ Check both directions while attached from each Mac:
 A terminal that does not report colors uses the inherited shell mode, or dark
 when no mode is available. A shared Herdr pane has one terminal state; clients
 with different appearances cannot give that same running pane two modes.
+
+## Verified behavior and limits
+
+The September 2026 checks used real Fish and Neovim processes in a PTY, with
+light/dark terminal protocol replies. Local Fish, local Neovim, SSH to Gondor,
+and Neovim inside Herdr on Gondor passed light -> dark -> light checks.
+The eight theme configuration files were compared byte for byte on all devices.
+
+Through Rivendell, the Herdr Fish pane passed both changes after a new prompt,
+but did not reliably update while idle. Press Enter once if that pane retains
+its old colors. This remains a Herdr/terminal notification limitation; these
+configs do not read from the PTY or poll it from a second process.
+
+Ghostty configuration validation passed on both Macs. Reload succeeded locally;
+Rivendell's AppleScript reload timed out, so reload its configuration manually.
+Herdr configuration reload succeeded on all three devices.
+
+The sync preserves the local app-owned Karabiner file and Gondor's installed
+Herdr binary rather than replacing either with a dotfile link.
