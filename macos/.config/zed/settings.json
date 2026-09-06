@@ -12,7 +12,7 @@
  "session": {
   "trust_all_worktrees": true
  },
- "disable_ai": false,
+ "disable_ai": true,
  "edit_predictions": {
   "provider": "none"
  },
