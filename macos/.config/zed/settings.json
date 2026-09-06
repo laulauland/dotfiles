@@ -1,6 +1,6 @@
 {
 	"icon_theme": {
-  "mode": "light",
+  "mode": "dark",
   "light": "Zed (Default)",
   "dark": "Zed (Default)"
  },
@@ -238,9 +238,9 @@
 		"dock": "left"
 	},
 	"theme": {
-  "mode": "light",
+  "mode": "dark",
   "light": "One Light",
-  "dark": "One Dark"
+  "dark": "Gruvbox Dark"
  },
 	"inlay_hints": {
 		"enabled": false
