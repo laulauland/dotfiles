@@ -27,9 +27,6 @@ if set -q SSH_CONNECTION
     end
 end
 
-# Default terminal background fallback for auto_theme (light|dark)
-set --export DFT_BACKGROUND light
-
 if test (uname) = Linux; and test -z "$SSH_CONNECTION"; and type -q sway
     set XDG_SESSION_TYPE wayland
     set -x XDG_SESSION_DESKTOP sway
@@ -40,16 +37,16 @@ end
 if type -q mise
     if status is-interactive
         mise activate fish | source
-        # Auto-detect light/dark terminal and apply matching fish colors
-        auto_theme
     else
         mise activate fish --shims | source
     end
-else if status is-interactive
-    auto_theme
 end
 
 if status is-interactive
+    # Fish owns terminal queries, including replies through SSH and Herdr.
+    # Load the handler before the first prompt and follow later color changes.
+    auto_theme
+
     abbr -a v nvim
     abbr -a e nvim
     abbr -a gl "git pull"
@@ -221,8 +218,3 @@ if test -d "$HOME/.lmstudio/bin"
     fish_add_path "$HOME/.lmstudio/bin"
 end
 # opencode
-fish_add_path /Users/laurynas/.opencode/bin
-
-
-# Added by Antigravity CLI installer
-set -gx PATH "/Users/laurynas/.local/bin" $PATH

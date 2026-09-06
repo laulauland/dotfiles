@@ -1,41 +1,41 @@
 #!/usr/bin/env fish
-# USGC-RETICLE-IT dark theme colors for fish shell
-# Matches Ghostty's USGC-RETICLE-IT theme
+# Ghostty Default Style Dark theme colors for fish shell
+# Matches Ghostty's default dark palette
 
 # Syntax highlighting
-set -U fish_color_normal normal
-set -U fish_color_command 3477f6
-set -U fish_color_keyword 6b40ef
-set -U fish_color_quote f6c443
-set -U fish_color_redirection ee7b3b
-set -U fish_color_end 6b40ef
-set -U fish_color_error cd0400
-set -U fish_color_param 459a65
-set -U fish_color_option 3477f6
-set -U fish_color_comment 484747
-set -U fish_color_operator ea3d8d
-set -U fish_color_escape ea3d8d
-set -U fish_color_autosuggestion 868d96
+set -g fish_color_normal normal
+set -g fish_color_command 82a2be
+set -g fish_color_keyword b294bb
+set -g fish_color_quote f0c674
+set -g fish_color_redirection 8abeb7
+set -g fish_color_end b294bb
+set -g fish_color_error cc6566
+set -g fish_color_param b6bd68
+set -g fish_color_option 82a2be
+set -g fish_color_comment 999999
+set -g fish_color_operator b294bb
+set -g fish_color_escape b294bb
+set -g fish_color_autosuggestion 868d96
 
 # UI colors
-set -U fish_color_cancel --reverse
-set -U fish_color_cwd 459a65
-set -U fish_color_cwd_root cd0400
-set -U fish_color_host normal
-set -U fish_color_host_remote f6c443
-set -U fish_color_user ebbc40
-set -U fish_color_status cd0400
-set -U fish_color_valid_path --underline
-set -U fish_color_history_current --bold
+set -g fish_color_cancel --reverse
+set -g fish_color_cwd b6bd68
+set -g fish_color_cwd_root cc6566
+set -g fish_color_host normal
+set -g fish_color_host_remote f0c674
+set -g fish_color_user f0c674
+set -g fish_color_status cc6566
+set -g fish_color_valid_path --underline
+set -g fish_color_history_current --bold
 
 # Selection & search
-set -U fish_color_match --background=01057c
-set -U fish_color_search_match f6c443 --background=01057c
-set -U fish_color_selection f6c443 --bold --background=01057c
+set -g fish_color_match --background=353a44
+set -g fish_color_search_match f0c674 --background=353a44
+set -g fish_color_selection f0c674 --bold --background=353a44
 
 # Pager (completions menu)
-set -U fish_pager_color_progress 484747
-set -U fish_pager_color_prefix 3477f6 --bold
-set -U fish_pager_color_completion normal
-set -U fish_pager_color_description 484747
-set -U fish_pager_color_selected_background --background=01057c
+set -g fish_pager_color_progress 999999
+set -g fish_pager_color_prefix 82a2be --bold
+set -g fish_pager_color_completion normal
+set -g fish_pager_color_description 999999
+set -g fish_pager_color_selected_background --background=353a44

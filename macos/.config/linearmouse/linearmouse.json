@@ -1,5 +1,5 @@
 {
-  "$schema" : "https:\/\/schema.linearmouse.app\/0.11.2",
+  "$schema" : "https:\/\/schema.linearmouse.app\/0.11.4",
   "schemes" : [
     {
       "if" : {
@@ -96,6 +96,103 @@
           "productName" : "MX Ergo",
           "serialNumber" : "D28F4F0BAB09E01A",
           "vendorID" : "0x46d"
+        }
+      }
+    },
+    {
+      "buttons" : {
+        "mappings" : [
+          {
+            "action" : {
+              "keyPress" : [
+                "control",
+                "shift",
+                "tab"
+              ]
+            },
+            "button" : {
+              "controlID" : 91,
+              "kind" : "logitechControl",
+              "productID" : 16495,
+              "serialNumber" : "9543061E"
+            },
+            "command" : false,
+            "control" : false,
+            "option" : false,
+            "shift" : false
+          },
+          {
+            "action" : {
+              "keyPress" : [
+                "control",
+                "tab"
+              ]
+            },
+            "button" : {
+              "controlID" : 93,
+              "kind" : "logitechControl",
+              "productID" : 16495,
+              "serialNumber" : "9543061E"
+            },
+            "command" : false,
+            "control" : false,
+            "option" : false,
+            "shift" : false
+          }
+        ]
+      },
+      "if" : {
+        "device" : {
+          "category" : "mouse",
+          "productID" : "0xc52b",
+          "productName" : "USB Receiver",
+          "vendorID" : "0x46d"
+        }
+      },
+      "pointer" : {
+        "acceleration" : 3,
+        "disableAcceleration" : false,
+        "redirectsToScroll" : false,
+        "speed" : "unset"
+      },
+      "scrolling" : {
+        "acceleration" : {
+          "vertical" : 1
+        }
+      }
+    },
+    {
+      "if" : {
+        "device" : {
+          "category" : "trackpad",
+          "productID" : "0x265",
+          "productName" : "Magic Trackpad",
+          "serialNumber" : "CC21304034V0W5WAV",
+          "vendorID" : "0x5ac"
+        }
+      },
+      "scrolling" : {
+        "acceleration" : {
+          "vertical" : 2
+        }
+      }
+    },
+    {
+      "if" : {
+        "device" : {
+          "category" : "trackpad",
+          "productID" : "0x265",
+          "productName" : "Laurynas Keturakis’s Magic Trackpad",
+          "serialNumber" : "3C:A6:F6:B9:6D:D5",
+          "vendorID" : "0x4c"
+        }
+      },
+      "scrolling" : {
+        "acceleration" : {
+          "vertical" : 3
+        },
+        "speed" : {
+          "vertical" : 0
         }
       }
     }

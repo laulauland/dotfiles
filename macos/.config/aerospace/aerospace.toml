@@ -32,13 +32,6 @@ on-focused-monitor-changed = ['move-mouse monitor-lazy-center']
 10 = [3, 'main']
 
 [mode.main.binding]
-# Open a new Ghostty window.
-alt-enter = '''exec-and-forget osascript -e '
-tell application "Ghostty"
-    new window
-end tell'
-'''
-
 # Vim-style focus and movement directions.
 alt-h = 'focus --boundaries-action wrap-around-the-workspace left'
 alt-j = 'focus --boundaries-action wrap-around-the-workspace down'
