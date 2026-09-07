@@ -11,11 +11,15 @@ dotfiles.default_mode = "symlink"
 
 [tasks.bootstrap]
 description = "Install runtime dependencies for managed agent extensions"
-run = 'bun install --cwd "$HOME/.pi/agent/extensions/web-tools" --frozen-lockfile --production'
+run = [
+  'bun install --cwd "$HOME/.pi/agent/extensions/web-tools" --frozen-lockfile --production',
+  'bash "$HOME/code/laulauland/dotfiles/shared/.config/mise/hooks/install-pi-cursor-sdk"',
+]
 
 [dotfiles]
 "~/.agents/skills" = "~/code/laulauland/dotfiles/shared/.agents/skills"
 "~/.claude" = { source = "~/code/laulauland/dotfiles/shared/.claude", mode = "symlink-each" }
+"~/.codex" = { source = "~/code/laulauland/dotfiles/shared/.codex", mode = "symlink-each" }
 "~/.cursor" = { source = "~/code/laulauland/dotfiles/shared/.cursor", mode = "symlink-each" }
 "~/.pi" = { source = "~/code/laulauland/dotfiles/shared/.pi", mode = "symlink-each" }
 "~/.local/bin" = { source = "~/code/laulauland/dotfiles/shared/.local/bin", mode = "symlink-each" }
@@ -157,6 +161,7 @@ ShowSeconds = false
 run = [
   'bash "$HOME/code/laulauland/dotfiles/shared/.config/mise/hooks/install-codex"',
   'bash "$HOME/code/laulauland/dotfiles/shared/.config/mise/hooks/install-claude"',
+  'bash "$HOME/code/laulauland/dotfiles/shared/.config/mise/hooks/install-herdr-jj"',
 ]
 
 [tools]

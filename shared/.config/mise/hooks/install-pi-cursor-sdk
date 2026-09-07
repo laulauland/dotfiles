@@ -1,0 +1,85 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cursor_extension_version=0.3.6
+rolldown_version=1.2.7
+patch_revision=1
+install_root="$HOME/.local/share/pi-cursor-sdk-patched"
+release_root="$install_root/${cursor_extension_version}-${patch_revision}"
+package_root="$release_root/node_modules/pi-cursor-sdk"
+settings_path="$HOME/.pi/agent/settings.json"
+
+build_release() (
+    local staging_root
+    staging_root=$(mktemp -d "$install_root/.staging.XXXXXX")
+    trap 'rm -rf "$staging_root"' EXIT
+
+    cat >"$staging_root/package.json" <<EOF
+{
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "pi-cursor-sdk": "$cursor_extension_version",
+    "rolldown": "$rolldown_version"
+  }
+}
+EOF
+
+    npm install --prefix "$staging_root" --omit=dev --ignore-scripts
+
+    local staging_package="$staging_root/node_modules/pi-cursor-sdk"
+    "$staging_root/node_modules/.bin/rolldown" \
+        "$staging_package/dist/index.js" \
+        --file "$staging_package/patched-index.mjs" \
+        --format esm \
+        --platform node \
+        --no-codeSplitting \
+        --external '@earendil-works/pi-ai,@earendil-works/pi-coding-agent,@earendil-works/pi-tui,typebox' \
+        --logLevel silent
+
+    cp "$staging_root"/node_modules/@cursor/sdk/dist/esm/[0-9]*.js "$staging_package/"
+
+    node --input-type=module - "$staging_package/package.json" <<'EOF'
+import { readFileSync, writeFileSync } from "node:fs";
+
+const packageJsonPath = process.argv[2];
+const packageJson = JSON.parse(readFileSync(packageJsonPath, "utf8"));
+packageJson.pi = { ...packageJson.pi, extensions: ["./patched-index.mjs"] };
+writeFileSync(packageJsonPath, `${JSON.stringify(packageJson, null, 2)}\n`);
+EOF
+
+    mv "$staging_root" "$release_root"
+    trap - EXIT
+)
+
+mkdir -p "$install_root"
+if [[ ! -s "$package_root/patched-index.mjs" ]]; then
+    build_release
+fi
+
+mkdir -p "$(dirname "$settings_path")"
+PATCHED_CURSOR_PACKAGE="$package_root" PI_SETTINGS_PATH="$settings_path" node --input-type=module <<'EOF'
+import { chmodSync, existsSync, readFileSync, renameSync, writeFileSync } from "node:fs";
+
+const settingsPath = process.env.PI_SETTINGS_PATH;
+const patchedPackage = process.env.PATCHED_CURSOR_PACKAGE;
+if (!settingsPath || !patchedPackage) throw new Error("Missing installer paths");
+
+const settings = existsSync(settingsPath)
+    ? JSON.parse(readFileSync(settingsPath, "utf8"))
+    : {};
+const packages = Array.isArray(settings.packages) ? settings.packages : [];
+const isReplacedCursorPackage = (entry) => {
+    const source = typeof entry === "string" ? entry : entry?.source;
+    return source === "npm:pi-cursor-sdk" ||
+        (typeof source === "string" && source.includes("/.local/share/pi-cursor-sdk-patched/"));
+};
+settings.packages = [...packages.filter((entry) => !isReplacedCursorPackage(entry)), patchedPackage];
+
+const temporaryPath = `${settingsPath}.tmp.${process.pid}`;
+writeFileSync(temporaryPath, `${JSON.stringify(settings, null, 2)}\n`, { mode: 0o600 });
+chmodSync(temporaryPath, 0o600);
+renameSync(temporaryPath, settingsPath);
+EOF
+
+printf 'Installed patched pi-cursor-sdk %s at %s\n' "$cursor_extension_version" "$package_root"

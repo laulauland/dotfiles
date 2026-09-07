@@ -1,0 +1,8 @@
+# New checkouts land under <workspace_root>/<repository>/<workspace>.
+workspace_root = "~/.herdr/jj-workspaces"
+
+# The create popup starts with this value. Press Tab to change it for one run.
+create_bookmark = false
+
+# Used to calculate bookmark distance in the sidebar.
+status_remote = "origin"

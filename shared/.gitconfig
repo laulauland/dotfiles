@@ -73,3 +73,9 @@
 [safe]
 	directory = /tmp/pando-actions-runner-v040.Iqr2RW/_work/pando/pando
 	directory = /tmp/pando-actions-runner-v040.Iqr2RW/_work/pando/pando
+[credential "https://github.com"]
+	helper = 
+	helper = !/usr/bin/gh auth git-credential
+[credential "https://gist.github.com"]
+	helper = 
+	helper = !/usr/bin/gh auth git-credential

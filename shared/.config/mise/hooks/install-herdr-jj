@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+plugin_list=$(herdr plugin list 2>/dev/null || true)
+
+if ! printf '%s\n' "$plugin_list" | grep -Fq 'olivergilan.herdr-jj'; then
+  herdr plugin install olivergilan/herdr-jj -y
+fi
+
+status_plugin="${HOME}/.config/herdr/plugins/jj-status"
+if [ -f "$status_plugin/herdr-plugin.toml" ] &&
+  ! printf '%s\n' "$plugin_list" | grep -Fq 'laulauland.jj-status'; then
+  herdr plugin link "$status_plugin" --enabled
+fi

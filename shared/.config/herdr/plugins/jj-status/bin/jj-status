@@ -1,0 +1,255 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+plugin_id() { printf '%s\n' "${HERDR_PLUGIN_ID:-laulauland.jj-status}"; }
+herdr_bin() { printf '%s\n' "${HERDR_BIN_PATH:-herdr}"; }
+
+json_field() {
+  local key=$1
+  printf '%s' "${HERDR_PLUGIN_CONTEXT_JSON:-{}}" | jq -r --arg key "$key" '.[$key] // empty' 2>/dev/null || true
+}
+
+jj_at() {
+  local root=$1
+  shift
+  jj --no-pager --ignore-working-copy -R "$root" "$@"
+}
+
+trim() {
+  local value=$1
+  value=${value#"${value%%[![:space:]]*}"}
+  value=${value%"${value##*[![:space:]]}"}
+  printf '%s' "$value"
+}
+
+canonical() {
+  realpath -m "$1" 2>/dev/null || printf '%s' "$1"
+}
+
+format_jj() {
+  local root=$1
+  local row change_id bookmarks conflict closest first_name distance label
+
+  if ! jj_at "$root" root >/dev/null 2>&1; then
+    return 1
+  fi
+
+  row=$(jj_at "$root" log -r @ -T 'change_id.shortest() ++ "|" ++ bookmarks ++ "|" ++ conflict' --no-graph)
+  row=$(trim "${row//$'\n'/}")
+  IFS='|' read -r change_id bookmarks conflict <<<"$row"
+  change_id=$(trim "$change_id")
+  bookmarks=$(trim "$bookmarks")
+  if [ -z "$change_id" ]; then
+    return 1
+  fi
+
+  label=$change_id
+  if [ -n "$bookmarks" ]; then
+    label="$change_id $bookmarks"
+  else
+    closest=$(jj_at "$root" log -r '::@- & bookmarks()' -T 'bookmarks' --no-graph --limit 1 2>/dev/null || true)
+    closest=$(trim "${closest//$'\n'/}")
+    if [ -n "$closest" ]; then
+      first_name=${closest%% *}
+      distance=$(jj_at "$root" log --count -r "(\"$first_name\"::@) ~ \"$first_name\"" 2>/dev/null || true)
+      distance=$(trim "$distance")
+      if [ -n "$distance" ] && [ "$distance" != 0 ]; then
+        label="$change_id → $closest~$distance"
+      else
+        label="$change_id → $closest"
+      fi
+    fi
+  fi
+
+  printf '%s\n' "$label"
+}
+
+report() {
+  local workspace_id=$1
+  local cwd=$2
+  local label
+  if [ -z "$workspace_id" ] || [ -z "$cwd" ]; then
+    return 0
+  fi
+  if label=$(format_jj "$cwd"); then
+    "$(herdr_bin)" workspace report-metadata "$workspace_id" \
+      --source "$(plugin_id)" \
+      --token "jj=$label" >/dev/null
+  else
+    "$(herdr_bin)" workspace report-metadata "$workspace_id" \
+      --source "$(plugin_id)" \
+      --clear-token jj >/dev/null
+  fi
+}
+
+same_jj_repo() {
+  local cwd=$1
+  local main_root=$2
+  local other
+  other=$(jj_at "$cwd" workspace root --name default 2>/dev/null || true)
+  [ -n "$other" ] && [ "$(canonical "$other")" = "$main_root" ]
+}
+
+herdr_api() {
+  python3 - "$1" "$2" <<'PY'
+import json, os, socket, sys
+
+method, params_json = sys.argv[1], sys.argv[2]
+path = os.environ.get("HERDR_SOCKET_PATH") or os.path.expanduser("~/.config/herdr/herdr.sock")
+request = {
+    "id": "laulauland.jj-status",
+    "method": method,
+    "params": json.loads(params_json),
+}
+with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as sock:
+    sock.connect(path)
+    sock.sendall((json.dumps(request) + "\n").encode())
+    response = b""
+    while not response.endswith(b"\n"):
+        chunk = sock.recv(4096)
+        if not chunk:
+            break
+        response += chunk
+payload = json.loads(response.decode() or "{}")
+if "error" in payload:
+    raise SystemExit(payload["error"].get("message", "herdr api error"))
+PY
+}
+
+place_linked_workspace() {
+  local workspace_id=$1
+  local cwd=$2
+  local main_root current_root jj_name main_label wanted snapshot
+  local main_id insert_index cluster_end idx id label path
+
+  if [ -z "$workspace_id" ] || [ -z "$cwd" ]; then
+    return 0
+  fi
+  if ! jj_at "$cwd" root >/dev/null 2>&1; then
+    return 0
+  fi
+
+  current_root=$(canonical "$(jj_at "$cwd" workspace root)")
+  main_root=$(canonical "$(jj_at "$cwd" workspace root --name default 2>/dev/null || true)")
+  if [ -z "$main_root" ] || [ "$current_root" = "$main_root" ]; then
+    return 0
+  fi
+
+  jj_name=$(jj_at "$cwd" workspace list -T 'if(target.current_working_copy(), name ++ "\n", "")')
+  jj_name=$(trim "${jj_name//$'\n'/}")
+  if [ -z "$jj_name" ]; then
+    return 0
+  fi
+
+  snapshot=$("$(herdr_bin)" api snapshot)
+  mapfile -t rows < <(
+    printf '%s' "$snapshot" | jq -r '
+      .result.snapshot as $s
+      | [range($s.workspaces | length)][] as $i
+      | $s.workspaces[$i] as $w
+      | [
+          $s.panes[]
+          | select(.workspace_id == $w.workspace_id and .tab_id == $w.active_tab_id)
+        ] as $panes
+      | ($panes | map(select(.focused)) | .[0] // $panes[0]) as $pane
+      | select($pane != null and ($pane.cwd | type == "string") and $pane.cwd != "")
+      | "\($i)\t\($w.workspace_id)\t\($w.label)\t\($pane.cwd)"
+    '
+  )
+
+  main_id=""
+  main_label=$(basename "$main_root")
+  for row in "${rows[@]}"; do
+    IFS=$'\t' read -r idx id label path <<<"$row"
+    if [ "$(canonical "$path")" = "$main_root" ]; then
+      main_id=$id
+      main_label=$label
+    fi
+  done
+
+  wanted="${main_label}-${jj_name}"
+  for row in "${rows[@]}"; do
+    IFS=$'\t' read -r idx id label path <<<"$row"
+    if [ "$id" = "$workspace_id" ] && [ "$label" != "$wanted" ]; then
+      "$(herdr_bin)" workspace rename "$workspace_id" "$wanted" >/dev/null || true
+    fi
+  done
+
+  if [ -z "$main_id" ]; then
+    return 0
+  fi
+
+  cluster_end=-1
+  for row in "${rows[@]}"; do
+    IFS=$'\t' read -r idx id label path <<<"$row"
+    if [ "$id" = "$main_id" ]; then
+      cluster_end=$idx
+      continue
+    fi
+    if [ "$cluster_end" -lt 0 ] || [ "$id" = "$workspace_id" ]; then
+      continue
+    fi
+    if same_jj_repo "$path" "$main_root" && [ "$idx" -eq $((cluster_end + 1)) ]; then
+      cluster_end=$idx
+    elif [ "$idx" -gt "$cluster_end" ]; then
+      break
+    fi
+  done
+
+  insert_index=$((cluster_end + 1))
+  herdr_api workspace.move "$(jq -nc --arg id "$workspace_id" --argjson idx "$insert_index" '{workspace_id: $id, insert_index: $idx}')" || true
+}
+
+refresh_one() {
+  local workspace_id cwd
+  workspace_id=$(json_field workspace_id)
+  cwd=$(json_field focused_pane_cwd)
+  if [ -z "$cwd" ]; then
+    cwd=$(json_field workspace_cwd)
+  fi
+  if [ "${HERDR_PLUGIN_EVENT:-}" = "workspace.created" ]; then
+    place_linked_workspace "$workspace_id" "$cwd" || true
+  fi
+  report "$workspace_id" "$cwd"
+}
+
+refresh_all() {
+  local snapshot workspace_id cwd
+  snapshot=$("$(herdr_bin)" api snapshot)
+  while IFS=$'\t' read -r workspace_id cwd; do
+    [ -n "$workspace_id" ] || continue
+    report "$workspace_id" "$cwd" || true
+  done < <(
+    printf '%s' "$snapshot" | jq -r '
+      .result.snapshot as $s
+      | $s.workspaces[] as $w
+      | [
+          $s.panes[]
+          | select(.workspace_id == $w.workspace_id and .tab_id == $w.active_tab_id)
+        ] as $panes
+      | ($panes | map(select(.focused)) | .[0] // $panes[0]) as $pane
+      | select($pane != null and ($pane.cwd | type == "string") and $pane.cwd != "")
+      | "\($w.workspace_id)\t\($pane.cwd)"
+    '
+  )
+}
+
+refresh() {
+  local event=${HERDR_PLUGIN_EVENT:-}
+  case "$event" in
+    workspace.created | workspace.focused)
+      refresh_one
+      ;;
+    *)
+      refresh_all
+      ;;
+  esac
+}
+
+case "${1:-}" in
+  refresh) refresh ;;
+  *)
+    echo 'usage: jj-status refresh' >&2
+    exit 2
+    ;;
+esac

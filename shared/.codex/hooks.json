@@ -1,0 +1,16 @@
+{
+  "description": "Keep Git mutations behind jj while allowing read-only Git inspection.",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "^Bash$",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash ~/.codex/scripts/git-to-jj-hook.sh"
+          }
+        ]
+      }
+    ]
+  }
+}

@@ -1,7 +1,9 @@
 import type { HookAPI } from "@mariozechner/pi-coding-agent";
 
-const GIT_COMMANDS_PATTERN =
-	/(^|&&|\|\||;|\|)\s*git\s+(commit|push|pull|checkout|branch|merge|rebase|status|diff|log|add|reset|stash|clone|init|fetch|tag|show|rm|mv|restore|switch|remote|config|clean|cherry-pick|revert|bisect|blame|grep|shortlog|describe|archive|bundle|submodule|worktree|reflog)/;
+// Allow read-only Git inspection (for example log, diff, show, status, grep,
+// and blame), but keep repository, worktree, config, and remote mutations behind jj.
+const GIT_WRITE_COMMANDS_PATTERN =
+	/(^|&&|\|\||;|\|)\s*git\s+(commit|push|pull|checkout|branch|merge|rebase|add|reset|stash|clone|init|fetch|tag|rm|mv|restore|switch|remote|config|clean|cherry-pick|revert|bisect|archive|bundle|submodule|worktree|reflog|am|apply|gc|maintenance|notes|prune|repack|replace|sparse-checkout|update-index|update-ref)(\s|$)/;
 
 const JJ_PREFIX = /(^|&&|\|\||;|\|)\s*/;
 const JJ_DIFFEDIT_PATTERN = new RegExp(JJ_PREFIX.source + /jj\s+diffedit(\s|$)/.source);
@@ -18,8 +20,8 @@ const HAS_LIST_FLAG = /(-l|--list)(\s|$)/;
 const HAS_HELP_FLAG = /(^|\s)(-h|--help)(\s|$)/;
 
 function checkGitCommand(command: string): string | null {
-	if (GIT_COMMANDS_PATTERN.test(command)) {
-		return "Git commands are disabled. Use jj instead. See: https://jj-vcs.github.io/jj/latest/git-comparison/";
+	if (GIT_WRITE_COMMANDS_PATTERN.test(command)) {
+		return "Git write commands are disabled. Read-only inspection with git log, diff, show, status, grep, and blame is allowed; use jj for changes. See: https://jj-vcs.github.io/jj/latest/git-comparison/";
 	}
 	return null;
 }
