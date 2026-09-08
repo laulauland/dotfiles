@@ -178,7 +178,7 @@ zig = "latest"
 
 # Agent and editor tooling.
 "github:earendil-works/pi" = "latest"
-herdr = "latest"
+"github:herdrdev/herdr" = "latest"
 "aqua:neovim/neovim" = "latest"
 hunk = "latest"                                  # aqua:modem-dev/hunk — review-first diff viewer
 "github:kitlangton/ghui" = "latest"             # GitHub PR TUI ("open in editor" -> nvim)
