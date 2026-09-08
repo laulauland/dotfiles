@@ -1,6 +1,6 @@
 {
 	"icon_theme": {
-  "mode": "dark",
+  "mode": "light",
   "light": "Zed (Default)",
   "dark": "Zed (Default)"
  },
@@ -12,9 +12,9 @@
  "session": {
   "trust_all_worktrees": true
  },
- "disable_ai": true,
+ "disable_ai": false,
  "edit_predictions": {
-  "provider": "none"
+  "provider": "zed"
  },
  "ui_font_family": ".SystemUIFont",
 	"redact_private_values": true,
@@ -95,6 +95,13 @@
   }
  ],
 	"agent_servers": {
+  "antigravity-acp": {
+   "default_config_options": {
+    "mode": "yolo",
+    "model": "gemini-3.8-flash-low"
+   },
+   "type": "registry"
+  },
   "codex-acp": {
    "type": "registry"
   },
@@ -238,9 +245,9 @@
 		"dock": "left"
 	},
 	"theme": {
-  "mode": "dark",
-  "light": "One Light",
-  "dark": "Gruvbox Dark"
+  "mode": "light",
+  "light": "Alabaster",
+  "dark": "Alabaster Dark"
  },
 	"inlay_hints": {
 		"enabled": false
