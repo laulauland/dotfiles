@@ -1,0 +1,23 @@
+id = "laulauland.jj-status"
+name = "JJ sidebar status"
+version = "0.1.0"
+min_herdr_version = "0.8.0"
+description = "Show a short JJ change ID and nearest bookmark, and place new JJ checkouts under the main space."
+platforms = ["linux", "macos"]
+
+[[startup]]
+command = ["./bin/jj-status", "refresh"]
+
+[[actions]]
+id = "refresh"
+title = "Refresh JJ sidebar label"
+contexts = ["workspace", "global"]
+command = ["./bin/jj-status", "refresh"]
+
+[[events]]
+on = "workspace.created"
+command = ["./bin/jj-status", "refresh"]
+
+[[events]]
+on = "workspace.focused"
+command = ["./bin/jj-status", "refresh"]

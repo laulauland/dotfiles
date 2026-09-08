@@ -170,6 +170,10 @@ dotfiles/
 ## Development Workflow
 
 ### Version Control
+
+Use only the `main` bookmark in this repository. Never create other bookmarks,
+including temporary sync or `push-*` bookmarks. Use jj revisions and Pando
+workspaces to isolate work, and sync devices through `main`.
 This repository uses Jujutsu (jj) as the primary VCS. Common commands:
 ```bash
 jj overview          # Status + recent commits
