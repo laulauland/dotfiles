@@ -1,0 +1,5 @@
+interface:
+  display_name: "Teach"
+  short_description: "Understand a hard subject in a way that lasts"
+policy:
+  allow_implicit_invocation: true
