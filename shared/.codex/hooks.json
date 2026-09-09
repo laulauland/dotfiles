@@ -1,4 +1,16 @@
 {
   "description": "Git-to-jj enforcement hook archived under scripts/archived/. Guidance now lives in CLAUDE.md.",
-  "hooks": {}
+  "hooks": {
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "command": "bash '/Users/laurynas/.codex/herdr-agent-state.sh' session",
+            "timeout": 10,
+            "type": "command"
+          }
+        ]
+      }
+    ]
+  }
 }
