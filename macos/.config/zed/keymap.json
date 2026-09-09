@@ -184,5 +184,17 @@
 		"bindings": {
 			"cmd-\\": "debugger::Pause"
 		}
-	}
+	},
+ {
+  "context": "AgentPanel",
+  "bindings": {
+   "ctrl-tab": "agents_sidebar::ToggleThreadSwitcher"
+  }
+ },
+ {
+  "context": "AgentPanel",
+  "unbind": {
+   "ctrl-tab": "agents_sidebar::ToggleThreadSwitcher"
+  }
+ }
 ]
