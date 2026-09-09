@@ -195,6 +195,21 @@
           "vertical" : 0
         }
       }
+    },
+    {
+      "if" : {
+        "device" : {
+          "category" : "mouse",
+          "productID" : "0x269",
+          "productName" : "Magiška pelytė",
+          "serialNumber" : "B8:F1:2A:0E:2D:50",
+          "vendorID" : "0x4c"
+        }
+      },
+      "pointer" : {
+        "acceleration" : 4.8823,
+        "speed" : 0.532
+      }
     }
   ]
 }
