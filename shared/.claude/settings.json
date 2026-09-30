@@ -8,7 +8,6 @@
     ],
     "defaultMode": "auto"
   },
-  "model": "fable[1m]",
   "hooks": {
     "Notification": [
       {
@@ -35,25 +34,6 @@
           {
             "type": "command",
             "command": "bash ~/.claude/scripts/notification-hook.sh"
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/git-to-jj-hook.sh"
-          },
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/jj-no-interactive-hook.sh"
-          },
-          {
-            "type": "command",
-            "command": "bash ~/.claude/scripts/pip-to-uv-hook.sh"
           }
         ]
       }
@@ -111,8 +91,12 @@
   },
   "alwaysThinkingEnabled": true,
   "effortLevel": "xhigh",
+  "modelSettings": {
+    "claude-fable-5-1": {
+      "effortLevel": "medium"
+    }
+  },
   "autoCompactWindow": 250000,
-  "fastMode": true,
   "pluginConfigs": {
     "sideshow@sideshow": {
       "options": {
@@ -126,10 +110,5 @@
   "theme": "auto",
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
-  "voiceEnabled": true,
-  "modelSettings": {
-    "claude-fable-5-1": {
-      "effortLevel": "medium"
-    }
-  }
+  "voiceEnabled": true
 }

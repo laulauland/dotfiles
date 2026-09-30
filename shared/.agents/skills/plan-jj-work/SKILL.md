@@ -100,7 +100,7 @@ stages. Layer on whichever shape fits:
   implement.
 
 **Parallel siblings.** For independent sibling stages, give each its own
-copy-on-write workspace with the `pando` skill and implement them concurrently,
+copy-on-write workspace with `pando` (`pd`) and implement them concurrently,
 running each one's implement → review → fix loop inside its workspace. Integrate
 them back **one at a time**, then **rebase the siblings into a linear stack**
 (`jj rebase -r <sibling> -d <previous>`), resolving conflicts as you go. Do not

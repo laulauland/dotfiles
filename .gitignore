@@ -16,3 +16,6 @@ opensrc/
 
 # witness — database, WAL files, and config (all runtime artifacts)
 .witness
+
+# Claude Code writes marketplace skills here at runtime.
+shared/.agents/skills/synced/
