@@ -9,6 +9,18 @@ dotfiles.default_mode = "symlink"
 [bootstrap.repos]
 "~/code/laulauland/dotfiles" = { url = "https://github.com/laulauland/dotfiles.git", ref = "main" }
 
+[tasks.link]
+description = "Re-link dotfiles into $HOME for this OS (mise dotfiles apply; prunes stale links)"
+# Inline rather than a file task: ~/.config/mise/config.toml is linked on every
+# machine already, so a fetch is enough to pick this up before any apply has run.
+run = """
+case "$(uname -s)" in
+Darwin) env=macos ;;
+*) env=arch ;;
+esac
+exec mise dotfiles apply --yes -E "$env"
+"""
+
 [tasks.bootstrap]
 description = "Install runtime dependencies for managed agent extensions"
 run = [
@@ -241,3 +253,4 @@ hyperfine = "latest"
 "aqua:ajeetdsouza/zoxide" = "latest"
 daytona = { version = "latest", asset_pattern = "daytona-{{ os(macos='darwin') }}-{{ arch(x64='amd64') }}{% if os() == 'windows' %}.exe{% endif %}", bin = "daytona", platforms = { windows-arm64 = { bin = "daytona.exe" }, windows-x64 = { bin = "daytona.exe" } } }
 "github:laulauland/pando" = "0.4.0"
+amp = { version = "latest", allow_builds = ["@ampcode/cli"] }

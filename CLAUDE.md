@@ -188,8 +188,6 @@ jj pushall           # Push to all configured remotes
 ```bash
 mise run link        # mise dotfiles apply --yes -E <macos|arch> for this OS; prunes stale links
 ```
-On a machine whose `~/.config/mise/tasks` predates the task, run
-`mise dotfiles apply --yes -E <macos|arch>` once by hand so the task link exists.
 
 ### Verification
 - Use `./bootstrap` from an existing checkout to install/update platform
