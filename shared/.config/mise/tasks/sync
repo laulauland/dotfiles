@@ -1,0 +1,25 @@
+#!/usr/bin/env bash
+#MISE description="Fetch dotfiles main, move the working copy onto it, re-link into $HOME"
+#MISE raw_args=true
+set -euo pipefail
+
+repo="$HOME/code/laulauland/dotfiles"
+cd "$repo"
+
+jj git fetch
+
+# Keep whatever is uncommitted on this machine: an empty working copy just
+# moves to main, a dirty one is rebased on top of it (never merged).
+if [ "$(jj log -r @ --no-graph -T 'if(empty, "empty", "dirty")')" = "empty" ]; then
+	jj new main
+else
+	jj rebase -r @ -d main
+fi
+
+mise run link "$@"
+
+# Herdr reads its config at startup; reload a running server so the new
+# keybindings and plugin settings take effect without a restart.
+if command -v herdr >/dev/null 2>&1; then
+	herdr server reload-config >/dev/null 2>&1 || true
+fi

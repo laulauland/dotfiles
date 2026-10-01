@@ -184,6 +184,15 @@ jj sync              # Fetch from all remotes
 jj pushall           # Push to all configured remotes
 ```
 
+### Syncing another machine
+```bash
+mise run sync        # jj git fetch, move the working copy onto main, re-link, reload herdr
+mise run link        # only re-link ~ from [dotfiles] for this OS (prunes stale links)
+```
+Both are file tasks in `shared/.config/mise/tasks/`. On a machine whose
+`~/.config/mise/tasks` predates them, run `mise dotfiles apply --yes -E <macos|arch>`
+once by hand so the task links exist.
+
 ### Verification
 - Use `./bootstrap` from an existing checkout to install/update platform
   prerequisites, mise tools, and dotfiles

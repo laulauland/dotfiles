@@ -1,0 +1,13 @@
+#!/usr/bin/env bash
+#MISE description="Re-link dotfiles into $HOME for this machine's environment (prunes stale links)"
+#MISE raw_args=true
+set -euo pipefail
+
+# Pick the mise environment from the OS so the per-platform [dotfiles] entries
+# (config.macos.toml / config.arch.toml) are applied together with the shared ones.
+case "$(uname -s)" in
+Darwin) env=macos ;;
+*) env=arch ;;
+esac
+
+exec mise dotfiles apply --yes -E "$env" "$@"
