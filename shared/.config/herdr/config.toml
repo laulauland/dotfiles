@@ -103,55 +103,7 @@ type = "plugin_action"
 command = "laulauland.pando-workspace.remove"
 description = "remove pando workspace"
 
-# herdr-annotate (lite) — terminal annotations. Over SSH, `prefix+a` is
-# unreliable (herdrdev/herdr#3380): trigger via
-# `ssh <host> herdr plugin action invoke annotate.capture` or the nvim
-# <leader>ha mapping instead.
-[[keys.command]]
-key = "prefix+a"
-type = "plugin_action"
-command = "annotate.capture"
-description = "annotate text"
-
-[[keys.command]]
-key = "prefix+shift+a"
-type = "plugin_action"
-command = "annotate.copy-context"
-description = "copy annotations as context"
-
-[[keys.command]]
-key = "prefix+ctrl+a"
-type = "plugin_action"
-command = "annotate.copy-archive"
-description = "copy annotations as context and archive them"
-
-# The two below skip the clipboard, so they are the ones to use over a remote
-# session: they put the Markdown straight into the focused agent's prompt.
-[[keys.command]]
-key = "prefix+ctrl+v"
-type = "plugin_action"
-command = "annotate.paste-archive"
-description = "paste annotations into the agent's prompt and archive them"
-
-[[keys.command]]
-key = "prefix+ctrl+s"
-type = "plugin_action"
-command = "annotate.send-archive"
-description = "send annotations to the agent and archive them"
-
-[[keys.command]]
-key = "prefix+m"
-type = "plugin_action"
-command = "annotate.manage"
-description = "manage annotations"
-
 [ui]
-# Keep selections alive after mouse-up so the herdr-annotate plugin can read
-# them over SSH (prefix+a clears the selection before the action runs; the
-# remote flow is `ssh <host> herdr plugin action invoke annotate.capture`).
-# Copy explicitly with Ctrl+C instead.
-copy_on_select = false
-
 # Let [theme.custom].accent drive borders, highlights, and navigation UI.
 agent_panel_sort = "priority"
 
