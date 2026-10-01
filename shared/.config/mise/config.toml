@@ -2,7 +2,8 @@
 experimental = true
 # mise's built-in minimum_release_age default is 24h (supply-chain delay).
 # Tools listed here skip it and install fresh releases immediately.
-minimum_release_age_excludes = ["github:earendil-works/pi", "mise"]
+# amp publishes several builds a day, so no version is ever older than the filter.
+minimum_release_age_excludes = ["github:earendil-works/pi", "mise", "amp"]
 dotfiles.root = "~/code/laulauland/dotfiles"
 dotfiles.default_mode = "symlink"
 
