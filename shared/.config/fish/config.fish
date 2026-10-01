@@ -218,3 +218,7 @@ if test -d "$HOME/.lmstudio/bin"
     fish_add_path "$HOME/.lmstudio/bin"
 end
 # opencode
+
+if type -q daytona
+    __cache_init daytona daytona completion fish
+end
