@@ -2,8 +2,7 @@
 experimental = true
 # mise's built-in minimum_release_age default is 24h (supply-chain delay).
 # Tools listed here skip it and install fresh releases immediately.
-# amp publishes several builds a day, so no version is ever older than the filter.
-minimum_release_age_excludes = ["github:earendil-works/pi", "mise", "amp", "github:herdrdev/herdr"]
+minimum_release_age_excludes = ["github:earendil-works/pi", "mise", "github:herdrdev/herdr"]
 dotfiles.root = "~/code/laulauland/dotfiles"
 dotfiles.default_mode = "symlink"
 
@@ -254,4 +253,3 @@ hyperfine = "latest"
 "aqua:ajeetdsouza/zoxide" = "latest"
 daytona = { version = "latest", asset_pattern = "daytona-{{ os(macos='darwin') }}-{{ arch(x64='amd64') }}{% if os() == 'windows' %}.exe{% endif %}", bin = "daytona", platforms = { windows-arm64 = { bin = "daytona.exe" }, windows-x64 = { bin = "daytona.exe" } } }
 "github:laulauland/pando" = "0.4.0"
-amp = { version = "latest", allow_builds = ["@ampcode/cli"] }
