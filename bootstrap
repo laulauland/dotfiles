@@ -105,10 +105,11 @@ Linux)
 
 	install_arch_base
 	install_global_mise_config arch
-	# Complete system packages and interactive GitHub/AUR setup first. Starting a
-	# fresh mise process afterwards ensures tool resolution sees the new gh token.
+	# Install pacman packages, gh auth, and yay first. The second, fresh mise
+	# process sees the new gh token and yay, so it can install aur: entries and
+	# the tools. macOS parts skip themselves on Linux.
 	mise bootstrap --raw --yes -E arch --only packages
-	mise bootstrap --raw --yes -E arch --skip packages,repos,macos-defaults,macos-launchd-agents "$@"
+	mise bootstrap --raw --yes -E arch --skip repos "$@"
 	;;
 *)
 	echo "Your operating system is not supported."

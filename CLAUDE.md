@@ -41,7 +41,8 @@ Homebrew + mise, installs this repo's mise config as the global config,
 delegates macOS convergence to `mise bootstrap --yes -E macos --skip repos`.
 On Arch Linux it installs mise through pacman, installs the shared + Arch mise
 configs, applies packages plus the GitHub/yay post-package hook, then starts a
-fresh mise process for the remaining bootstrap phases and tools.
+fresh mise process for the remaining bootstrap phases, `aur:` packages, and
+tools.
 
 - macOS: Uses mise bootstrap for remaining Homebrew formulae, Homebrew casks
   listed in `Caskfile`, Mac App Store apps, native macOS defaults, and
@@ -83,8 +84,8 @@ are platform-specific.
 - Keep Homebrew casks in `Caskfile`; the mise post-packages hook installs it.
 - Keep Arch system packages in `config.arch.toml`; only mise itself belongs in
   the pre-mise bootstrap.
-- Arch bootstrap installs `yay` after mise-owned packages are available; invoke
-  it from an idempotent mise hook when an AUR package is needed.
+- Add AUR packages as `"aur:<pkg>" = "latest"` entries in `config.arch.toml`.
+  The Arch post-packages hook installs `yay`, which the `aur` manager needs.
 
 After changing tooling, verify with the relevant dry run or status command:
 

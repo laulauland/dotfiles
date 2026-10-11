@@ -20,8 +20,9 @@ applies dotfiles for `shared/` plus `arch/`. The Arch package set includes Mosh;
 `mosh-server` starts on demand through SSH rather than as a persistent service.
 
 Before portable tools are resolved, bootstrap installs GitHub CLI, requires an
-authenticated GitHub session (or `MISE_GITHUB_TOKEN`), installs `yay`, and
-installs Node, Rust, and Python so ecosystem-backed tools can resolve cleanly.
+authenticated GitHub session (or `MISE_GITHUB_TOKEN`), and installs `yay` for
+`aur:` package entries. mise installs Node, Rust, Python, and uv before the npm,
+cargo, and pipx tools that need them.
 Codex CLI is then installed through a mise post-tools hook using OpenAI's
 standalone installer. This provides the managed package layout required by
 `codex remote-control`; its GitHub API lookup reuses the authenticated `gh`

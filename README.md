@@ -72,8 +72,8 @@ are platform-specific.
 - Keep Homebrew casks in `Caskfile`; the mise post-packages hook installs it.
 - Add Arch system packages under `[bootstrap.packages]` in
   `shared/.config/mise/config.arch.toml`.
-- Arch bootstrap installs `yay` after mise-owned system packages are available;
-  use it from an idempotent mise bootstrap hook when an AUR package is needed.
+- Add AUR packages as `"aur:<pkg>" = "latest"` entries in
+  `shared/.config/mise/config.arch.toml`; bootstrap installs `yay` for them.
 
 After changing tooling, verify with the relevant dry run or status command:
 
