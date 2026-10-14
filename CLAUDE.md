@@ -165,7 +165,10 @@ dotfiles/
 - Features time display, directory, and jj status
 
 #### Editor Configurations
-- Neovim: Full Lua configuration in `shared/.config/nvim/`
+- Neovim: Lua configuration in `shared/.config/nvim/` for Neovim 0.12+.
+  Plugins use the built-in `vim.pack` (list in `lua/core/plugins.lua`, setup
+  in `plugin/*.lua`, pins in `nvim-pack-lock.json`; `:PackUpdate`,
+  `:PackClean`). Language servers are mise tools, not Mason.
 - Zed: macOS-specific config with snippets and keybindings
 
 ## Development Workflow

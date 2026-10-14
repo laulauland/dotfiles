@@ -1,3 +1,10 @@
+vim.g.mapleader = " "
+vim.g.maplocalleader = "\\"
+vim.g.whitespace = true
+-- oil.nvim replaces netrw
+vim.g.loaded_netrw = 1
+vim.g.loaded_netrwPlugin = 1
+
 local in_tmux = vim.env.TMUX ~= nil and vim.env.TMUX ~= ""
 local in_herdr = vim.env.HERDR_ENV == "1"
 local termfeatures = vim.g.termfeatures or {}
@@ -75,32 +82,15 @@ elseif in_tmux and executable("tmux") then
 end
 
 local options = {
-    backup = false,
     clipboard = "unnamedplus",
     cmdheight = 0,
     colorcolumn = "80",
-    completeopt = "menu,preview,menuone,noselect",
+    completeopt = "menuone,noselect,popup,fuzzy",
     cursorline = true,
-    fileencoding = "utf-8",
     expandtab = false,
     exrc = true,
-    mouse = "a",
-    number = true,
-    relativenumber = true,
-    incsearch = true,
     fillchars = { eob = " " },
-    hlsearch = true,
-    lazyredraw = true,
-    linebreak = true,
-    list = true,
-    listchars = { -- NOTE: these are the baseline
-        tab = "  ",
-        trail = "·",
-    },
-    foldcolumn = "0",
     foldlevelstart = 99,
-    foldenable = true,
-    --n-v-c-sm:block,i-ci-ve:ver25,r-cr-o:hor20
     guicursor = {
         "n-sm:block",
         "c-i-ci-ve:ver25",
@@ -109,24 +99,28 @@ local options = {
         "n-i-sm:blinkwait600-blinkoff50-blinkon100",
     },
     guifont = { "Berkeley Mono Variable", ":h15" },
-    showmode = true,
-    showtabline = 0,
-    showcmd = true,
+    linebreak = true,
+    list = true,
+    listchars = { tab = "  ", trail = "·" }, -- baseline; <leader>uw toggles
+    number = true,
+    pumborder = "rounded",
+    pummaxwidth = 60,
+    relativenumber = true,
     shiftwidth = 2,
+    showtabline = 0,
     signcolumn = "yes",
-    smartindent = true,
     smartcase = true,
+    smartindent = true,
     splitbelow = true,
     splitright = true,
     swapfile = false,
     tabstop = 2,
-    termguicolors = true,
     timeoutlen = 1000,
     ttimeoutlen = 0,
     title = true,
     undofile = true,
     updatetime = 300,
-    --wrap = false,
+    winborder = "rounded",
     writebackup = false,
 }
 

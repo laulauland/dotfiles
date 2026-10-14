@@ -188,7 +188,7 @@ go = "latest"
 node = "latest"
 pnpm = "latest"
 python = "latest"
-rust = "latest"
+rust = { version = "latest", components = "rust-analyzer,clippy" }
 uv = "latest"
 usage = "latest"
 zig = "latest"
@@ -197,6 +197,13 @@ zig = "latest"
 "github:earendil-works/pi" = "latest"
 "github:herdrdev/herdr" = "latest"
 "aqua:neovim/neovim" = "latest"
+# Language servers for Neovim (configured in shared/.config/nvim/lua/core/lsp.lua);
+# rust-analyzer comes from the rust toolchain components above.
+"aqua:LuaLS/lua-language-server" = "latest"
+"aqua:astral-sh/ty" = "latest"
+"npm:typescript" = "latest"                     # tsc >= 7 ships the native TS language server
+"npm:vscode-langservers-extracted" = "latest"   # jsonls
+"npm:yaml-language-server" = "latest"
 hunk = "latest"                                  # aqua:modem-dev/hunk — review-first diff viewer
 "github:kitlangton/ghui" = "latest"             # GitHub PR TUI ("open in editor" -> nvim)
 hyperfine = "latest"

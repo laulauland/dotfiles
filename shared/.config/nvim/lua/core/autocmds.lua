@@ -1,133 +1,70 @@
-local function is_special_buffer()
-	local buftype = vim.bo.buftype
-	local filetype = vim.bo.filetype
-	return buftype == "terminal"
-			or buftype == "quickfix"
-			or buftype == "help"
-			or buftype == "nofile"
-			or buftype == "nowrite"
-			or filetype == "harpoon"
-			or filetype == "netrw"
-			or filetype == "oil"
+local group = vim.api.nvim_create_augroup("user", { clear = true })
+local autocmd = function(event, opts)
+	vim.api.nvim_create_autocmd(event, vim.tbl_extend("force", { group = group }, opts))
 end
 
--- Terminal settings
-vim.api.nvim_create_augroup("terminal_group", { clear = true })
-vim.api.nvim_create_autocmd({ "TermOpen" }, {
-	desc = "Terminal settings",
-	group = "terminal_group",
-	pattern = "*",
+local function is_special_buffer()
+	return vim.bo.buftype ~= "" or vim.tbl_contains({ "harpoon", "oil" }, vim.bo.filetype)
+end
+
+autocmd("TermOpen", {
+	desc = "Terminal: no line numbers, start in insert mode",
 	callback = function()
-		vim.cmd("startinsert")
-		vim.cmd("setlocal nonumber norelativenumber")
+		vim.wo.number = false
+		vim.wo.relativenumber = false
+		vim.cmd.startinsert()
 	end,
 })
 
-vim.api.nvim_create_autocmd({ "BufEnter" }, {
-	desc = "Terminal focus",
-	group = "terminal_group",
+autocmd("BufEnter", {
+	desc = "Terminal: re-enter insert mode on focus",
 	pattern = "term://*",
+	command = "startinsert",
+})
+
+autocmd({ "BufEnter", "WinEnter", "FocusGained", "InsertLeave" }, {
+	desc = "Relative numbers only in the active window in normal mode",
+	callback = function() vim.wo.relativenumber = not is_special_buffer() end,
+})
+
+autocmd({ "BufLeave", "WinLeave", "FocusLost", "InsertEnter" }, {
+	desc = "Relative numbers only in the active window in normal mode",
 	callback = function()
-		if vim.bo.buftype == "terminal" then
-			vim.cmd("startinsert")
-			vim.cmd("setlocal nonumber norelativenumber")
-		end
+		if not is_special_buffer() then vim.wo.relativenumber = false end
 	end,
 })
 
---Relative numbers only in active buffer and window and normal mode
-vim.api.nvim_create_augroup("relative_numbers", { clear = true })
-vim.api.nvim_create_autocmd({
-	"BufEnter",
-	"BufWinEnter",
-	"WinEnter",
-	"FocusGained",
-	"InsertLeave",
-	"TermOpen",
-}, {
-	desc = "Relative numbers only in active buffer and normal mode",
-	group = "relative_numbers",
-	pattern = "*",
-	callback = function()
-		if not is_special_buffer() then
-			vim.o.relativenumber = true
-		else
-			vim.o.relativenumber = false
-		end
-	end,
-})
-
-vim.api.nvim_create_autocmd(
-	{ "BufLeave", "WinLeave", "FocusLost", "InsertEnter" },
-	{
-		desc = "Relative numbers only in active buffer and normal mode",
-		group = "relative_numbers",
-		pattern = "*",
-		callback = function()
-			if not is_special_buffer() then vim.o.relativenumber = false end
-		end,
-	}
-)
-
--- Highlight on yank
-vim.api.nvim_create_augroup("yank_group", { clear = true })
-vim.api.nvim_create_autocmd({ "TextYankPost" }, {
+autocmd("TextYankPost", {
 	desc = "Highlight yanked text",
-	group = "yank_group",
-	pattern = "*",
-	callback = function()
-		vim.highlight.on_yank({
-			higroup = "IncSearch",
-			timeout = 40,
-		})
-	end,
+	callback = function() vim.hl.on_yank({ higroup = "IncSearch", timeout = 40 }) end,
 })
 
--- Center viewport after go to mark
-vim.api.nvim_create_autocmd("BufReadPost", {
-	callback = function()
-		local mark = vim.api.nvim_buf_get_mark(0, '"')
-		if mark[1] > 1 and mark[1] <= vim.api.nvim_buf_line_count(0) then
+autocmd("BufReadPost", {
+	desc = "Restore last cursor position, centered",
+	callback = function(args)
+		local mark = vim.api.nvim_buf_get_mark(args.buf, '"')
+		if mark[1] > 1 and mark[1] <= vim.api.nvim_buf_line_count(args.buf) then
 			vim.api.nvim_win_set_cursor(0, mark)
 			vim.cmd("normal! zz")
 		end
 	end,
 })
 
-vim.api.nvim_create_autocmd("BufEnter", {
-	desc = "Set foldmethod",
+autocmd("FileType", {
+	desc = "Soft wrap markdown",
+	pattern = "markdown",
 	callback = function()
-		if vim.opt.foldmethod:get() == "expr" then
-			vim.schedule(function() vim.opt.foldmethod = "expr" end)
-		end
+		vim.wo.wrap = true
+		vim.wo.linebreak = true
 	end,
 })
 
-vim.api.nvim_create_user_command("Zed", function(opts)
-	local expanded_args = vim.fn.expand(opts.args)
-	vim.cmd('silent !zed ' .. expanded_args)
-end, { nargs = '*' })
-
-
-vim.api.nvim_create_user_command("Cursor", function(opts)
-	local expanded_args = vim.fn.expand(opts.args)
-	vim.cmd('silent !cursor ' .. expanded_args)
-end, { nargs = '*' })
+for name, bin in pairs({ Zed = "zed", Cursor = "cursor" }) do
+	vim.api.nvim_create_user_command(name, function(opts)
+		vim.system(vim.list_extend({ bin }, vim.tbl_map(vim.fn.expand, opts.fargs)))
+	end, { nargs = "*", complete = "file", desc = "Open in " .. name })
+end
 
 vim.api.nvim_create_user_command("Hints", function()
 	vim.lsp.inlay_hint.enable(not vim.lsp.inlay_hint.is_enabled())
-end, { nargs = '*' })
-
--- Enable soft wrap for markdown files
-vim.api.nvim_create_augroup("markdown_wrap", { clear = true })
-vim.api.nvim_create_autocmd("FileType", {
-	desc = "Enable soft wrap for markdown",
-	group = "markdown_wrap",
-	pattern = "markdown",
-	callback = function()
-		vim.opt_local.wrap = true
-		vim.opt_local.linebreak = true
-	end,
-})
-
-
+end, { desc = "Toggle inlay hints" })

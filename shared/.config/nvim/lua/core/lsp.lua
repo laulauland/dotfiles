@@ -1,3 +1,117 @@
--- This file is now handled by the lsp.lua plugin configuration
--- The native vim.lsp.enable() approach has been replaced with mason + lspconfig
--- for better server management and configuration
+-- Server binaries come from mise (shared/.config/mise/config.toml); base
+-- configs come from nvim-lspconfig's lsp/*.lua. Only overrides live here.
+
+vim.lsp.config("lua_ls", {
+	settings = {
+		Lua = {
+			runtime = { version = "LuaJIT" },
+			workspace = {
+				checkThirdParty = false,
+				library = { vim.env.VIMRUNTIME, "${3rd}/luv/library" },
+			},
+			completion = { callSnippet = "Replace" },
+			telemetry = { enable = false },
+		},
+	},
+})
+
+vim.lsp.config("rust_analyzer", {
+	settings = {
+		["rust-analyzer"] = {
+			cargo = { allFeatures = true },
+			check = { command = "clippy" },
+		},
+	},
+})
+
+vim.lsp.config("jsonls", {
+	settings = {
+		json = {
+			schemas = require("schemastore").json.schemas(),
+			validate = { enable = true },
+		},
+	},
+})
+
+vim.lsp.config("yamlls", {
+	settings = {
+		yaml = {
+			schemaStore = { enable = false, url = "" },
+			schemas = require("schemastore").yaml.schemas(),
+		},
+	},
+})
+
+-- tsc is the TypeScript 7 native server; it picks the project's
+-- node_modules/.bin/tsc when that is >= 7, else the global one.
+local servers = { "lua_ls", "rust_analyzer", "jsonls", "yamlls", "ty", "tsc", "biome", "mojo" }
+
+-- Enable only servers whose binary is installed, so a host without one
+-- (e.g. no Mojo) stays quiet.
+vim.lsp.enable(vim.tbl_filter(function(name)
+	local cmd = vim.lsp.config[name] and vim.lsp.config[name].cmd
+	return type(cmd) == "function" or (type(cmd) == "table" and vim.fn.executable(cmd[1]) == 1)
+end, servers))
+
+vim.diagnostic.config({
+	severity_sort = true,
+	float = { source = "if_many" },
+	underline = { severity = vim.diagnostic.severity.ERROR },
+	virtual_text = { source = "if_many", spacing = 2 },
+	signs = {
+		text = {
+			[vim.diagnostic.severity.ERROR] = "󰅚 ",
+			[vim.diagnostic.severity.WARN] = "󰀪 ",
+			[vim.diagnostic.severity.INFO] = "󰋽 ",
+			[vim.diagnostic.severity.HINT] = "󰌶 ",
+		},
+	},
+})
+
+-- Completion: built-in autocompletion over LSP ('omnifunc') and buffer words.
+-- vim.lsp.completion applies snippets, auto-imports and other side effects
+-- when an item is accepted. Keys: see "Completion menu" in core/keymaps.lua.
+vim.o.autocomplete = true
+vim.o.complete = "o,.^5,w^5,b^5"
+
+vim.api.nvim_create_autocmd("LspAttach", {
+	group = vim.api.nvim_create_augroup("user.lsp", { clear = true }),
+	callback = function(args)
+		local client = assert(vim.lsp.get_client_by_id(args.data.client_id))
+		local buf = args.buf
+		local map = function(mode, lhs, rhs, desc)
+			vim.keymap.set(mode, lhs, rhs, { buffer = buf, desc = desc, nowait = true })
+		end
+		local telescope = function(picker)
+			return function() require("telescope.builtin")[picker]() end
+		end
+
+		map("n", "gd", telescope("lsp_definitions"), "Go to definition")
+		map("n", "gD", telescope("lsp_type_definitions"), "Go to type definition")
+		map("n", "gr", telescope("lsp_references"), "Go to references")
+		map("n", "<F12>", telescope("lsp_references"), "Go to references")
+		map("n", "gi", telescope("lsp_implementations"), "Go to implementation")
+		map("n", "<leader>r", vim.lsp.buf.rename, "Rename symbol")
+		map({ "n", "v" }, "<leader>ca", vim.lsp.buf.code_action, "Code action")
+		map("n", "<leader>d", vim.diagnostic.open_float, "Show diagnostic")
+		-- K (hover), [d / ]d (diagnostics) and <C-s> (signature) are Nvim defaults.
+
+		if client:supports_method("textDocument/completion") then
+			vim.lsp.completion.enable(true, client.id, buf)
+		end
+
+		if client:supports_method("textDocument/documentHighlight") then
+			local hl = vim.api.nvim_create_augroup("user.lsp.highlight." .. buf, { clear = true })
+			vim.api.nvim_create_autocmd({ "CursorHold", "CursorHoldI" }, {
+				group = hl,
+				buffer = buf,
+				callback = vim.lsp.buf.document_highlight,
+			})
+			vim.api.nvim_create_autocmd({ "CursorMoved", "CursorMovedI", "LspDetach" }, {
+				group = hl,
+				buffer = buf,
+				callback = vim.lsp.buf.clear_references,
+			})
+		end
+	end,
+})
