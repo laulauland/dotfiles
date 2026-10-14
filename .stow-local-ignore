@@ -34,7 +34,6 @@ stylua.toml
 node_modules
 (^|/)node_modules($|/)
 
-(^|/)\.pi/agent/memory($|/)
 
 # Helper scripts in stow packages should not become ~/defaults, etc.
 defaults
