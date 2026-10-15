@@ -71,8 +71,17 @@ vim.diagnostic.config({
 -- Completion: built-in autocompletion over LSP ('omnifunc') and buffer words.
 -- vim.lsp.completion applies snippets, auto-imports and other side effects
 -- when an item is accepted. Keys: see "Completion menu" in core/keymaps.lua.
-vim.o.autocomplete = true
+-- Only real file buffers autocomplete; prompts (Telescope), terminals and
+-- other special buffers stay quiet. The delay keeps fast typing unbroken.
+vim.o.autocomplete = false
+vim.o.autocompletedelay = 150
 vim.o.complete = "o,.^5,w^5,b^5"
+vim.api.nvim_create_autocmd("BufEnter", {
+	group = vim.api.nvim_create_augroup("user.autocomplete", { clear = true }),
+	callback = function(args)
+		vim.bo[args.buf].autocomplete = vim.bo[args.buf].buftype == "" and vim.bo[args.buf].modifiable
+	end,
+})
 
 vim.api.nvim_create_autocmd("LspAttach", {
 	group = vim.api.nvim_create_augroup("user.lsp", { clear = true }),
@@ -97,7 +106,10 @@ vim.api.nvim_create_autocmd("LspAttach", {
 		-- K (hover), [d / ]d (diagnostics) and <C-s> (signature) are Nvim defaults.
 
 		if client:supports_method("textDocument/completion") then
-			vim.lsp.completion.enable(true, client.id, buf)
+			-- Drop the long type/detail column: name + kind only, docs on K.
+			vim.lsp.completion.enable(true, client.id, buf, {
+				convert = function() return { menu = "" } end,
+			})
 		end
 
 		if client:supports_method("textDocument/documentHighlight") then
