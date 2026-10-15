@@ -71,7 +71,7 @@ vim.diagnostic.config({
 -- Completion: built-in autocompletion over LSP ('omnifunc') and buffer words.
 -- vim.lsp.completion applies snippets, auto-imports and other side effects
 -- when an item is accepted. Keys: see "Completion menu" in core/keymaps.lua.
--- Only real file buffers autocomplete; prompts (Telescope), terminals and
+-- Only real file buffers autocomplete; prompts, terminals and
 -- other special buffers stay quiet. The delay keeps fast typing unbroken.
 vim.o.autocomplete = false
 vim.o.autocompletedelay = 150
@@ -91,15 +91,15 @@ vim.api.nvim_create_autocmd("LspAttach", {
 		local map = function(mode, lhs, rhs, desc)
 			vim.keymap.set(mode, lhs, rhs, { buffer = buf, desc = desc, nowait = true })
 		end
-		local telescope = function(picker)
-			return function() require("telescope.builtin")[picker]() end
+		local pick = function(picker)
+			return function() require("fzf-lua")[picker]() end
 		end
 
-		map("n", "gd", telescope("lsp_definitions"), "Go to definition")
-		map("n", "gD", telescope("lsp_type_definitions"), "Go to type definition")
-		map("n", "gr", telescope("lsp_references"), "Go to references")
-		map("n", "<F12>", telescope("lsp_references"), "Go to references")
-		map("n", "gi", telescope("lsp_implementations"), "Go to implementation")
+		map("n", "gd", pick("lsp_definitions"), "Go to definition")
+		map("n", "gD", pick("lsp_typedefs"), "Go to type definition")
+		map("n", "gr", pick("lsp_references"), "Go to references")
+		map("n", "<F12>", pick("lsp_references"), "Go to references")
+		map("n", "gi", pick("lsp_implementations"), "Go to implementation")
 		map("n", "<leader>r", vim.lsp.buf.rename, "Rename symbol")
 		map({ "n", "v" }, "<leader>ca", vim.lsp.buf.code_action, "Code action")
 		map("n", "<leader>d", vim.diagnostic.open_float, "Show diagnostic")

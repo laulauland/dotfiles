@@ -1,3 +1,3 @@
-function nv --wraps='nvim "+Telescope find_files"' --description 'alias nv=nvim "+Telescope find_files"'
-  nvim "+Telescope find_files" $argv; 
+function nv --wraps='nvim "+FzfLua files"' --description 'alias nv=nvim "+FzfLua files"'
+  nvim "+FzfLua files" $argv; 
 end

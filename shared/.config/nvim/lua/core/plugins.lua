@@ -33,10 +33,7 @@ vim.pack.add({
 
 	-- Navigation
 	gh("nvim-lua/plenary.nvim"),
-	gh("nvim-telescope/telescope.nvim"),
-	gh("nvim-telescope/telescope-live-grep-args.nvim"),
-	gh("nvim-telescope/telescope-ui-select.nvim"),
-	gh("zschreur/telescope-jj.nvim"),
+	gh("ibhagwan/fzf-lua"),
 	gh("stevearc/oil.nvim"),
 	gh("stevearc/aerial.nvim"),
 	{ src = gh("ThePrimeagen/harpoon"), version = "harpoon2" },
