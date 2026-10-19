@@ -121,6 +121,24 @@ if status is-interactive
     bind \co _open_fzf
     bind \e\co _rg_fzf_nvim
 
+    # AeroSpace owns most alt-<letter> keys, so move the fish defaults to ctrl-alt.
+    bind ctrl-alt-e edit_command_buffer
+    bind ctrl-alt-s 'for cmd in sudo doas please run0; if command -q $cmd; fish_commandline_prepend $cmd; break; end; end'
+    bind ctrl-alt-h __fish_man_page
+    bind ctrl-alt-l __fish_list_current_token
+    bind ctrl-alt-w __fish_whatis_current_token
+
+    # fzf.fish pickers; history stays on atuin (ctrl-r). The plugin's conf.d
+    # normally sets the variables command, but only its functions are vendored.
+    set -g _fzf_search_vars_command '_fzf_search_variables (set --show | psub) (set --names | psub)'
+    fzf_configure_bindings \
+        --directory=ctrl-alt-f \
+        --git_log=ctrl-alt-g \
+        --git_status=ctrl-alt-t \
+        --history= \
+        --processes=ctrl-alt-p \
+        --variables=ctrl-alt-v
+
     # Static init scripts: cache to a file and source it instead of re-forking the
     # tool every startup. __cache_init busts the cache when the binary is upgraded.
     if type -q atuin
