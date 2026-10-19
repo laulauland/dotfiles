@@ -42,9 +42,36 @@ vim.lsp.config("yamlls", {
 	},
 })
 
+-- macOS has no CUDA toolkit; the install-cuda-headers mise hook provides the
+-- headers so clangd can check .cu files and resolve <cuda.h>. Fallback flags
+-- apply only to files without a compile_commands.json.
+local cuda_headers = vim.fn.expand("~/.local/share/cuda-headers")
+if vim.fn.isdirectory(cuda_headers) == 1 then
+	vim.lsp.config("clangd", {
+		init_options = {
+			fallbackFlags = {
+				"--cuda-path=" .. cuda_headers,
+				"-nocudalib",
+				"-Wno-unknown-cuda-version",
+				"-isystem" .. cuda_headers .. "/include",
+			},
+		},
+	})
+end
+
+-- Experimental MSL server, built by the macOS mise post-tools hook
+-- (install-metal-lsp). Keep Metal away from clangd: MSL is not ordinary C++.
+-- Not "metals", which is the unrelated Scala server.
+vim.lsp.config("metal_lsp", {
+	cmd = { vim.fn.expand("~/.local/bin/metal-lsp") },
+	filetypes = { "metal" },
+	root_markers = { "build.zig", "Package.swift", ".jj", ".git" },
+})
+
 -- tsc is the TypeScript 7 native server; it picks the project's
 -- node_modules/.bin/tsc when that is >= 7, else the global one.
-local servers = { "lua_ls", "rust_analyzer", "jsonls", "yamlls", "ty", "tsc", "biome", "mojo" }
+-- clangd (C, C++, Objective-C, CUDA) comes from Xcode on macOS.
+local servers = { "lua_ls", "rust_analyzer", "jsonls", "yamlls", "ty", "tsc", "biome", "mojo", "zls", "clangd", "metal_lsp" }
 
 -- Enable only servers whose binary is installed, so a host without one
 -- (e.g. no Mojo) stays quiet.

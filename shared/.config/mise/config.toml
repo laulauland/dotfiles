@@ -169,11 +169,13 @@ ShowDate = 2
 ShowSeconds = false
 
 [bootstrap.hooks.post-tools]
-# Agent CLIs use their vendors' managed standalone layouts.
+# Standalone tools not distributed through a mise backend.
 run = [
   'bash "$HOME/code/laulauland/dotfiles/shared/.config/mise/hooks/install-codex"',
   'bash "$HOME/code/laulauland/dotfiles/shared/.config/mise/hooks/install-claude"',
   'bash "$HOME/code/laulauland/dotfiles/shared/.config/mise/hooks/install-herdr-jj"',
+  'bash "$HOME/code/laulauland/dotfiles/shared/.config/mise/hooks/install-metal-lsp"',
+  'bash "$HOME/code/laulauland/dotfiles/shared/.config/mise/hooks/install-cuda-headers"',
 ]
 
 [tools]
@@ -201,6 +203,7 @@ zig = "latest"
 # rust-analyzer comes from the rust toolchain components above.
 "aqua:LuaLS/lua-language-server" = "latest"
 "aqua:astral-sh/ty" = "latest"
+"aqua:zigtools/zls" = "latest"
 "npm:typescript" = "latest"                     # tsc >= 7 ships the native TS language server
 "npm:vscode-langservers-extracted" = "latest"   # jsonls
 "npm:yaml-language-server" = "latest"

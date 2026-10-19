@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# No releases/Mason package: build a pinned revision of this experimental server.
+[[ "$(uname -s)" == Darwin ]] || exit 0
+
+# metal-lsp runs `xcrun metal` for diagnostics; Xcode 26 ships that compiler as a
+# separate download. Completion and hover work without it, so only warn.
+# xcodebuild can exit 0 on failure, so check the compiler again afterwards.
+if ! xcrun metal --version >/dev/null 2>&1; then
+  xcodebuild -downloadComponent MetalToolchain || true
+  xcrun metal --version >/dev/null 2>&1 ||
+    echo 'Metal Toolchain missing (run `sudo xcodebuild -runFirstLaunch`, then this hook again); metal-lsp has no diagnostics until then' >&2
+fi
+
+revision=778247ba68de5b5189df3e79c185516016035456
+install_dir="$HOME/.local/share/metal-lsp"
+binary="$HOME/.local/bin/metal-lsp"
+if [[ -x "$binary" && -f "$install_dir/revision" ]] &&
+  [[ "$(<"$install_dir/revision")" == "$revision" ]]; then
+  exit 0
+fi
+
+xcrun --find swift >/dev/null
+build_dir=$(mktemp -d)
+trap 'rm -rf "$build_dir"' EXIT
+curl -fL --retry 3 "https://github.com/TimPapler/metal-lsp/archive/$revision.tar.gz" |
+  tar -xz --strip-components=1 -C "$build_dir"
+xcrun swift build --package-path "$build_dir" -c release --product metal-lsp
+mkdir -p "$(dirname "$binary")" "$install_dir"
+install -m 755 "$build_dir/.build/release/metal-lsp" "$binary"
+printf '%s\n' "$revision" > "$install_dir/revision"
+echo 'Metal LSP installed'

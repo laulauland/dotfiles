@@ -7,6 +7,10 @@ local function is_special_buffer()
 	return vim.bo.buftype ~= "" or vim.tbl_contains({ "harpoon", "oil" }, vim.bo.filetype)
 end
 
+-- Metal Shading Language; highlighting is syntax/metal.vim (no treesitter parser).
+-- .cu/.cuh are already "cuda" in Nvim.
+vim.filetype.add({ extension = { metal = "metal", msl = "metal" } })
+
 autocmd("TermOpen", {
 	desc = "Terminal: no line numbers, start in insert mode",
 	callback = function()

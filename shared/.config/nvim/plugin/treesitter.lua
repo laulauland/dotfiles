@@ -17,9 +17,9 @@ vim.api.nvim_create_autocmd("User", {
 -- nvim-treesitter (main branch) only installs parsers; it no longer
 -- highlights or ensures parsers on its own. Install missing ones async.
 local ensure = {
-	"bash", "css", "elixir", "erlang", "go", "gomod", "heex",
+	"bash", "c", "cpp", "css", "cuda", "elixir", "erlang", "go", "gomod", "heex",
 	"html", "javascript", "json", "lua", "luadoc", "mojo",
-	"markdown", "markdown_inline", "python", "rust", "toml",
+	"markdown", "markdown_inline", "objc", "python", "rust", "toml",
 	"tsx", "typescript", "vim", "vimdoc", "yaml", "zig",
 }
 local installed = require("nvim-treesitter").get_installed()

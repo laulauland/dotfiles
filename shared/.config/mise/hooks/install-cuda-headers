@@ -1,0 +1,40 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# CUDA headers so clangd can check .cu files on macOS, where no CUDA toolkit
+# exists. Keeps only include/, plus an empty bin/ so clang accepts the root.
+# Neovim passes the root to clangd (shared/.config/nvim/lua/core/lsp.lua).
+# 12.8 is the newest CUDA that Apple clang 21 knows.
+[[ "$(uname -s)" == Darwin ]] || exit 0
+version=12.8.1
+root="$HOME/.local/share/cuda-headers"
+if [[ -f "$root/version" && "$(<"$root/version")" == "$version" ]]; then
+  exit 0
+fi
+
+# Components whose headers clang's CUDA wrapper includes, from redistrib_12.8.1.json.
+base=https://developer.download.nvidia.com/compute/cuda/redist
+archives=(
+  "cuda_cudart/linux-x86_64/cuda_cudart-linux-x86_64-12.8.90-archive.tar.xz 8d566b5fe745c46842dc16945cf36686227536decd2302c372be86da37faca68"
+  "cuda_nvcc/linux-x86_64/cuda_nvcc-linux-x86_64-12.8.93-archive.tar.xz 9961b3484b6b71314063709a4f9529654f96782ad39e72bf1e00f070db8210d3"
+  "cuda_nvrtc/linux-x86_64/cuda_nvrtc-linux-x86_64-12.8.93-archive.tar.xz 992f5e4d95cb499f41e442245efa877dbd60c711451afe680a26700d61eb3843"
+  "cuda_cccl/linux-x86_64/cuda_cccl-linux-x86_64-12.8.90-archive.tar.xz 0740e9e01e4f15e17c5ab8d68bba4f8ec0eb6b84edccba4ac45112d2d2174e4b"
+  "libcurand/linux-x86_64/libcurand-linux-x86_64-10.3.9.90-archive.tar.xz 32a5ec30be446c1b7228d1bc502b2f029cc8b59a5e362c70d960754fa646778b"
+)
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+mkdir -p "$tmp/root/bin" "$tmp/root/include"
+for entry in "${archives[@]}"; do
+  read -r path sha <<<"$entry"
+  file="$tmp/${path##*/}"
+  curl -fL --retry 3 -o "$file" "$base/$path"
+  echo "$sha  $file" | shasum -a 256 -c --quiet -
+  tar -xJf "$file" -C "$tmp/root/include" --strip-components 2 '*/include/*'
+  rm "$file"
+done
+printf '%s\n' "$version" > "$tmp/root/version"
+rm -rf "$root"
+mkdir -p "$(dirname "$root")"
+mv "$tmp/root" "$root"
+echo "CUDA $version headers installed"
