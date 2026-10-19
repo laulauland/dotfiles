@@ -5,7 +5,7 @@
       {
         "hooks": [
           {
-            "command": "bash '/Users/laurynas/.codex/herdr-agent-state.sh' session",
+            "command": "/bin/sh -c 'exec bash \"$HOME/.codex/herdr-agent-state.sh\" session'",
             "timeout": 10,
             "type": "command"
           }
