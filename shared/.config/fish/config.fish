@@ -17,16 +17,6 @@ end
 set -x EDITOR nvim
 set -x VISUAL nvim
 
-# Use the stable agent path maintained by ~/.ssh/rc. This lets long-lived
-# remote processes survive replacement of the SSH connection that forwarded
-# the agent.
-if set -q SSH_CONNECTION
-    set -l forwarded_agent "$HOME/.ssh/forwarded-agent.sock"
-    if test -S "$forwarded_agent"
-        set -gx SSH_AUTH_SOCK "$forwarded_agent"
-    end
-end
-
 if test (uname) = Linux; and test -z "$SSH_CONNECTION"; and type -q sway
     set XDG_SESSION_TYPE wayland
     set -x XDG_SESSION_DESKTOP sway

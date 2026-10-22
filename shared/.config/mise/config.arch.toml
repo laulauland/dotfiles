@@ -19,3 +19,4 @@ login_shell = "/usr/bin/fish"
 
 [dotfiles]
 "~/.gitconfig-os" = "~/code/laulauland/dotfiles/arch/.gitconfig-os"
+"~/.config/pnpm/config.yaml" = "~/code/laulauland/dotfiles/shared/.config/pnpm/config.yaml"

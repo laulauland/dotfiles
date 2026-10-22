@@ -38,6 +38,8 @@ run = [
 "~/.ssh/rc" = "~/code/laulauland/dotfiles/shared/.ssh/rc"
 "~/.gitconfig" = "~/code/laulauland/dotfiles/shared/.gitconfig"
 "~/.gitconfig-work" = "~/code/laulauland/dotfiles/shared/.gitconfig-work"
+"~/.bunfig.toml" = "~/code/laulauland/dotfiles/shared/.bunfig.toml"
+"~/.config/uv/uv.toml" = "~/code/laulauland/dotfiles/shared/.config/uv/uv.toml"
 
 "~/.config/amp" = { source = "~/code/laulauland/dotfiles/shared/.config/amp", mode = "symlink-each" }
 "~/.config/bat" = { source = "~/code/laulauland/dotfiles/shared/.config/bat", mode = "symlink-each" }

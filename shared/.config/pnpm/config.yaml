@@ -1,0 +1,2 @@
+# Supply-chain delay: install only versions published at least 7 days ago (minutes).
+minimumReleaseAge: 10080

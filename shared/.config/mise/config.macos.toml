@@ -35,3 +35,4 @@ run = [
 "~/.config/raycast" = { source = "~/code/laulauland/dotfiles/macos/.config/raycast", mode = "symlink-each" }
 "~/.config/zed" = { source = "~/code/laulauland/dotfiles/macos/.config/zed", mode = "symlink-each" }
 "~/.gitconfig-os" = "~/code/laulauland/dotfiles/macos/.gitconfig-os"
+"~/Library/Preferences/pnpm/config.yaml" = "~/code/laulauland/dotfiles/shared/.config/pnpm/config.yaml"

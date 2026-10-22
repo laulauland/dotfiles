@@ -1,0 +1,3 @@
+# Supply-chain delay: resolve only files uploaded at least 7 days ago.
+# Override one package with `exclude-newer-package` when a fix is urgent.
+exclude-newer = "7 days"
