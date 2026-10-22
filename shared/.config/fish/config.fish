@@ -17,6 +17,11 @@ end
 set -x EDITOR nvim
 set -x VISUAL nvim
 
+# Rootless Docker on Linux: tools that ignore the docker context read DOCKER_HOST.
+if test (uname) = Linux; and test -S /run/user/(id -u)/docker.sock
+    set -gx DOCKER_HOST unix:///run/user/(id -u)/docker.sock
+end
+
 if test (uname) = Linux; and test -z "$SSH_CONNECTION"; and type -q sway
     set XDG_SESSION_TYPE wayland
     set -x XDG_SESSION_DESKTOP sway
