@@ -100,17 +100,10 @@
   },
   "enabledPlugins": {
     "figma@claude-plugins-official": true,
-    "sideshow@sideshow": true,
-    "slack@claude-plugins-official": true
+    "slack@claude-plugins-official": true,
+    "cloudflare@claude-plugins-official": true
   },
-  "extraKnownMarketplaces": {
-    "sideshow": {
-      "source": {
-        "source": "github",
-        "repo": "modem-dev/sideshow"
-      }
-    }
-  },
+  "extraKnownMarketplaces": {},
   "alwaysThinkingEnabled": true,
   "effortLevel": "xhigh",
   "modelSettings": {
@@ -121,11 +114,6 @@
   "autoCompactWindow": 250000,
   "askUserQuestionTimeout": "5m",
   "pluginConfigs": {
-    "sideshow@sideshow": {
-      "options": {
-        "sideshowUrl": "http://localhost:8228"
-      }
-    },
     "cc-plugin-agents-md@builtin": {
       "options": {
         "instructionFiles": "claude-md-or-agents-md"
