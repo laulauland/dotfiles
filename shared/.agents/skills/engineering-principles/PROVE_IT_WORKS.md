@@ -19,7 +19,7 @@ After completing any task, ask "how do I prove this works?" and then look at the
 
 ## Trust artifacts, not self-reports
 
-When work was delegated — a subagent, an operator agent, a herdr fan-out, another harness's run — inspect the output, not the summary. Read the `jj` diff, read the file, run the behavior. Agents report what they intended, which is not always what happened. This holds across harnesses: a Pi or Codex run that says "done" gets the same diff-level check a Claude run does.
+When work was delegated — a subagent, an operator agent, another harness's run — inspect the output, not the summary. Read the `jj` diff, read the file, run the behavior. Agents report what they intended, which is not always what happened. This holds across harnesses: a Pi or Codex run that says "done" gets the same diff-level check a Claude run does.
 
 ## Script the check when you can
 

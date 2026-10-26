@@ -38,7 +38,7 @@ if type -q mise
 end
 
 if status is-interactive
-    # Fish owns terminal queries, including replies through SSH and Herdr.
+    # Fish owns terminal queries, including replies through SSH.
     # Load the handler before the first prompt and follow later color changes.
     auto_theme
 

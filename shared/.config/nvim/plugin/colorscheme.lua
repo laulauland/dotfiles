@@ -1,4 +1,4 @@
--- Leave 'background' unset: Neovim follows terminal replies over SSH/Herdr.
+-- Leave 'background' unset: Neovim follows terminal replies over SSH.
 local function tweak_highlights()
 	local set = function(group, opts) vim.api.nvim_set_hl(0, group, opts) end
 

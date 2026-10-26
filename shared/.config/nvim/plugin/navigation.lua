@@ -76,7 +76,7 @@ for i = 1, 4 do
 	map("n", "<leader>" .. i, function() harpoon:list():select(i) end, { desc = "Harpoon " .. i })
 end
 
--- Smart splits: move between nvim and tmux/herdr/Rex panes with <C-hjkl>
+-- Smart splits: move between nvim and tmux/Rex panes with <C-hjkl>
 local splits = require("smart-splits")
 -- Rex has no smart-splits backend: at the nvim edge, hand focus back to Rex
 -- (its init.lua passes <C-hjkl> through to nvim).
