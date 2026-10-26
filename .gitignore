@@ -23,3 +23,6 @@ shared/.agents/skills/synced/
 
 # Third-party skills cloned with jj into ~/.local/share/agent-skills and linked here.
 shared/.agents/skills/anatomy
+
+# Python bytecode caches.
+__pycache__/
