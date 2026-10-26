@@ -76,11 +76,23 @@ for i = 1, 4 do
 	map("n", "<leader>" .. i, function() harpoon:list():select(i) end, { desc = "Harpoon " .. i })
 end
 
--- Smart splits: move between nvim and tmux/herdr panes with <C-hjkl>
+-- Smart splits: move between nvim and tmux/herdr/Rex panes with <C-hjkl>
 local splits = require("smart-splits")
--- Inside a tmux popup the outer TMUX_PANE points at a pane the popup server
--- can't address, so the multiplexer integration errors on every edge move.
-splits.setup({ multiplexer_integration = vim.env.NVIM_IN_TMUX_POPUP == "1" and false or nil })
+-- Rex has no smart-splits backend: at the nvim edge, hand focus back to Rex
+-- (its init.lua passes <C-hjkl> through to nvim).
+local function at_edge(ctx)
+	if vim.env.REX_SESSION and vim.env.REX_SESSION ~= "" and not ctx.backend then
+		vim.system({ vim.env.REX_BIN_PATH or "rex", "focus", ctx.direction, "-s", vim.env.REX_SESSION })
+	else
+		ctx.wrap()
+	end
+end
+splits.setup({
+	-- Inside a tmux popup the outer TMUX_PANE points at a pane the popup server
+	-- can't address, so the multiplexer integration errors on every edge move.
+	multiplexer_integration = vim.env.NVIM_IN_TMUX_POPUP == "1" and false or nil,
+	move = { at_edge = at_edge },
+})
 map({ "n", "v", "t" }, "<C-h>", splits.move_cursor_left, { desc = "Move to left split" })
 map({ "n", "v", "t" }, "<C-j>", splits.move_cursor_down, { desc = "Move to below split" })
 map({ "n", "v", "t" }, "<C-k>", splits.move_cursor_up, { desc = "Move to above split" })

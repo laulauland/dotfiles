@@ -55,6 +55,7 @@ run = [
 "~/.config/mise" = { source = "~/code/laulauland/dotfiles/shared/.config/mise", mode = "symlink-each" }
 "~/.config/nvim" = { source = "~/code/laulauland/dotfiles/shared/.config/nvim", mode = "symlink-each" }
 "~/.config/opencode" = { source = "~/code/laulauland/dotfiles/shared/.config/opencode", mode = "symlink-each" }
+"~/.config/rex" = { source = "~/code/laulauland/dotfiles/shared/.config/rex", mode = "symlink-each" }
 "~/.config/tmux" = { source = "~/code/laulauland/dotfiles/shared/.config/tmux", mode = "symlink-each" }
 "~/.config/wezterm" = { source = "~/code/laulauland/dotfiles/shared/.config/wezterm", mode = "symlink-each" }
 "~/.config/ripgrep" = "~/code/laulauland/dotfiles/shared/.config/ripgrep"
@@ -268,3 +269,4 @@ hyperfine = "latest"
 "aqua:librespeed/speedtest-cli" = "latest"
 hcloud = "latest"
 op = "latest"
+opencode = "latest"

@@ -79,8 +79,20 @@
             "timeout": 10
           }
         ]
+      },
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "/bin/sh -c 'rex __internal session-start --agent claude 2>/dev/null || true'",
+            "timeout": 5
+          }
+        ]
       }
     ]
+  },
+  "worktree": {
+    "baseRef": "fresh"
   },
   "statusLine": {
     "type": "command",
@@ -107,10 +119,16 @@
     }
   },
   "autoCompactWindow": 250000,
+  "askUserQuestionTimeout": "5m",
   "pluginConfigs": {
     "sideshow@sideshow": {
       "options": {
         "sideshowUrl": "http://localhost:8228"
+      }
+    },
+    "cc-plugin-agents-md@builtin": {
+      "options": {
+        "instructionFiles": "claude-md-or-agents-md"
       }
     }
   },
@@ -118,6 +136,9 @@
   "skipDangerousModePermissionPrompt": true,
   "skipWorkflowUsageWarning": true,
   "theme": "auto",
+  "editorMode": "normal",
+  "switchModelsOnFlag": false,
+  "inputNeededNotifEnabled": true,
   "agentPushNotifEnabled": true,
   "skipAutoPermissionPrompt": true,
   "voiceEnabled": true
