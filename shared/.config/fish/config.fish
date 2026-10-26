@@ -175,9 +175,6 @@ if test -d "$HOME/.cache/lm-studio/bin"
 end
 
 
-# opencode
-fish_add_path "$HOME/.opencode/bin"
-
 # Mojo compiler: mise manages `mojo-lsp-server` via shims, but the compiler
 # binary inside the pipx:mojo wheel is not an exposed entry point.
 if type -q mise
@@ -230,7 +227,6 @@ end
 if test -d "$HOME/.lmstudio/bin"
     fish_add_path "$HOME/.lmstudio/bin"
 end
-# opencode
 
 if type -q daytona
     __cache_init daytona daytona completion fish
